@@ -1,0 +1,9 @@
+config_version=5
+
+[application]
+config/name="FitPulse Animation Studio"
+run/main_scene="res://scenes/animation_studio.tscn"
+
+[rendering]
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
