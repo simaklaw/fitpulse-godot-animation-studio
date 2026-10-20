@@ -20,7 +20,7 @@ const rpcError = (id: RpcRequest["id"], code: number, message: string) => respon
 const repository = (env: Env) => `${env.GITHUB_OWNER || "simaklaw"}/${env.GITHUB_REPO || "fitpulse-godot-animation-studio"}`;
 function boundedText(value: unknown, field: string, minLength: number, maxLength: number): string {
   if (typeof value !== "string") throw new Error(`${field} must be a string`);
-  const clean = value.replace(/[\\u0000-\\u001F\\u007F]/g, " ").replace(/\\s+/g, " ").trim();
+  const clean = value.replace(/[\u0000-\u001F\u007F]/g, " ").replace(/\s+/g, " ").trim();
   if (clean.length < minLength || clean.length > maxLength) {
     throw new Error(`${field} must contain ${minLength}-${maxLength} characters`);
   }
