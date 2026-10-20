@@ -18,6 +18,14 @@ const response = (body: unknown, status = 200) => new Response(JSON.stringify(bo
 const result = (id: RpcRequest["id"], value: unknown) => response({ jsonrpc: "2.0", id: id ?? null, result: value });
 const rpcError = (id: RpcRequest["id"], code: number, message: string) => response({ jsonrpc: "2.0", id: id ?? null, error: { code, message } }, 400);
 const repository = (env: Env) => `${env.GITHUB_OWNER || "simaklaw"}/${env.GITHUB_REPO || "fitpulse-godot-animation-studio"}`;
+function boundedText(value: unknown, field: string, minLength: number, maxLength: number): string {
+  if (typeof value !== "string") throw new Error(`${field} must be a string`);
+  const clean = value.replace(/[\\u0000-\\u001F\\u007F]/g, " ").replace(/\\s+/g, " ").trim();
+  if (clean.length < minLength || clean.length > maxLength) {
+    throw new Error(`${field} must contain ${minLength}-${maxLength} characters`);
+  }
+  return clean;
+}
 async function github(env: Env, path: string, init: RequestInit = {}): Promise<any> {
   if (!env.GITHUB_TOKEN) throw new Error("GITHUB_TOKEN secret is not configured");
   const res = await fetch("https://api.github.com" + path, {
@@ -43,10 +51,12 @@ async function invoke(name: string, args: Record<string, any>, env: Env): Promis
     return { truncated: Boolean(tree.truncated), count: assets.length, assets: assets.slice(0, limit).map((f: any) => ({ path: f.path, size: f.size, url: `https://github.com/${repo}/blob/${branch}/${f.path}` })) };
   }
   if (name === "create_animation_task") {
-    const exercise = String(args.exercise || "").trim();
-    const presentation = String(args.characterPresentation || "");
-    const deliverable = String(args.deliverable || "").trim();
-    if (exercise.length < 2 || deliverable.length < 2) throw new Error("exercise and deliverable are required");
+    const exercise = boundedText(args.exercise, "exercise", 2, 100);
+    const deliverable = boundedText(args.deliverable, "deliverable", 2, 500);
+    const presentation = boundedText(args.characterPresentation, "characterPresentation", 3, 7);
+    if (!["male", "female", "neutral"].includes(presentation)) {
+      throw new Error("characterPresentation must be male, female, or neutral");
+    }
     const issue = await github(env, `/repos/${repo}/issues`, { method: "POST", body: JSON.stringify({ title: `[Animation] ${exercise}`, body: `## Exercise animation task\n\n- Exercise: ${exercise}\n- Character presentation: ${presentation}\n- Deliverable: ${deliverable}\n\n## Acceptance checklist\n- [ ] Validate the scene in Godot headless mode\n- [ ] Record the Godot version and actual test output\n\nCreated via FitPulse Godot MCP. This issue does not mean the animation has already been produced or tested.` }) });
     return { issueNumber: issue.number, title: issue.title, url: issue.html_url };
   }
