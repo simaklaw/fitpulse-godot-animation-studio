@@ -6,8 +6,8 @@
   "movement": {
     "pattern": "pull_up"
   },
-  "primary": ["Lats", "Biceps"],
-  "secondary": ["Traps", "Forearms"],
+  "primary": ["Lats"],
+  "secondary": ["Biceps", "Traps", "Forearms"],
   "steps": [
     "Hang from a fixed bar with a shoulder-width overhand grip; keep the ribs controlled.",
     "Start the pull by drawing the shoulders down and back, then drive the elbows toward the ribs.",
@@ -16,7 +16,7 @@
   ],
   "fps": 30,
   "duration": 2.4,
-  "camera": "side",
+  "camera": "back",
   "keyframes": [
     {"t": 0.0, "bones": {
       "pelvis": {"rot": [0, 0, 0], "loc": [0, 0, 0.08]},
