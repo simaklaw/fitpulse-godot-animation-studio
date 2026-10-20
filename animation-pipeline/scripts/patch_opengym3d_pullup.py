@@ -70,6 +70,7 @@ contact_helper = r'''def assert_pull_up_bar_contact(rig, frame_end):
             radial = math.sqrt((point.y + 0.12) ** 2 + (point.z - 2.02) ** 2)
             beyond_bar = max(0.0, abs(point.x) - 0.88)
             distance = math.sqrt(radial ** 2 + beyond_bar ** 2)
+            print(f"CONTACT_FRAME frame={frame} side={side} wrist=({point.x:.3f},{point.y:.3f},{point.z:.3f}) bar=({0.0:.3f},{-0.12:.3f},{2.02:.3f}) distance={distance:.3f}")
             if distance > worst:
                 worst = distance
                 worst_at = (frame, side, tuple(round(v, 3) for v in point))
