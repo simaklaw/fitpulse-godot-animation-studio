@@ -90,8 +90,8 @@ if text.count(main_old) != 1:
     raise SystemExit("Unexpected upstream main build block; refusing an unsafe patch")
 text = text.replace(main_old, main_new, 1)
 
-anim_old = '            animate(driver, rig, spec, frame_end, prop_objs)\\n        bpy.data.objects.remove(driver, do_unlink=True)'
-anim_new = '            animate(driver, rig, spec, frame_end, prop_objs)\\n            if spec.get("id") == "pull_up":\\n                assert_pull_up_bar_contact(rig, frame_end)\\n        bpy.data.objects.remove(driver, do_unlink=True)'
+anim_old = '            animate(driver, rig, spec, frame_end, prop_objs)\n        bpy.data.objects.remove(driver, do_unlink=True)'
+anim_new = '            animate(driver, rig, spec, frame_end, prop_objs)\n            if spec.get("id") == "pull_up":\n                assert_pull_up_bar_contact(rig, frame_end)\n        bpy.data.objects.remove(driver, do_unlink=True)'
 if text.count(anim_old) != 1:
     raise SystemExit("Unexpected upstream animation block; refusing an unsafe contact-check patch")
 text = text.replace(anim_old, anim_new, 1)
