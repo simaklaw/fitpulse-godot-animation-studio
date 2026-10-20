@@ -21,7 +21,7 @@ helper = r'''def build_pull_up_rig():
 
     bpy.ops.mesh.primitive_cylinder_add(
         vertices=48, radius=0.028, depth=1.8,
-        location=(0.0, -0.025, 2.153), rotation=(0.0, math.pi / 2, 0.0))
+        location=(0.0, -0.025, 2.453), rotation=(0.0, math.pi / 2, 0.0))
     bar = bpy.context.active_object
     bar.name = "PullUpBar"
     bar.data.materials.append(steel)
@@ -29,8 +29,8 @@ helper = r'''def build_pull_up_rig():
 
     for x, side in ((-0.9, "L"), (0.9, "R")):
         bpy.ops.mesh.primitive_cylinder_add(
-            vertices=32, radius=0.036, depth=2.153,
-            location=(x, -0.025, 1.0765))
+            vertices=32, radius=0.036, depth=2.453,
+            location=(x, -0.025, 1.2265))
         post = bpy.context.active_object
         post.name = "PullUpPost_" + side
         post.data.materials.append(steel)
@@ -67,10 +67,10 @@ contact_helper = r'''def assert_pull_up_bar_contact(rig, frame_end):
             if wrist is None:
                 raise RuntimeError(f"pull-up contact gate: missing wrist{side}")
             point = rig.matrix_world @ wrist.tail
-            radial = math.sqrt((point.y + 0.025) ** 2 + (point.z - 2.153) ** 2)
+            radial = math.sqrt((point.y + 0.025) ** 2 + (point.z - 2.453) ** 2)
             beyond_bar = max(0.0, abs(point.x) - 0.88)
             distance = math.sqrt(radial ** 2 + beyond_bar ** 2)
-            print(f"CONTACT_FRAME frame={frame} side={side} wrist=({point.x:.3f},{point.y:.3f},{point.z:.3f}) bar=({0.0:.3f},{-0.025:.3f},{2.153:.3f}) distance={distance:.3f}")
+            print(f"CONTACT_FRAME frame={frame} side={side} wrist=({point.x:.3f},{point.y:.3f},{point.z:.3f}) bar=({0.0:.3f},{-0.025:.3f},{2.453:.3f}) distance={distance:.3f}")
             if distance > worst:
                 worst = distance
                 worst_at = (frame, side, tuple(round(v, 3) for v in point))
