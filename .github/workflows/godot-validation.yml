@@ -41,10 +41,16 @@ jobs:
           unzip -q /tmp/godot.zip -d /tmp/godot
           chmod +x /tmp/godot/Godot_v${VERSION}-stable_linux.x86_64
           ln -sf "/tmp/godot/Godot_v${VERSION}-stable_linux.x86_64" /tmp/godot/godot
-      - name: Validate Godot project
+      - name: Validate Godot project and main scene
         shell: bash
         run: |
           set -euo pipefail
           test -f "godot-studio/project.godot"
-          /tmp/godot/godot --headless --path godot-studio --editor --quit --verbose
-          echo "Godot headless project import completed."
+          LOG="/tmp/godot-validation.log"
+          /tmp/godot/godot --headless --path godot-studio --editor --quit --verbose 2>&1 | tee "$LOG"
+          /tmp/godot/godot --headless --path godot-studio --quit-after 2 res://scenes/animation_studio.tscn 2>&1 | tee -a "$LOG"
+          if grep -E '(^ERROR:|^SCRIPT ERROR:|Parse Error)' "$LOG"; then
+            echo "::error::Godot reported a parse or runtime error."
+            exit 1
+          fi
+          echo "Godot project import and main-scene load completed without reported errors."
