@@ -55,11 +55,46 @@ if text.count(needle) != 1:
     raise SystemExit("Could not locate the upstream place_props function")
 text = text.replace(needle, helper + needle, 1)
 
+contact_helper = r'''def assert_pull_up_bar_contact(rig, frame_end):
+    """Check wrist-to-fixed-bar distance at every rendered frame."""
+    scene = bpy.context.scene
+    worst = 0.0
+    worst_at = None
+    for frame in range(1, frame_end + 1):
+        scene.frame_set(frame)
+        for side in (".L", ".R"):
+            wrist = rig.pose.bones.get("wrist" + side)
+            if wrist is None:
+                raise RuntimeError(f"pull-up contact gate: missing wrist{side}")
+            point = rig.matrix_world @ wrist.tail
+            radial = math.sqrt(point.y ** 2 + (point.z - 2.02) ** 2)
+            beyond_bar = max(0.0, abs(point.x) - 0.88)
+            distance = math.sqrt(radial ** 2 + beyond_bar ** 2)
+            if distance > worst:
+                worst = distance
+                worst_at = (frame, side, tuple(round(v, 3) for v in point))
+    limit = 0.18
+    print(f"CONTACT pull_up: max wrist-to-bar distance {worst:.3f} m at {worst_at}; limit {limit:.2f} m")
+    if worst > limit:
+        raise RuntimeError(f"pull-up hand-to-bar contact failed: {worst:.3f} m > {limit:.2f} m")
+
+
+'''
+if text.count(needle) != 1:
+    raise SystemExit("Could not locate the upstream prop helper insertion point")
+text = text.replace(needle, contact_helper + needle, 1)
+
 main_old = '        prop_objs = build_props(spec)\n        if mocap and mocap_kind == "video":'
 main_new = '        prop_objs = build_props(spec)\n        if spec.get("id") == "pull_up":\n            prop_objs.extend((obj, "static") for obj in build_pull_up_rig())\n        if mocap and mocap_kind == "video":'
 if text.count(main_old) != 1:
     raise SystemExit("Unexpected upstream main build block; refusing an unsafe patch")
 text = text.replace(main_old, main_new, 1)
+
+anim_old = '            animate(driver, rig, spec, frame_end, prop_objs)\\n        bpy.data.objects.remove(driver, do_unlink=True)'
+anim_new = '            animate(driver, rig, spec, frame_end, prop_objs)\\n            if spec.get("id") == "pull_up":\\n                assert_pull_up_bar_contact(rig, frame_end)\\n        bpy.data.objects.remove(driver, do_unlink=True)'
+if text.count(anim_old) != 1:
+    raise SystemExit("Unexpected upstream animation block; refusing an unsafe contact-check patch")
+text = text.replace(anim_old, anim_new, 1)
 
 source.write_text(text)
 print("Patched upstream renderer: static pull-up rack enabled.")
