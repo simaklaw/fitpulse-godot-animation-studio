@@ -2,9 +2,13 @@
 
 Target Worker: `https://godot-mcp.simaklaw-vl.workers.dev`.
 
+## Current status
+
+The MCP source and Cloudflare configuration are under review in pull request #1. The deployment workflow is not included yet, so **do not expect the Cloudflare Worker to update from this repository yet**. First review and merge the scaffold, then add/review the deployment workflow as a separate change.
+
 ## GitHub repository secrets
 
-In this repository, open **Settings → Secrets and variables → Actions** and add:
+When the deployment workflow has been reviewed and added, open this repository's **Settings → Secrets and variables → Actions** and add:
 
 - `CLOUDFLARE_ACCOUNT_ID`: the account ID shown in Cloudflare.
 - `CLOUDFLARE_API_TOKEN`: a scoped Cloudflare API token with permission to edit Workers.
@@ -13,16 +17,14 @@ In this repository, open **Settings → Secrets and variables → Actions** and 
 
 Do not paste any of these values into chat, source code, issue text, or Grok other than the MCP bearer token if Grok's connector explicitly requires bearer authentication. Never give Grok the GitHub token.
 
-## Deploy
+## Intended deployment procedure
 
-1. Confirm the Worker named `godot-mcp` exists in the Cloudflare account and has the hostname above.
-2. Add all four repository secrets.
-3. Open **Actions → Deploy FitPulse MCP → Run workflow**.
+1. Confirm the Worker named `godot-mcp` exists in Cloudflare and has the hostname above.
+2. Add all four repository secrets only after reviewing the deployment workflow.
+3. Run **Actions → Deploy FitPulse MCP → Run workflow** once that workflow exists on the default branch.
 4. Wait for the run to finish; investigate logs if it fails.
 5. Open `https://godot-mcp.simaklaw-vl.workers.dev/health`. Expected JSON includes `"ok":true`.
 6. Configure Grok's Custom MCP connector with `https://godot-mcp.simaklaw-vl.workers.dev/mcp` and the MCP bearer token if requested.
-
-The workflow deploys a Worker named `godot-mcp`, intended to update the existing hostname. Do not create or expose credentials until you are ready to deploy.
 
 ## Validation and limitations
 
