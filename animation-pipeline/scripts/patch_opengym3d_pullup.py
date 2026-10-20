@@ -83,6 +83,66 @@ contact_helper = r'''def assert_pull_up_bar_contact(rig, frame_end):
 '''
 if text.count(needle) != 1:
     raise SystemExit("Could not locate the upstream prop helper insertion point")
+ik_helper = r'''def add_pull_up_ik(rig):
+    """Solve both hand endpoints against fixed targets on the pull-up bar."""
+    scene = bpy.context.scene
+    targets = []
+    for x, side in ((-0.235, ".L"), (0.235, ".R")):
+        target = bpy.data.objects.new("PullUpIKTarget" + side, None)
+        scene.collection.objects.link(target)
+        target.location = (x, -0.025, 2.453)
+        target.empty_display_type = "SPHERE"
+        target.empty_display_size = 0.025
+        target.hide_render = True
+        targets.append(target)
+
+        wrist = rig.pose.bones.get("wrist" + side)
+        if wrist is None:
+            raise RuntimeError(f"pull-up IK gate: missing wrist{side}")
+        constraint = wrist.constraints.new(type="IK")
+        constraint.name = "FitPulsePullUpIK" + side
+        constraint.target = target
+        constraint.chain_count = 5
+        constraint.iterations = 100
+        constraint.use_stretch = False
+        constraint.influence = 1.0
+    bpy.context.view_layer.update()
+    return targets
+
+
+def assert_pull_up_body_pose(rig, frame_end):
+    """Require feet to stay clear of the floor and the head to clear the bar."""
+    scene = bpy.context.scene
+    min_foot_z = float("inf")
+    min_foot_at = None
+    for frame in range(1, frame_end + 1):
+        scene.frame_set(frame)
+        for side in (".L", ".R"):
+            foot = rig.pose.bones.get("foot" + side)
+            if foot is None:
+                raise RuntimeError(f"pull-up clearance gate: missing foot{side}")
+            point = rig.matrix_world @ foot.tail
+            if point.z < min_foot_z:
+                min_foot_z = point.z
+                min_foot_at = (frame, side, tuple(round(v, 3) for v in point))
+    min_clearance = 0.18
+    print(f"CLEARANCE pull_up: min foot height {min_foot_z:.3f} m at {min_foot_at}; limit {min_clearance:.2f} m")
+    if min_foot_z < min_clearance:
+        raise RuntimeError(f"pull-up floor clearance failed: {min_foot_z:.3f} m < {min_clearance:.2f} m")
+
+    top_frame = max(1, min(frame_end, 1 + round((frame_end - 1) * 0.56)))
+    scene.frame_set(top_frame)
+    head = rig.pose.bones.get("head")
+    if head is None:
+        raise RuntimeError("pull-up top-position gate: missing head bone")
+    head_top = (rig.matrix_world @ head.tail).z
+    required_head_top = 2.553
+    print(f"TOP pull_up: head-top height {head_top:.3f} m at frame {top_frame}; minimum {required_head_top:.3f} m")
+    if head_top < required_head_top:
+        raise RuntimeError(f"pull-up top-position failed: head top {head_top:.3f} m < {required_head_top:.3f} m; chin clearance not demonstrated")
+
+
+'''
 text = text.replace(needle, contact_helper + needle, 1)
 
 main_old = '        prop_objs = build_props(spec)\n        if mocap and mocap_kind == "video":'
@@ -92,7 +152,7 @@ if text.count(main_old) != 1:
 text = text.replace(main_old, main_new, 1)
 
 anim_old = '            animate(driver, rig, spec, frame_end, prop_objs)\n        bpy.data.objects.remove(driver, do_unlink=True)'
-anim_new = '            animate(driver, rig, spec, frame_end, prop_objs)\n            if spec.get("id") == "pull_up":\n                assert_pull_up_bar_contact(rig, frame_end)\n        bpy.data.objects.remove(driver, do_unlink=True)'
+anim_new = '            animate(driver, rig, spec, frame_end, prop_objs)\n            if spec.get("id") == "pull_up":\n                add_pull_up_ik(rig)\n                assert_pull_up_bar_contact(rig, frame_end)\n                assert_pull_up_body_pose(rig, frame_end)\n        bpy.data.objects.remove(driver, do_unlink=True)'
 if text.count(anim_old) != 1:
     raise SystemExit("Unexpected upstream animation block; refusing an unsafe contact-check patch")
 text = text.replace(anim_old, anim_new, 1)
