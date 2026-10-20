@@ -1,0 +1,118 @@
+name: Deploy FitPulse MCP
+
+on:
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: Why this deployment is being run
+        required: false
+        default: Manual deployment after review
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-fitpulse-mcp
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Check branch and required secrets
+        shell: bash
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          MCP_BEARER_TOKEN: ${{ secrets.MCP_BEARER_TOKEN }}
+          FITPULSE_GITHUB_TOKEN: ${{ secrets.FITPULSE_GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_REF" != "refs/heads/main" ]]; then
+            echo "::error::Deployments are allowed only from main."
+            exit 1
+          fi
+          missing=0
+          for name in CLOUDFLARE_ACCOUNT_ID CLOUDFLARE_API_TOKEN MCP_BEARER_TOKEN FITPULSE_GITHUB_TOKEN; do
+            if [[ -z "${!name:-}" ]]; then
+              echo "::error::Required Actions secret is missing: $name"
+              missing=1
+            fi
+          done
+          if [[ "$missing" -ne 0 ]]; then
+            exit 1
+          fi
+      - name: Install dependencies
+        run: npm install
+      - name: Type-check Worker
+        run: npm run typecheck
+      - name: Deploy Worker
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: npx wrangler deploy
+      - name: Configure runtime secrets
+        shell: bash
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          MCP_BEARER_TOKEN: ${{ secrets.MCP_BEARER_TOKEN }}
+          FITPULSE_GITHUB_TOKEN: ${{ secrets.FITPULSE_GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$MCP_BEARER_TOKEN" | npx wrangler secret put MCP_BEARER_TOKEN --name godot-mcp
+          printf '%s' "$FITPULSE_GITHUB_TOKEN" | npx wrangler secret put GITHUB_TOKEN --name godot-mcp
+      - name: Verify deployed health endpoint
+        shell: bash
+        run: |
+          set -euo pipefail
+          url="https://godot-mcp.simaklaw-vl.workers.dev/health"
+          healthy=false
+          for attempt in $(seq 1 10); do
+            if curl --fail --silent --show-error "$url" -o /tmp/worker-health.json; then
+              healthy=true
+              break
+            fi
+            sleep 3
+          done
+          if [[ "$healthy" != "true" ]]; then
+            echo "::error::Worker health endpoint did not respond successfully."
+            exit 1
+          fi
+          node -e 'let s="";process.stdin.on("data",d=>s+=d);process.stdin.on("end",()=>{try{const v=JSON.parse(s);if(v.ok!==true)process.exit(1);console.log("Worker health check passed.")}catch{process.exit(1)}})' < /tmp/worker-health.json
+      - name: Verify bearer protection and MCP protocol
+        shell: bash
+        env:
+          MCP_BEARER_TOKEN: ${{ secrets.MCP_BEARER_TOKEN }}
+        run: |
+          set -euo pipefail
+          url="https://godot-mcp.simaklaw-vl.workers.dev/mcp"
+          status=$(curl --silent --show-error -o /tmp/mcp-unauthorized.json -w '%{http_code}' \
+            -H 'Content-Type: application/json' \
+            --data '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' "$url")
+          if [[ "$status" != "401" ]]; then
+            echo "::error::Unauthenticated MCP call should return HTTP 401; got $status."
+            exit 1
+          fi
+
+          curl --fail --silent --show-error "$url" \
+            -H "Authorization: Bearer $MCP_BEARER_TOKEN" \
+            -H 'Content-Type: application/json' \
+            -H 'Accept: application/json, text/event-stream' \
+            --data '{"jsonrpc":"2.0","id":2,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"fitpulse-ci","version":"1"}}}' \
+            -o /tmp/mcp-initialize.json
+          node -e 'const fs=require("fs");const r=JSON.parse(fs.readFileSync("/tmp/mcp-initialize.json","utf8"));if(r.jsonrpc!=="2.0"||r.result?.serverInfo?.name!=="fitpulse-godot-animation-studio"||r.result?.protocolVersion!=="2025-03-26")process.exit(1);console.log("MCP initialize passed.")'
+
+          curl --fail --silent --show-error "$url" \
+            -H "Authorization: Bearer $MCP_BEARER_TOKEN" \
+            -H 'Content-Type: application/json' \
+            -H 'Accept: application/json, text/event-stream' \
+            --data '{"jsonrpc":"2.0","id":3,"method":"tools/list"}' \
+            -o /tmp/mcp-tools.json
+          node -e 'const fs=require("fs");const r=JSON.parse(fs.readFileSync("/tmp/mcp-tools.json","utf8"));const names=(r.result?.tools||[]).map(t=>t.name);for(const name of ["get_project_status","list_animation_assets","create_animation_task","run_godot_validation","get_validation_report"])if(!names.includes(name))process.exit(1);console.log("MCP tools/list passed:",names.join(", "))'
