@@ -143,7 +143,7 @@ def assert_pull_up_body_pose(rig, frame_end):
 
 
 '''
-text = text.replace(needle, contact_helper + needle, 1)
+text = text.replace(needle, contact_helper + ik_helper + needle, 1)
 
 main_old = '        prop_objs = build_props(spec)\n        if mocap and mocap_kind == "video":'
 main_new = '        prop_objs = build_props(spec)\n        if spec.get("id") == "pull_up":\n            prop_objs.extend((obj, "static") for obj in build_pull_up_rig())\n        if mocap and mocap_kind == "video":'
