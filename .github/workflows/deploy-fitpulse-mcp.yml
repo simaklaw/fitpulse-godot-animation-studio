@@ -86,3 +86,33 @@ jobs:
             exit 1
           fi
           node -e 'let s="";process.stdin.on("data",d=>s+=d);process.stdin.on("end",()=>{try{const v=JSON.parse(s);if(v.ok!==true)process.exit(1);console.log("Worker health check passed.")}catch{process.exit(1)}})' < /tmp/worker-health.json
+      - name: Verify bearer protection and MCP protocol
+        shell: bash
+        env:
+          MCP_BEARER_TOKEN: ${{ secrets.MCP_BEARER_TOKEN }}
+        run: |
+          set -euo pipefail
+          url="https://godot-mcp.simaklaw-vl.workers.dev/mcp"
+          status=$(curl --silent --show-error -o /tmp/mcp-unauthorized.json -w '%{http_code}' \
+            -H 'Content-Type: application/json' \
+            --data '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' "$url")
+          if [[ "$status" != "401" ]]; then
+            echo "::error::Unauthenticated MCP call should return HTTP 401; got $status."
+            exit 1
+          fi
+
+          curl --fail --silent --show-error "$url" \
+            -H "Authorization: Bearer $MCP_BEARER_TOKEN" \
+            -H 'Content-Type: application/json' \
+            -H 'Accept: application/json, text/event-stream' \
+            --data '{"jsonrpc":"2.0","id":2,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"fitpulse-ci","version":"1"}}}' \
+            -o /tmp/mcp-initialize.json
+          node -e 'const fs=require("fs");const r=JSON.parse(fs.readFileSync("/tmp/mcp-initialize.json","utf8"));if(r.jsonrpc!=="2.0"||r.result?.serverInfo?.name!=="fitpulse-godot-animation-studio"||r.result?.protocolVersion!=="2025-03-26")process.exit(1);console.log("MCP initialize passed.")'
+
+          curl --fail --silent --show-error "$url" \
+            -H "Authorization: Bearer $MCP_BEARER_TOKEN" \
+            -H 'Content-Type: application/json' \
+            -H 'Accept: application/json, text/event-stream' \
+            --data '{"jsonrpc":"2.0","id":3,"method":"tools/list"}' \
+            -o /tmp/mcp-tools.json
+          node -e 'const fs=require("fs");const r=JSON.parse(fs.readFileSync("/tmp/mcp-tools.json","utf8"));const names=(r.result?.tools||[]).map(t=>t.name);for(const name of ["get_project_status","list_animation_assets","create_animation_task","run_godot_validation","get_validation_report"])if(!names.includes(name))process.exit(1);console.log("MCP tools/list passed:",names.join(", "))'
