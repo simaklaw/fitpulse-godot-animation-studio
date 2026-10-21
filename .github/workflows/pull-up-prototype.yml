@@ -9,6 +9,12 @@ on:
     paths:
       - "animation-pipeline/**"
       - ".github/workflows/pull-up-prototype.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "animation-pipeline/**"
+      - ".github/workflows/pull-up-prototype.yml"
 
 permissions:
   contents: read
