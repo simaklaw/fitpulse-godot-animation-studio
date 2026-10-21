@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - feat/pull-up-animation-prototype
+      - fix/pull-up-render-quality
     paths:
       - "animation-pipeline/**"
       - ".github/workflows/pull-up-prototype.yml"
