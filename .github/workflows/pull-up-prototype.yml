@@ -115,6 +115,15 @@ jobs:
             grep -qx 'nb_frames=72' output/video-qa.txt
           fi
 
+      - name: Generate visual QA contact sheet
+        if: always()
+        shell: bash
+        run: |
+          if [ -s output/pull_up.mp4 ]; then
+            ffmpeg -y -v error -i output/pull_up.mp4 -vf "fps=10/3,scale=360:360,tile=4x2" -frames:v 1 output/pull_up_contact_sheet.png
+            test -s output/pull_up_contact_sheet.png
+          fi
+
       - name: Verify transparent frame sequence
         if: always()
         shell: bash
@@ -169,6 +178,7 @@ jobs:
             output/pull_up.glb
             output/pull_up.png
             output/pull_up.mp4
+            output/pull_up_contact_sheet.png
             output/frames_pull_up_alpha/*.png
             output/pull_up.glb.qa.json
             output/build.log
