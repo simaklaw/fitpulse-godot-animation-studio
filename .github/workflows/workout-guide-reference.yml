@@ -1,0 +1,71 @@
+name: Import Workout Guide Exercise References
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "animation-pipeline/scripts/fetch_workout_guide_reference.py"
+      - "animation-pipeline/scripts/render_reference_previews.py"
+      - "animation-pipeline/scripts/fetch_pilot_exercise_references.py"
+      - "animation-pipeline/scripts/render_pilot_reference_previews.py"
+      - "animation-pipeline/WORKOUT_GUIDE_REFERENCE.md"
+      - "animation-pipeline/PULL_UP_MOTION_BRIEF.md"
+      - ".github/workflows/workout-guide-reference.yml"
+  push:
+    branches:
+      - feat/workout-guide-pull-up-reference-import
+    paths:
+      - "animation-pipeline/scripts/fetch_workout_guide_reference.py"
+      - "animation-pipeline/scripts/render_reference_previews.py"
+      - "animation-pipeline/scripts/fetch_pilot_exercise_references.py"
+      - "animation-pipeline/scripts/render_pilot_reference_previews.py"
+      - "animation-pipeline/WORKOUT_GUIDE_REFERENCE.md"
+      - "animation-pipeline/PULL_UP_MOTION_BRIEF.md"
+      - ".github/workflows/workout-guide-reference.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: workout-guide-reference-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  fetch-reference-assets:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install preview renderer
+        run: python3 -m pip install --disable-pip-version-check cairosvg pillow
+
+      - name: Fetch pinned pull-up reference frames and license notices
+        run: python3 animation-pipeline/scripts/fetch_workout_guide_reference.py
+
+      - name: Render pull-up transparent PNGs and contact sheet
+        run: python3 animation-pipeline/scripts/render_reference_previews.py
+
+      - name: Fetch five pilot exercise reference sets
+        run: python3 animation-pipeline/scripts/fetch_pilot_exercise_references.py
+
+      - name: Render pilot transparent PNGs and comparison sheet
+        run: python3 animation-pipeline/scripts/render_pilot_reference_previews.py
+
+      - name: Upload pull-up reference bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: workout-guide-pull-up-reference
+          path: output/workout-guide-pull-up-reference/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload five-exercise pilot comparison
+        uses: actions/upload-artifact@v4
+        with:
+          name: workout-guide-pilot-references
+          path: output/workout-guide-pilot-references/
+          if-no-files-found: error
+          retention-days: 14

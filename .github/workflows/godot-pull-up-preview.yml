@@ -1,0 +1,95 @@
+name: Render Godot Pull-Up Preview
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feat/workout-guide-pull-up-reference-import
+    paths:
+      - 'project.godot'
+      - 'scenes/**'
+      - 'scripts/**'
+      - '.github/workflows/godot-pull-up-preview.yml'
+  pull_request:
+    paths:
+      - 'project.godot'
+      - 'scenes/**'
+      - 'scripts/**'
+      - '.github/workflows/godot-pull-up-preview.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: godot-pull-up-preview-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    container:
+      image: barichello/godot-ci:4.3
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate project and GDScript
+        run: |
+          godot --version
+          godot --headless --path . --editor --quit
+
+      - name: Install rendering and video tools
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends xvfb ffmpeg
+
+      - name: Render full movement cycle with a real display backend
+        run: |
+          set -eu
+          mkdir -p output
+          xvfb-run -a godot --path . --display-driver x11 --rendering-method gl_compatibility --resolution 720x720 --fixed-fps 30 --write-movie output/pull-up-preview.avi --quit-after 120
+          test -s output/pull-up-preview.avi
+          ffprobe -v error -select_streams v:0 -show_entries stream=width,height,nb_frames -show_entries format=duration -of json output/pull-up-preview.avi
+
+      - name: Upload raw Godot render
+        uses: actions/upload-artifact@v4
+        with:
+          name: fitpulse-pull-up-raw-render
+          path: output/pull-up-preview.avi
+          if-no-files-found: error
+          retention-days: 3
+
+  package:
+    runs-on: ubuntu-latest
+    needs: render
+    steps:
+      - name: Download raw Godot render
+        uses: actions/download-artifact@v4
+        with:
+          name: fitpulse-pull-up-raw-render
+          path: output
+
+      - name: Install FFmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ffmpeg
+
+      - name: Convert to MP4 and create preview GIF
+        run: |
+          set -eu
+          ffmpeg -version
+          ffmpeg -y -i output/pull-up-preview.avi -an -c:v libx264 -pix_fmt yuv420p -movflags +faststart output/pull-up-preview.mp4
+          ffmpeg -y -i output/pull-up-preview.mp4 -vf "fps=12,scale=480:-1:flags=lanczos,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse" output/pull-up-preview.gif
+          ffprobe -v error -select_streams v:0 -show_entries stream=width,height,r_frame_rate,nb_frames -show_entries format=duration -of json output/pull-up-preview.mp4
+          test -s output/pull-up-preview.mp4
+          test -s output/pull-up-preview.gif
+
+      - name: Upload animation preview
+        uses: actions/upload-artifact@v4
+        with:
+          name: fitpulse-pull-up-animation-preview
+          path: |
+            output/pull-up-preview.mp4
+            output/pull-up-preview.gif
+          if-no-files-found: error
+          retention-days: 14
