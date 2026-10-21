@@ -45,7 +45,7 @@ jobs:
 
       - name: Render full movement cycle with a real display backend
         run: |
-          set -euo pipefail
+          set -eu
           mkdir -p output
           xvfb-run -a godot --path . --display-driver x11 --rendering-method gl_compatibility --resolution 720x720 --fixed-fps 30 --write-movie output/pull-up-preview.avi --quit-after 120
           test -s output/pull-up-preview.avi
@@ -76,7 +76,7 @@ jobs:
 
       - name: Convert to MP4 and create preview GIF
         run: |
-          set -euo pipefail
+          set -eu
           ffmpeg -version
           ffmpeg -y -i output/pull-up-preview.avi -an -c:v libx264 -pix_fmt yuv420p -movflags +faststart output/pull-up-preview.mp4
           ffmpeg -y -i output/pull-up-preview.mp4 -vf "fps=12,scale=480:-1:flags=lanczos,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse" output/pull-up-preview.gif
