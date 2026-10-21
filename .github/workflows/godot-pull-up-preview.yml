@@ -42,23 +42,43 @@ jobs:
         run: |
           mkdir -p output
           godot --headless --path . --fixed-fps 30 --write-movie output/pull-up-preview.avi --quit-after 120
+          test -s output/pull-up-preview.avi
+
+      - name: Upload raw Godot render
+        uses: actions/upload-artifact@v4
+        with:
+          name: fitpulse-pull-up-raw-render
+          path: output/pull-up-preview.avi
+          if-no-files-found: error
+          retention-days: 3
+
+  package:
+    runs-on: ubuntu-latest
+    needs: render
+    steps:
+      - name: Download raw Godot render
+        uses: actions/download-artifact@v4
+        with:
+          name: fitpulse-pull-up-raw-render
+          path: output
 
       - name: Convert to MP4 and create preview GIF
         run: |
-          apt-get update
-          apt-get install -y --no-install-recommends ffmpeg
+          set -euo pipefail
+          command -v ffmpeg
+          mkdir -p output
           ffmpeg -y -i output/pull-up-preview.avi -an -c:v libx264 -pix_fmt yuv420p -movflags +faststart output/pull-up-preview.mp4
           ffmpeg -y -i output/pull-up-preview.mp4 -vf "fps=12,scale=480:-1:flags=lanczos,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse" output/pull-up-preview.gif
           ffprobe -v error -select_streams v:0 -show_entries stream=width,height,r_frame_rate,nb_frames -show_entries format=duration -of json output/pull-up-preview.mp4
+          test -s output/pull-up-preview.mp4
+          test -s output/pull-up-preview.gif
 
-      - name: Upload animation and diagnostic logs
-        if: always()
+      - name: Upload animation preview
         uses: actions/upload-artifact@v4
         with:
           name: fitpulse-pull-up-animation-preview
           path: |
-            output/pull-up-preview.avi
             output/pull-up-preview.mp4
             output/pull-up-preview.gif
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 14
