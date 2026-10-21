@@ -98,7 +98,12 @@ jobs:
         shell: bash
         run: |
           if compgen -G "output/frames_pull_up/*.png" > /dev/null; then
-            ffmpeg -y -v error -framerate 15 -pattern_type glob -i 'output/frames_pull_up/*.png' -c:v libx264 -pix_fmt yuv420p -movflags +faststart output/pull_up.mp4
+            ffmpeg -y -v error -framerate 30 -pattern_type glob -i 'output/frames_pull_up/*.png' -c:v libx264 -pix_fmt yuv420p -movflags +faststart output/pull_up.mp4
+            ffprobe -v error -select_streams v:0 -show_entries stream=width,height,r_frame_rate,nb_frames -of default=noprint_wrappers=1 output/pull_up.mp4 | tee output/video-qa.txt
+            grep -qx 'width=720' output/video-qa.txt
+            grep -qx 'height=720' output/video-qa.txt
+            grep -qx 'r_frame_rate=30/1' output/video-qa.txt
+            grep -qx 'nb_frames=72' output/video-qa.txt
           fi
 
       - name: Upload animation and QA artifacts
@@ -113,5 +118,6 @@ jobs:
             output/pull_up.glb.qa.json
             output/build.log
             output/qa.log
+            output/video-qa.txt
           if-no-files-found: warn
           retention-days: 14
