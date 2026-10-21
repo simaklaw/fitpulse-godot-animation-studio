@@ -41,8 +41,9 @@ jobs:
       - name: Render full movement cycle
         run: |
           mkdir -p output
-          godot --headless --path . --fixed-fps 30 --write-movie output/pull-up-preview.avi --quit-after 120
+          godot --headless --path . --resolution 720x720 --fixed-fps 30 --write-movie output/pull-up-preview.avi --quit-after 120
           test -s output/pull-up-preview.avi
+          ffprobe -v error -select_streams v:0 -show_entries stream=width,height,nb_frames -show_entries format=duration -of json output/pull-up-preview.avi
 
       - name: Upload raw Godot render
         uses: actions/upload-artifact@v4
