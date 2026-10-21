@@ -5,6 +5,7 @@ on:
     branches:
       - feat/pull-up-animation-prototype
       - fix/pull-up-render-quality
+      - fix/pull-up-prototype-clean-main
     paths:
       - "animation-pipeline/**"
       - ".github/workflows/pull-up-prototype.yml"
