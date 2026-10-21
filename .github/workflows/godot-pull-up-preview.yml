@@ -62,11 +62,15 @@ jobs:
           name: fitpulse-pull-up-raw-render
           path: output
 
+      - name: Install FFmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ffmpeg
+
       - name: Convert to MP4 and create preview GIF
         run: |
           set -euo pipefail
-          command -v ffmpeg
-          mkdir -p output
+          ffmpeg -version
           ffmpeg -y -i output/pull-up-preview.avi -an -c:v libx264 -pix_fmt yuv420p -movflags +faststart output/pull-up-preview.mp4
           ffmpeg -y -i output/pull-up-preview.mp4 -vf "fps=12,scale=480:-1:flags=lanczos,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse" output/pull-up-preview.gif
           ffprobe -v error -select_streams v:0 -show_entries stream=width,height,r_frame_rate,nb_frames -show_entries format=duration -of json output/pull-up-preview.mp4
