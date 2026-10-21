@@ -1,0 +1,124 @@
+name: Build Pull-Up Animation Prototype
+
+on:
+  push:
+    branches:
+      - feat/pull-up-animation-prototype
+      - fix/pull-up-render-quality
+    paths:
+      - "animation-pipeline/**"
+      - ".github/workflows/pull-up-prototype.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pull-up-prototype-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-spec:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate motion spec
+        run: |
+          python3 -m json.tool animation-pipeline/exercises/pull_up.json > /dev/null
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          spec = json.loads(Path("animation-pipeline/exercises/pull_up.json").read_text())
+          assert spec["id"] == "pull_up"
+          assert spec.get("movement", {}).get("pattern") == "pull_up"
+          assert spec.get("keyframes"), "hand-authored keyframes are required"
+          times = [f["t"] for f in spec["keyframes"]]
+          assert times == sorted(times) and times[0] == 0.0 and times[-1] == 1.0
+          assert len(times) >= 5
+          for frame in spec["keyframes"]:
+              assert "pelvis" in frame["bones"]
+              assert "upper_arm.*" in frame["bones"]
+              assert "forearm.*" in frame["bones"]
+          print(f"Motion spec valid: {len(times)} keyframes, normalized 0..1.")
+          PY
+
+  render:
+    needs: validate-spec
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      BLENDER_VERSION: "4.5.11"
+      FITX_ECORCHE: "0"
+    steps:
+      - name: Checkout FitPulse prototype spec
+        uses: actions/checkout@v4
+
+      - name: Checkout pinned OpenGym3D render pipeline
+        uses: actions/checkout@v4
+        with:
+          repository: AssiamahS/opengym3d
+          ref: ea3a60130fdcfb3c4771e44d09f84ebab4ee9bae
+          path: upstream
+
+      - name: Install runtime libraries
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq libxi6 libxxf86vm1 libxfixes3 libxrender1 libgl1 libxkbcommon0 libsm6 ffmpeg
+
+      - name: Install Blender
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL "https://download.blender.org/release/Blender4.5/blender-${BLENDER_VERSION}-linux-x64.tar.xz" -o /tmp/blender.tar.xz
+          tar xJf /tmp/blender.tar.xz -C "$HOME"
+          mv "$HOME/blender-${BLENDER_VERSION}-linux-x64" "$HOME/blender"
+
+      - name: Patch upstream renderer for a fixed pull-up rack
+        run: python3 ../animation-pipeline/scripts/patch_opengym3d_pullup.py
+        working-directory: upstream
+
+      - name: Render GLB and thumbnail
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p ../output
+          FITX_ECORCHE=0 "$HOME/blender/blender" -b -noaudio --python-exit-code 1 -P pipeline/build_exercise.py -- ../animation-pipeline/exercises/pull_up.json ../output 2>&1 | tee ../output/build.log
+          test -s ../output/pull_up.glb
+          test -s ../output/pull_up.png
+        working-directory: upstream
+
+      - name: Run upstream joint-integrity QA
+        shell: bash
+        run: |
+          set -o pipefail
+          python3 pipeline/qa_glb.py ../output/pull_up.glb 2>&1 | tee ../output/qa.log
+        working-directory: upstream
+
+      - name: Assemble MP4 preview
+        if: always()
+        shell: bash
+        run: |
+          if compgen -G "output/frames_pull_up/*.png" > /dev/null; then
+            ffmpeg -y -v error -framerate 30 -pattern_type glob -i 'output/frames_pull_up/*.png' -c:v libx264 -pix_fmt yuv420p -movflags +faststart output/pull_up.mp4
+            ffprobe -v error -select_streams v:0 -show_entries stream=width,height,r_frame_rate,nb_frames -of default=noprint_wrappers=1 output/pull_up.mp4 | tee output/video-qa.txt
+            grep -qx 'width=720' output/video-qa.txt
+            grep -qx 'height=720' output/video-qa.txt
+            grep -qx 'r_frame_rate=30/1' output/video-qa.txt
+            grep -qx 'nb_frames=72' output/video-qa.txt
+          fi
+
+      - name: Upload animation and QA artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fitpulse-pull-up-prototype
+          path: |
+            output/pull_up.glb
+            output/pull_up.png
+            output/pull_up.mp4
+            output/pull_up.glb.qa.json
+            output/build.log
+            output/qa.log
+            output/video-qa.txt
+          if-no-files-found: warn
+          retention-days: 14
