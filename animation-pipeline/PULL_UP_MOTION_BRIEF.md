@@ -54,11 +54,13 @@ Mark each item PASS / REVIEW / FAIL, with evidence:
 
 ## Status
 
-- **Produced:** written motion brief and acceptance gates.
-- **Available:** three static source poses in the reference import workflow.
-- **Not produced:** interpolated cycle, separate male/female characters, Godot scene, or production-ready export.
-- **Not tested:** Godot runtime, device performance, and expert biomechanical review.
+- **Produced (prototype):** a hand-authored 72-frame pull-up motion spec, a rigged male GLB, a 720×720 / 30 fps studio MP4 preview, and automated structural QA.
+- **Verified on an earlier prototype head:** the MP4 contains all 72 frames; GLB structural QA passed with 0 critical and 0 total failures; the fixed-bar contact and foot-clearance checks passed. These checks do not by themselves prove expert-level biomechanics.
+- **In progress:** a stricter top-position gate now checks a conservative head-base proxy against the top of the bar; the current revision must complete CI and artifact review before merge.
+- **Not yet accepted:** transparent PNG output (72 frames, 720×720 RGBA) remains under validation in the stacked PR; a separate female design, premium final character styling, high-sample production render, and human biomechanical review are still outstanding.
+- **Visual quality:** the current male anatomical render is a technical prototype, not the final premium FitPulse character art.
+- **Not tested:** app integration, Godot runtime playback, and on-device performance.
 
 ## Next step
 
-Review the five-exercise contact sheet first. If pull-up reference poses are approved, author intermediate poses and a separate character/rig plan, then render a contact sheet of the proposed cycle before building the Godot preview scene.
+Pass the stricter top-position gate, inspect the final studio render and transparent PNG sequence, then add a distinct female character presentation and validate the export in the intended mobile composition. Do not label the current prototype production-ready until visual and biomechanical review is complete.
