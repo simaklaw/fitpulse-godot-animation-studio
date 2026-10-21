@@ -22,7 +22,7 @@ These are reference-review assets. The pipeline does not yet interpolate missing
 4. Download `workout-guide-pull-up-reference` for the original pull-up review bundle or `workout-guide-pilot-references` for the five-exercise comparison.
 5. For the pilot bundle, open `pilot-contact-sheet-dark.png` first. Individual transparent PNGs are stored under each exercise's `preview-png/` directory; original SVGs are in `frames/`.
 
-The pilot bundle contains `pilot-reference-manifest.json`, the original SVGs, rendered PNG previews, and upstream license/attribution notices. Binary assets are not committed to this repository.
+The pilot bundle contains `pilot-reference-manifest.json`, `pilot-asset-qa-report.json`, the original SVGs, rendered PNG previews, and upstream license/attribution notices. Binary assets are not committed to this repository.
 
 ## Automated checks
 
@@ -31,12 +31,13 @@ The pilot bundle contains `pilot-reference-manifest.json`, the original SVGs, re
 - Each SVG must parse and declare 512 × 512 dimensions.
 - A full-canvas background rectangle is rejected.
 - SVGs are rendered to 512 × 512 PNGs; alpha is checked to ensure transparency survived.
+- Every rendered PNG must have a non-empty alpha bounding box; the report records the alpha bounds, nontransparent pixel count, and SHA-256.
+- The QA JSON and dark contact sheet are uploaded with the pilot bundle.
 - A dark contact sheet arranges the five exercises by row and the three source poses by column.
 
 ## Limits and next production gate
 
 The selected source provides three static poses per exercise. This does not establish a smooth or biomechanically accurate animation, and the source does not provide a distinct male/female character pair. The contact sheet is intended to compare pose clarity, equipment visibility, framing, and how much work is needed to create a premium animation. After visual review, select one exercise as the first production candidate and specify the required motion phases before implementing interpolation or a Godot scene.
-
 
 ## Manual visual review rubric
 
