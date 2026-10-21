@@ -6,6 +6,7 @@ on:
       - feat/pull-up-animation-prototype
       - fix/pull-up-render-quality
       - fix/pull-up-prototype-clean-main
+      - feat/pull-up-transparent-export
     paths:
       - "animation-pipeline/**"
       - ".github/workflows/pull-up-prototype.yml"
