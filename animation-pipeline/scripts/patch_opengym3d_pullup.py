@@ -16,12 +16,18 @@ if text.count(place_old) != 1:
 text = text.replace(place_old, place_new, 1)
 
 # Improve the delivered motion preview rather than leaving the upstream watch-sized
-# 240px / 15fps render as the only video. The GLB animation remains unchanged.
-preview_old = "    scene.render.resolution_x = scene.render.resolution_y = 240\n    scene.cycles.samples = 12\n    scene.frame_step = 2"
-preview_new = "    scene.render.resolution_x = scene.render.resolution_y = 720\n    scene.cycles.samples = 32\n    scene.frame_step = 1"
-if text.count(preview_old) != 1:
-    raise SystemExit("Unexpected upstream preview render settings; refusing an unsafe quality patch")
-text = text.replace(preview_old, preview_new, 1)
+# render as the only video. The GLB animation remains unchanged.
+# Match each setting independently because upstream has changed frame_step formatting
+# between revisions; fail closed unless every expected setting appears exactly once.
+quality_rules = [
+    (r"(?m)^(\s*scene\.render\.resolution_x\s*=\s*scene\.render\.resolution_y\s*=\s*)\d+\s*$", r"\g<1>720", "resolution"),
+    (r"(?m)^(\s*scene\.cycles\.samples\s*=\s*)\d+\s*$", r"\g<1>32", "Cycles samples"),
+    (r"(?m)^(\s*scene\.frame_step\s*=\s*)\d+\s*$", r"\g<1>1", "frame step"),
+]
+for pattern, replacement, label in quality_rules:
+    text, count = re.subn(pattern, replacement, text)
+    if count != 1:
+        raise SystemExit(f"Expected exactly one upstream {label} setting; found {count}; refusing an unsafe quality patch")
 
 helper = r'''def build_pull_up_rig():
     """Create a stationary powder-coated rack used only by the pull-up spec."""
