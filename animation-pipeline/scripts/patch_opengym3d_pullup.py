@@ -16,8 +16,8 @@ text = text.replace(place_old, place_new, 1)
 
 # Improve the delivered motion preview rather than leaving the upstream watch-sized
 # 240px / 15fps render as the only video. The GLB animation remains unchanged.
-preview_old = '    scene.render.resolution_x = scene.render.resolution_y = 240\n    scene.cycles.samples = 12\n    scene.render.filepath = f"{out_dir}/frames_{spec[\'id\']}/"'
-preview_new = '    scene.render.resolution_x = scene.render.resolution_y = 720\n    scene.cycles.samples = 32\n    scene.frame_step = 1\n    scene.render.filepath = f"{out_dir}/frames_{spec[\'id\']}/"'
+preview_old = '    scene.render.resolution_x = scene.render.resolution_y = 240\\n    scene.cycles.samples = 12\\n    scene.frame_step = 2'
+preview_new = '    scene.render.resolution_x = scene.render.resolution_y = 720\\n    scene.cycles.samples = 32\\n    scene.frame_step = 1'
 if text.count(preview_old) != 1:
     raise SystemExit("Unexpected upstream preview render settings; refusing an unsafe quality patch")
 text = text.replace(preview_old, preview_new, 1)
