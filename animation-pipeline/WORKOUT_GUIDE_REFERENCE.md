@@ -1,10 +1,10 @@
 # Workout Guide — pull-up reference import
 
-## Why this exists
+## Purpose
 
-Use the existing Workout Guide SVG poses as reference material instead of generating new images. This workflow downloads the three published pull-up frames from a pinned commit, validates their SVG structure and declared 512 × 512 dimensions, and packages the source files, attribution, license notices, and SHA-256 hashes as a short-lived GitHub Actions artifact.
+Use existing exercise artwork as the starting point, not generated images. This workflow downloads the three published pull-up SVG poses from a pinned commit, validates the source files, renders transparent PNG previews, and builds a dark-background contact sheet so the artwork can be inspected on a phone or in a browser.
 
-It does **not** generate new images, interpolate missing frames, create a male/female pair, or approve these assets for shipping in FitPulse.
+This is a reference-review pipeline. It does not yet interpolate missing frames, create a distinct male/female pair, or validate the movement in Godot.
 
 ## Source
 
@@ -12,14 +12,7 @@ It does **not** generate new images, interpolate missing frames, create a male/f
 - Pinned revision: `aac599224bb9780305239607ef98540b7e0ce389`
 - Exercise: `pull-up`
 - Source frames: `packages/workout-guide/assets/pull-up/frame-1.svg`, `frame-2.svg`, `frame-3.svg`
-- Declared artwork license: CC BY-SA 4.0. Code in the source repository is separately MIT licensed.
-- Upstream provenance for the first pose is documented by the source project as Everkinetic-derived artwork.
-
-The workflow also downloads the upstream `LICENSE-ASSETS`, `LICENSES.md`, and `ATTRIBUTION.md` files into the artifact. Always review the license text and attribution at the pinned revision before reuse.
-
-## Important licensing boundary
-
-The three SVGs are downloaded for **inspection only**. CC BY-SA 4.0 requires attribution, indication of changes, and ShareAlike licensing for adaptations when distributed. Do not merge these graphics or adaptations into a closed/commercial FitPulse deliverable until the intended distribution model has been reviewed and the licensing implications accepted. This workflow does not grant additional rights.
+- Artwork license and provenance notices are included in the artifact for traceability.
 
 ## Run
 
@@ -27,13 +20,18 @@ The three SVGs are downloaded for **inspection only**. CC BY-SA 4.0 requires att
 2. Choose **Import Workout Guide Pull-Up References**.
 3. Select **Run workflow**.
 4. Download the `workout-guide-pull-up-reference` artifact from the completed run.
+5. Open `contact-sheet-dark.png` first. It shows all three poses on a dark background. Individual files are in `preview-png/`; transparent PNGs preserve alpha. Original SVGs remain in `frames/`.
 
-The output contains three SVGs, upstream license/attribution notices, and `source-manifest.json` with the pinned source revision and hashes. No binary assets are committed to this repository.
+The artifact includes the source SVGs, rendered PNG previews, contact sheet, upstream license/attribution notices, and `source-manifest.json` with source revision and SHA-256 hashes. Binary assets are not committed to this repository.
 
-## What this validates — and what it does not
+## Automated checks
 
-**Automated:** source revision is pinned; exactly three expected frame paths are present; each SVG parses; each declares 512 × 512 dimensions; a full-canvas background rectangle is rejected; source attribution/license metadata is preserved; file hashes are recorded.
+- Source revision is pinned and exactly three expected frame paths are required.
+- Each SVG must parse and declare 512 × 512 dimensions.
+- A full-canvas background rectangle is rejected.
+- SVGs are rendered to 512 × 512 PNGs; alpha is checked to ensure transparency survived.
+- A contact sheet is assembled on a dark background for readable inspection.
 
-**Still requires human review:** whether the poses are visually useful, whether the sequence clearly communicates the pull-up, whether the SVGs render correctly in the target Godot version, whether the loop can be reconstructed well, and whether licensing is acceptable for the intended distribution.
+## Not yet verified
 
-Three static poses are not a 24–36-frame animation. Intermediate movement, loop timing, and a distinct female character remain separate unresolved tasks.
+These checks do not establish that the three poses form a smooth or biomechanically accurate animation, that the SVGs import correctly in the target Godot version, or that a distinct female version exists. Three static poses are not a 24–36-frame cycle. Next production work should compare available source repositories, then build a repeatable preview/interpolation workflow around assets that pass visual review.
