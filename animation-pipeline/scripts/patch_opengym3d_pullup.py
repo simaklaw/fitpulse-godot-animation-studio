@@ -175,6 +175,30 @@ if text.count(anim_old) != 1:
     raise SystemExit("Unexpected upstream animation block; refusing an unsafe contact-check patch")
 text = text.replace(anim_old, anim_new, 1)
 
+# Add a second alpha-preserving render pass after the studio preview.
+alpha_old = '    backdrop = bpy.data.objects.get("Backdrop")\n    if backdrop:\n        bpy.data.objects.remove(backdrop, do_unlink=True)\n    # SCENE mode bakes every animated object into one glTF animation, so the'
+alpha_new = '''    backdrop = bpy.data.objects.get("Backdrop")
+    if backdrop:
+        bpy.data.objects.remove(backdrop, do_unlink=True)
+
+    # Separate transparent PNG sequence for app compositing. Keep the original
+    # studio render intact for human review and MP4 preview.
+    if spec.get("id") == "pull_up":
+        scene.render.film_transparent = True
+        scene.render.image_settings.file_format = "PNG"
+        scene.render.image_settings.color_mode = "RGBA"
+        scene.render.image_settings.color_depth = "8"
+        scene.render.resolution_x = scene.render.resolution_y = 720
+        scene.cycles.samples = 8
+        scene.frame_step = 1
+        scene.render.filepath = f"{out_dir}/frames_{spec['id']}_alpha/"
+        bpy.ops.render.render(animation=True)
+
+    # SCENE mode bakes every animated object into one glTF animation, so the'''
+if text.count(alpha_old) != 1:
+    raise SystemExit("Unexpected upstream backdrop/export block; refusing unsafe alpha patch")
+text = text.replace(alpha_old, alpha_new, 1)
+
 # Bound MPFB asset downloads so a stalled extensions endpoint cannot hold CI forever.
 download_old = 'with urllib.request.urlopen(req) as resp, open(zpath, "wb") as f:'
 download_new = 'with urllib.request.urlopen(req, timeout=60) as resp, open(zpath, "wb") as f:'
