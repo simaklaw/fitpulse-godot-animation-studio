@@ -20,9 +20,11 @@ text = text.replace(place_old, place_new, 1)
 # Match each setting independently because upstream has changed frame_step formatting
 # between revisions; fail closed unless every expected setting appears exactly once.
 quality_rules = [
-    (r"(?m)^(\s*scene\.render\.resolution_x\s*=\s*scene\.render\.resolution_y\s*=\s*)\d+\s*$", r"\g<1>720", "resolution"),
-    (r"(?m)^(\s*scene\.cycles\.samples\s*=\s*)\d+\s*$", r"\g<1>32", "Cycles samples"),
-    (r"(?m)^(\s*scene\.frame_step\s*=\s*)\d+\s*$", r"\g<1>1", "frame step"),
+    # Target the preview-specific values only. Upstream also sets a 512px
+    # thumbnail earlier in the file, which must remain untouched.
+    (r"(?m)^(\s*scene\.render\.resolution_x\s*=\s*scene\.render\.resolution_y\s*=\s*)240\s*$", r"\g<1>720", "preview resolution"),
+    (r"(?m)^(\s*scene\.cycles\.samples\s*=\s*)12\s*$", r"\g<1>32", "preview Cycles samples"),
+    (r"(?m)^(\s*scene\.frame_step\s*=\s*)2(\s*(?:#.*)?)$", r"\g<1>1\g<2>", "preview frame step"),
 ]
 for pattern, replacement, label in quality_rules:
     text, count = re.subn(pattern, replacement, text)
