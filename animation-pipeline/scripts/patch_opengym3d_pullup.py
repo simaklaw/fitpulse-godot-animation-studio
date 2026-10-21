@@ -175,5 +175,12 @@ if text.count(anim_old) != 1:
     raise SystemExit("Unexpected upstream animation block; refusing an unsafe contact-check patch")
 text = text.replace(anim_old, anim_new, 1)
 
+# Bound MPFB asset downloads so a stalled extensions endpoint cannot hold CI forever.
+download_old = 'with urllib.request.urlopen(req) as resp, open(zpath, "wb") as f:'
+download_new = 'with urllib.request.urlopen(req, timeout=60) as resp, open(zpath, "wb") as f:'
+if text.count(download_old) != 1:
+    raise SystemExit("Unexpected upstream MPFB download block; refusing an unsafe timeout patch")
+text = text.replace(download_old, download_new, 1)
+
 source.write_text(text)
-print("Patched upstream renderer: static pull-up rack enabled.")
+print("Patched upstream renderer: fixed pull-up rack, render profile, and bounded MPFB download.")
