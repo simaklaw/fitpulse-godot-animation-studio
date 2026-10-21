@@ -1,0 +1,36 @@
+name: Import Workout Guide Pull-Up References
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feat/workout-guide-pull-up-reference-import
+    paths:
+      - "animation-pipeline/scripts/fetch_workout_guide_reference.py"
+      - "animation-pipeline/WORKOUT_GUIDE_REFERENCE.md"
+      - ".github/workflows/workout-guide-reference.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: workout-guide-reference-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fetch-reference-assets:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch pinned pull-up reference frames and license notices
+        run: python3 animation-pipeline/scripts/fetch_workout_guide_reference.py
+
+      - name: Upload reference-only asset bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: workout-guide-pull-up-reference
+          path: output/workout-guide-pull-up-reference/
+          if-no-files-found: error
+          retention-days: 14
