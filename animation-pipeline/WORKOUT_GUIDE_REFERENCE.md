@@ -36,3 +36,17 @@ The pilot bundle contains `pilot-reference-manifest.json`, the original SVGs, re
 ## Limits and next production gate
 
 The selected source provides three static poses per exercise. This does not establish a smooth or biomechanically accurate animation, and the source does not provide a distinct male/female character pair. The contact sheet is intended to compare pose clarity, equipment visibility, framing, and how much work is needed to create a premium animation. After visual review, select one exercise as the first production candidate and specify the required motion phases before implementing interpolation or a Godot scene.
+
+
+## Manual visual review rubric
+
+Review the contact sheet at phone size and record each exercise against these gates before choosing it for production:
+
+- **Pose readability:** the exercise is recognizable from the silhouette without reading its label.
+- **Equipment and contact:** bar, bench, dumbbells, or kettlebell are visible and align with the character's hands/body.
+- **Range of motion:** the three poses communicate distinct, ordered phases rather than near-duplicates.
+- **Framing:** head, hands, feet, and equipment stay inside the canvas; the subject has enough margin for mobile cropping.
+- **Consistency:** character scale, camera angle, stroke/line weight, and visual treatment remain consistent across the three poses.
+- **Production gap:** note missing intermediate phases, unclear joints, or any need for a new male/female design rather than treating recoloring as a variant.
+
+Use `PASS`, `REVIEW`, or `REJECT` per criterion and choose the first animation candidate only after a human has opened the artifact. CI's XML, dimensions, alpha, and file-count checks are structural checks, not a visual or biomechanics approval.
