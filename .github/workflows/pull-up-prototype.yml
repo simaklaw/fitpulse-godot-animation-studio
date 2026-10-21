@@ -129,45 +129,42 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if compgen -G "output/frames_pull_up_alpha/*.png" > /dev/null; then
-            python3 -m venv /tmp/fitpulse-alpha-qa
-            /tmp/fitpulse-alpha-qa/bin/python -m pip install --quiet --disable-pip-version-check pillow
-            /tmp/fitpulse-alpha-qa/bin/python - <<'PY'
-            from pathlib import Path
-            from PIL import Image
-            frames = sorted(Path("output/frames_pull_up_alpha").glob("*.png"))
-            assert len(frames) == 72, f"expected 72 transparent frames, got {len(frames)}"
-            saw_transparent = False
-            saw_opaque = False
-            for path in frames:
-                with Image.open(path) as im:
-                    assert im.size == (720, 720), f"{path.name}: unexpected size {im.size}"
-                    assert im.mode == "RGBA", f"{path.name}: missing RGBA alpha channel"
-                    alpha = im.getchannel("A")
-                    lo, hi = alpha.getextrema()
-                    corners = [
-                        alpha.getpixel((0, 0)),
-                        alpha.getpixel((im.width - 1, 0)),
-                        alpha.getpixel((0, im.height - 1)),
-                        alpha.getpixel((im.width - 1, im.height - 1)),
-                    ]
-                    assert all(value == 0 for value in corners), (
-                        f"{path.name}: expected transparent corners, got {corners}"
-                    )
-                    transparent_fraction = sum(value == 0 for value in alpha.getdata()) / (im.width * im.height)
-                    assert transparent_fraction >= 0.05, (
-                        f"{path.name}: only {transparent_fraction:.1%} fully transparent pixels; matte may remain"
-                    )
-                    saw_transparent |= lo == 0
-                    saw_opaque |= hi == 255
-            assert saw_transparent, "no fully transparent pixels detected; background may still be present"
-            assert saw_opaque, "no opaque subject pixels detected"
-            print(f"Alpha QA PASS: {len(frames)} RGBA frames at 720x720; transparent corners, clear background and opaque subject verified.")
-            PY
-          else
-            echo "Transparent frame sequence missing" >&2
-            exit 1
-          fi
+          test -d output/frames_pull_up_alpha
+          test "$(find output/frames_pull_up_alpha -maxdepth 1 -type f -name '*.png' | wc -l)" -eq 72
+          python3 -m venv /tmp/fitpulse-alpha-qa
+          /tmp/fitpulse-alpha-qa/bin/python -m pip install --quiet --disable-pip-version-check pillow
+          /tmp/fitpulse-alpha-qa/bin/python - <<'PY'
+          from pathlib import Path
+          from PIL import Image
+
+          frames = sorted(Path("output/frames_pull_up_alpha").glob("*.png"))
+          assert len(frames) == 72, f"expected 72 transparent frames, got {len(frames)}"
+          unique_frames = set()
+          for path in frames:
+              with Image.open(path) as im:
+                  assert im.size == (720, 720), f"{path.name}: unexpected size {im.size}"
+                  assert im.mode == "RGBA", f"{path.name}: missing RGBA alpha channel"
+                  alpha = im.getchannel("A")
+                  corners = [
+                      alpha.getpixel((0, 0)),
+                      alpha.getpixel((im.width - 1, 0)),
+                      alpha.getpixel((0, im.height - 1)),
+                      alpha.getpixel((im.width - 1, im.height - 1)),
+                  ]
+                  assert all(value == 0 for value in corners), (
+                      f"{path.name}: expected transparent corners, got {corners}"
+                  )
+                  transparent_fraction = alpha.histogram()[0] / (im.width * im.height)
+                  assert transparent_fraction >= 0.05, (
+                      f"{path.name}: only {transparent_fraction:.1%} transparent pixels; matte may remain"
+                  )
+                  assert alpha.getextrema()[1] == 255, f"{path.name}: no fully opaque subject pixels"
+                  unique_frames.add(__import__("hashlib").sha256(im.tobytes()).digest())
+          assert len(unique_frames) >= 60, (
+              f"only {len(unique_frames)} visually unique RGBA frames; animation may be static"
+          )
+          print(f"Alpha QA PASS: {len(frames)} frames, 720x720 RGBA; transparent corners, >=5% transparent pixels, opaque subject, and {len(unique_frames)} unique frames.")
+          PY
 
       - name: Upload animation and QA artifacts
         if: always()
