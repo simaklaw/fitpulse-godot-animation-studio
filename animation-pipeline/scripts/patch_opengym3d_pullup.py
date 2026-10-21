@@ -152,11 +152,12 @@ def assert_pull_up_body_pose(rig, frame_end):
     head = rig.pose.bones.get("head")
     if head is None:
         raise RuntimeError("pull-up top-position gate: missing head bone")
-    head_top = (rig.matrix_world @ head.tail).z
-    required_head_top = 2.553
-    print(f"TOP pull_up: head-top height {head_top:.3f} m at frame {top_frame}; minimum {required_head_top:.3f} m")
-    if head_top < required_head_top:
-        raise RuntimeError(f"pull-up top-position failed: head top {head_top:.3f} m < {required_head_top:.3f} m; chin clearance not demonstrated")
+    head_base_z = (rig.matrix_world @ head.head).z
+    bar_top_z = 2.453 + 0.028
+    required_head_base_z = bar_top_z + 0.03
+    print(f"TOP pull_up: head-base proxy {head_base_z:.3f} m at frame {top_frame}; bar top {bar_top_z:.3f} m; minimum {required_head_base_z:.3f} m")
+    if head_base_z < required_head_base_z:
+        raise RuntimeError(f"pull-up top-position failed: head-base proxy {head_base_z:.3f} m does not clear bar top {bar_top_z:.3f} m by 0.03 m")
 
 
 '''
