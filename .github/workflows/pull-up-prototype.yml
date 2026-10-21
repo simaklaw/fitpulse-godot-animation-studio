@@ -121,8 +121,9 @@ jobs:
         run: |
           set -euo pipefail
           if compgen -G "output/frames_pull_up_alpha/*.png" > /dev/null; then
-            python3 -m pip install --quiet pillow
-            python3 - <<'PY'
+            python3 -m venv /tmp/fitpulse-alpha-qa
+            /tmp/fitpulse-alpha-qa/bin/python -m pip install --quiet --disable-pip-version-check pillow
+            /tmp/fitpulse-alpha-qa/bin/python - <<'PY'
             from pathlib import Path
             from PIL import Image
             frames = sorted(Path("output/frames_pull_up_alpha").glob("*.png"))
