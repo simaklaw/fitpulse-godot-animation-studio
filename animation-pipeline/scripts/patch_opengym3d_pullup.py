@@ -23,7 +23,7 @@ quality_rules = [
     # Target the preview-specific values only. Upstream also sets a 512px
     # thumbnail earlier in the file, which must remain untouched.
     (r"(?m)^(\s*scene\.render\.resolution_x\s*=\s*scene\.render\.resolution_y\s*=\s*)240\s*$", r"\g<1>720", "preview resolution"),
-    (r"(?m)^(\s*scene\.cycles\.samples\s*=\s*)12\s*$", r"\g<1>32", "preview Cycles samples"),
+    (r"(?m)^(\s*scene\.cycles\.samples\s*=\s*)12\s*$", r"\g<1>8", "preview Cycles samples"),
     (r"(?m)^(\s*scene\.frame_step\s*=\s*)2(\s*(?:#.*)?)$", r"\g<1>1\g<2>", "preview frame step"),
 ]
 for pattern, replacement, label in quality_rules:
@@ -188,7 +188,7 @@ alpha_new = '''    backdrop = bpy.data.objects.get("Backdrop")
         scene.render.image_settings.color_mode = "RGBA"
         scene.render.image_settings.color_depth = "8"
         scene.render.resolution_x = scene.render.resolution_y = 720
-        scene.cycles.samples = 32
+        scene.cycles.samples = 8
         scene.frame_step = 1
         scene.render.filepath = f"{out_dir}/frames_{spec['id']}_alpha/"
         bpy.ops.render.render(animation=True)
