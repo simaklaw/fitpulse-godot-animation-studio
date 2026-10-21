@@ -114,6 +114,37 @@ jobs:
             grep -qx 'nb_frames=72' output/video-qa.txt
           fi
 
+      - name: Verify transparent frame sequence
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          if compgen -G "output/frames_pull_up_alpha/*.png" > /dev/null; then
+            python3 -m pip install --quiet pillow
+            python3 - <<'PY'
+            from pathlib import Path
+            from PIL import Image
+            frames = sorted(Path("output/frames_pull_up_alpha").glob("*.png"))
+            assert len(frames) == 72, f"expected 72 transparent frames, got {len(frames)}"
+            saw_transparent = False
+            saw_opaque = False
+            for path in frames:
+                with Image.open(path) as im:
+                    assert im.size == (720, 720), f"{path.name}: unexpected size {im.size}"
+                    assert im.mode == "RGBA", f"{path.name}: missing RGBA alpha channel"
+                    alpha = im.getchannel("A")
+                    lo, hi = alpha.getextrema()
+                    saw_transparent |= lo == 0
+                    saw_opaque |= hi == 255
+            assert saw_transparent, "no fully transparent pixels detected; background may still be present"
+            assert saw_opaque, "no opaque subject pixels detected"
+            print(f"Alpha QA PASS: {len(frames)} RGBA frames at 720x720; transparent and opaque pixels verified.")
+            PY
+          else
+            echo "Transparent frame sequence missing" >&2
+            exit 1
+          fi
+
       - name: Upload animation and QA artifacts
         if: always()
         uses: actions/upload-artifact@v4
@@ -123,6 +154,7 @@ jobs:
             output/pull_up.glb
             output/pull_up.png
             output/pull_up.mp4
+            output/frames_pull_up_alpha/*.png
             output/pull_up.glb.qa.json
             output/build.log
             output/qa.log
