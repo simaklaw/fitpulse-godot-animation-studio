@@ -9,6 +9,7 @@ on:
       - feat/pull-up-premium-preview
       - feat/pull-up-premium-preview-clean
       - feat/pull-up-apparel-validation
+      - feat/pull-up-compact-rack-framing
       - fix/pull-up-render-quality
       - fix/pull-up-prototype-clean-main
       - feat/pull-up-transparent-export
