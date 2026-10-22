@@ -2,40 +2,45 @@
 
 ## Purpose
 
-Generate a distinct male and female anatomical presentation from the same pinned animation spec. The pipeline uses the MPFB2 gender macro to change the generated body shape; it does not recolour one identical mesh and call it a second design.
+Generate distinct male and female character presentations from one pinned pull-up motion specification. These are separate generated bodies with separate CC0 clothing and hairstyle meshes—not merely recolored copies of one model.
 
-## Current profile values
+## Profiles
 
-| Profile | MPFB gender macro | Muscle macro | Weight macro | Proportions macro |
-|---|---:|---:|---:|---:|
-| Male | 1.0 | 0.82 | 0.46 | 0.50 |
-| Female | 0.0 | 0.68 | 0.46 | 0.50 |
+| Profile | MPFB gender macro | Muscle | Weight | Proportions | Height |
+|---|---:|---:|---:|---:|---:|
+| Male | 1.0 | 0.82 | 0.48 | 0.85 | 0.50 |
+| Female | 0.0 | 0.68 | 0.48 | 0.85 | 0.90 |
 
-MPFB2 documents the gender macro as 0.0 = female and 1.0 = male. The renderer logs the requested profile and reads the value back after applying macro details; CI rejects an unrecognized profile or a mismatch.
+The gender macro is checked by reading it back after MPFB applies macro details. The female profile is being tested with a higher height macro because the prior neutral-height model could not reach the shared fixed bar using the same motion: its wrist proxy missed by about 0.21 m. The height adjustment is accepted only if the strict bar-contact, clearance and top-position gates pass. These profiles are technical presets, not a claim that any one body type represents all men or women.
 
-These are practical starting presets for an athletic training figure, not a claim that one body type represents all men or women. They may be refined after reviewing the actual renders.
+## Character styling
 
-## Expected outputs per presentation
+- Male profile: CC0 fitted T-shirt and shorts plus `cortu_short_messy_hair`.
+- Female profile: CC0 fitted T-shirt and shorts plus `elvs_reverse_french_braid_bun`.
+- Apparel uses FitPulse forest/mint and charcoal materials; the hair assets retain their source materials.
+- Both profiles are exported as separate rigged GLBs and separately rendered 720×720 previews.
 
-- `pull_up.glb`: rigged animated character and pull-up rack.
-- `pull_up.png`: original studio thumbnail (512×512, retained for technical review).
-- `pull_up_studio.mp4`: original studio-background render, retained for comparison.
+## Expected outputs per profile
+
+- `pull_up.glb`: rigged character, hair, clothing and fixed pull-up apparatus.
+- `pull_up.png`: technical studio thumbnail (512×512).
+- `pull_up_studio.mp4`: studio-background render.
 - `pull_up.mp4`: app preview composited over a dark forest/mint background, 720×720 at 30 fps.
-- `poster.png`: frame 41 from that composited preview for the exercise-card poster.
+- `poster.png`: representative video frame.
 - `frames_pull_up_alpha/*.png`: 72 transparent 720×720 RGBA frames.
-- `pull_up_contact_sheet.png`: an 8-pose contact sheet from the app preview.
-- Build and structural-QA logs.
+- `pull_up_contact_sheet.png`: eight-pose review sheet.
+- Build logs and structural QA results.
 
 ## CI acceptance gates
 
-- Both profile macros are logged and verified by MPFB.
-- Male and female GLBs and thumbnails are not byte/pixel-identical.
-- Each model passes GLB structural QA and the same fixed-bar wrist contact, foot-clearance and top-position checks.
+- MPFB profile values are applied and verified.
+- Expected shirt, shorts and hairstyle nodes exist in each GLB.
+- Male and female GLBs, thumbnails and posters are genuinely different.
+- Both profiles pass GLB structural QA, fixed-bar contact, foot-clearance and top-position checks.
 - Each MP4 is exactly 720×720, 30 fps and 72 frames.
-- Each alpha sequence has 72 720×720 RGBA frames, four fully transparent corners, at least 80% fully transparent pixels, opaque subject pixels and at least 60 unique frames.
+- Alpha export has 72 RGBA frames, transparent corners, a visible subject, and at least 60 distinct frames.
+- App media publisher only opens a PR after a successful main-branch build and media metadata checks.
 
-The post-build publisher in `.github/workflows/publish-pull-up-app-media.yml` opens a separate PR with only the verified MP4s, posters and SHA-256 manifest after a successful build on `main`; it does not copy every PNG frame into the mobile app repository.
+## Limits
 
-## Not yet implied by these checks
-
-Distinct body geometry does not equal premium final character art. The current output is a technical anatomical prototype; clothes/styling, camera/readability review at phone size, expert biomechanics review, integration into the FitPulse app and on-device performance all require separate acceptance.
+Distinct meshes and successful CI do not by themselves prove premium final art or expert-certified biomechanics. Visual review, deformation testing, expert movement review, app integration and on-device playback remain separate acceptance steps.
