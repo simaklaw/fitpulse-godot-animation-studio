@@ -277,11 +277,9 @@ setter_new = '''    TargetService.reapply_macro_details(basemesh)
             raise RuntimeError(f"Expected exactly one clothing asset {filename!r}; found {len(matches)}")
         return matches[0]
 
-    shirt_name = (
-        "elvs_crude_t-shirt_male.mhclo"
-        if gender_name == "male"
-        else "joepal_crude_t-shirt_female.mhclo"
-    )
+    # Use one better-covered CC0 crew-neck mesh for both body profiles.
+    # The earlier sex-specific crude tees exposed shoulder skin under the raised-arm pose.
+    shirt_name = "toigo_basic_tucked_t-shirt.mhclo"
     clothing_specs = (
         (shirt_name, (0.025, 0.20, 0.15, 1.0), "shirt"),
         ("cortu_jeans_shorts.mhclo", (0.018, 0.035, 0.040, 1.0), "shorts"),
@@ -301,6 +299,19 @@ setter_new = '''    TargetService.reapply_macro_details(basemesh)
         garment.data.materials.append(garment_material)
         for polygon in garment.data.polygons:
             polygon.material_index = 0
+        if garment_label in ("shirt", "shorts"):
+            # Tiny outward normal offset reduces z-fighting and skin poke-through
+            # when elbows are flexed and shoulders are elevated under the bar.
+            garment.data.update()
+            for vertex in garment.data.vertices:
+                normal = vertex.normal
+                if normal.length_squared > 1.0e-10:
+                    vertex.co += normal.normalized() * 0.004
+            garment.data.update()
+            print(
+                f"APPAREL_SURFACE_OFFSET gender={gender_name} item={garment_label} "
+                "offset_m=0.004"
+            )
         print(
             f"APPAREL_LOADED gender={gender_name} item={garment_label} "
             f"asset={filename} vertices={len(garment.data.vertices)}"
