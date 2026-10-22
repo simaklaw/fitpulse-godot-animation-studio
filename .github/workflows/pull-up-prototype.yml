@@ -113,8 +113,7 @@ jobs:
           unzip -tq /tmp/pants01_cc0.zip
           unzip -oq /tmp/shirts01_cc0.zip -d "$root"
           unzip -oq /tmp/pants01_cc0.zip -d "$root"
-          find "$root" -type f -name 'elvs_crude_t-shirt_male.mhclo' -print -quit | grep -q .
-          find "$root" -type f -name 'joepal_crude_t-shirt_female.mhclo' -print -quit | grep -q .
+          find "$root" -type f -name 'toigo_basic_tucked_t-shirt.mhclo' -print -quit | grep -q .
           find "$root" -type f -name 'cortu_jeans_shorts.mhclo' -print -quit | grep -q .
           touch "$root/.complete"
           echo "MakeHuman CC0 apparel ready: male/female shirts and shorts asset found."
@@ -124,8 +123,7 @@ jobs:
         run: |
           set -euo pipefail
           test -f third_party/makehuman-cc0/.complete
-          find third_party/makehuman-cc0 -type f -name 'elvs_crude_t-shirt_male.mhclo' -print -quit | grep -q .
-          find third_party/makehuman-cc0 -type f -name 'joepal_crude_t-shirt_female.mhclo' -print -quit | grep -q .
+          find third_party/makehuman-cc0 -type f -name 'toigo_basic_tucked_t-shirt.mhclo' -print -quit | grep -q .
           find third_party/makehuman-cc0 -type f -name 'cortu_jeans_shorts.mhclo' -print -quit | grep -q .
 
       - name: Cache MakeHuman CC0 hair assets
@@ -240,7 +238,7 @@ jobs:
           import sys
 
           gender = sys.argv[1]
-          shirt_token = "elvs_crude_t-shirt_male" if gender == "male" else "joepal_crude_t-shirt_female"
+          shirt_token = "toigo_basic_tucked_t-shirt"
           hair_token = "cortu_short_messy_hair" if gender == "male" else "elvs_reverse_french_braid_bun"
           shoes_token = "punkduck_running_shoes_01"
           data = (Path("output") / gender / "pull_up.glb").read_bytes()
