@@ -277,9 +277,14 @@ setter_new = '''    TargetService.reapply_macro_details(basemesh)
             raise RuntimeError(f"Expected exactly one clothing asset {filename!r}; found {len(matches)}")
         return matches[0]
 
-    # Use one better-covered CC0 crew-neck mesh for both body profiles.
-    # The earlier sex-specific crude tees exposed shoulder skin under the raised-arm pose.
-    shirt_name = "toigo_basic_tucked_t-shirt.mhclo"
+    # Pull-ups keep both arms overhead for much of the cycle. Sleeveless athletic
+    # tops make the exposed deltoid/underarm area intentional, unlike irregular
+    # sleeve-cap clipping from the short-sleeve shirt meshes.
+    shirt_name = (
+        "elvs_male_athletic_tank1.mhclo"
+        if gender_name == "male"
+        else "elvs_ladies_tank1.mhclo"
+    )
     clothing_specs = (
         (shirt_name, (0.025, 0.20, 0.15, 1.0), "shirt"),
         ("cortu_jeans_shorts.mhclo", (0.018, 0.035, 0.040, 1.0), "shorts"),
@@ -306,11 +311,11 @@ setter_new = '''    TargetService.reapply_macro_details(basemesh)
             for vertex in garment.data.vertices:
                 normal = vertex.normal
                 if normal.length_squared > 1.0e-10:
-                    vertex.co += normal.normalized() * 0.004
+                    vertex.co += normal.normalized() * 0.002
             garment.data.update()
             print(
                 f"APPAREL_SURFACE_OFFSET gender={gender_name} item={garment_label} "
-                "offset_m=0.004"
+                "offset_m=0.002"
             )
         print(
             f"APPAREL_LOADED gender={gender_name} item={garment_label} "
