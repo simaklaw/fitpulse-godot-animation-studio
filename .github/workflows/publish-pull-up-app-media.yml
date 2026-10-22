@@ -28,13 +28,21 @@ jobs:
         with:
           ref: main
 
-      - name: Download validated renderer artifact
+      - name: Download male validated renderer artifact
         uses: actions/download-artifact@v4
         with:
-          name: fitpulse-pull-up-prototype
+          name: fitpulse-pull-up-male
           run-id: ${{ github.event.workflow_run.id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          path: downloaded
+          path: downloaded/male
+
+      - name: Download female validated renderer artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: fitpulse-pull-up-female
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: downloaded/female
 
       - name: Verify media and prepare app-sized publication
         shell: bash
