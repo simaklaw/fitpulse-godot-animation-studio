@@ -119,23 +119,50 @@ jobs:
           done
         working-directory: upstream
 
-      - name: Assemble and verify male/female MP4 previews
+      - name: Assemble studio review and branded FitPulse previews
         if: always()
         shell: bash
         run: |
           set -euo pipefail
+          python3 - <<'PY'
+          import math
+          from pathlib import Path
+
+          width = height = 720
+          data = bytearray()
+          for y in range(height):
+              t = y / max(1, height - 1)
+              base_r = int(12 + 4 * t)
+              base_g = int(20 + 13 * t)
+              base_b = int(26 + 7 * t)
+              for x in range(width):
+                  dx = (x - width * 0.50) / (width * 0.62)
+                  dy = (y - height * 0.40) / (height * 0.72)
+                  glow = max(0.0, 1.0 - math.sqrt(dx * dx + dy * dy))
+                  amount = int(22 * glow * glow)
+                  r = min(255, base_r + int(amount * 0.20))
+                  g = min(255, base_g + int(amount * 0.90))
+                  b = min(255, base_b + int(amount * 0.56))
+                  if y > 130 and y % 120 < 2 and 56 < x < width - 56:
+                      r, g, b = min(255, r + 1), min(255, g + 4), min(255, b + 3)
+                  data.extend((r, g, b))
+          Path('/tmp/fitpulse-pull-up-bg.ppm').write_bytes(f'P6\n{width} {height}\n255\n'.encode() + data)
+          print('Generated dark forest/mint background for transparent-frame compositing.')
+          PY
           for gender in male female; do
             frame_dir="output/$gender/frames_pull_up"
-            if ! compgen -G "$frame_dir/*.png" > /dev/null; then
-              echo "Missing studio frame sequence for $gender" >&2
-              exit 1
-            fi
-            ffmpeg -y -v error -framerate 30 -pattern_type glob -i "$frame_dir/*.png" -c:v libx264 -pix_fmt yuv420p -movflags +faststart "output/$gender/pull_up.mp4"
+            alpha_dir="output/$gender/frames_pull_up_alpha"
+            test "$(find "$frame_dir" -maxdepth 1 -type f -name '*.png' | wc -l)" -eq 72
+            test "$(find "$alpha_dir" -maxdepth 1 -type f -name '*.png' | wc -l)" -eq 72
+            ffmpeg -y -v error -framerate 30 -pattern_type glob -i "$frame_dir/*.png" -c:v libx264 -pix_fmt yuv420p -movflags +faststart "output/$gender/pull_up_studio.mp4"
+            ffmpeg -y -v error -loop 1 -framerate 30 -i /tmp/fitpulse-pull-up-bg.ppm -framerate 30 -pattern_type glob -i "$alpha_dir/*.png" -filter_complex "[0:v][1:v]overlay=shortest=1:format=auto,format=yuv420p[v]" -map "[v]" -frames:v 72 -c:v libx264 -crf 19 -preset medium -movflags +faststart "output/$gender/pull_up.mp4"
             ffprobe -v error -select_streams v:0 -show_entries stream=width,height,r_frame_rate,nb_frames -of default=noprint_wrappers=1 "output/$gender/pull_up.mp4" | tee "output/$gender/video-qa.txt"
             grep -qx 'width=720' "output/$gender/video-qa.txt"
             grep -qx 'height=720' "output/$gender/video-qa.txt"
             grep -qx 'r_frame_rate=30/1' "output/$gender/video-qa.txt"
             grep -qx 'nb_frames=72' "output/$gender/video-qa.txt"
+            ffmpeg -y -v error -i "output/$gender/pull_up.mp4" -vf "select='eq(n,40)'" -vsync 0 -frames:v 1 "output/$gender/poster.png"
+            test -s "output/$gender/poster.png"
           done
 
       - name: Generate both visual QA contact sheets
