@@ -304,7 +304,38 @@ setter_new = '''    TargetService.reapply_macro_details(basemesh)
         print(
             f"APPAREL_LOADED gender={gender_name} item={garment_label} "
             f"asset={filename} vertices={len(garment.data.vertices)}"
-        )'''
+        )
+
+    # Add a different CC0 hairstyle for each profile so the silhouette reads
+    # as a deliberately designed athlete rather than a bald generic mannequin.
+    hair_root = os.environ.get("FITX_HAIR_ROOT", "").strip()
+    if not hair_root or not os.path.isdir(hair_root):
+        raise RuntimeError("FITX_HAIR_ROOT must point to the verified MakeHuman CC0 hair pack")
+
+    def find_hair_asset(filename):
+        matches = []
+        for root, _, filenames in os.walk(hair_root):
+            if filename in filenames:
+                matches.append(os.path.join(root, filename))
+        if len(matches) != 1:
+            raise RuntimeError(f"Expected exactly one hairstyle {filename!r}; found {len(matches)}")
+        return matches[0]
+
+    hair_name = (
+        "cortu_short_messy_hair.mhclo"
+        if gender_name == "male"
+        else "elvs_reverse_french_braid_bun.mhclo"
+    )
+    hair_path = find_hair_asset(hair_name)
+    hair = HumanService.add_mhclo_asset(
+        hair_path, basemesh, asset_type="Hair", subdiv_levels=1,
+        material_type="GAMEENGINE", set_up_rigging=True,
+        interpolate_weights=True, import_subrig=False, import_weights=True,
+    )
+    print(
+        f"APPAREL_LOADED gender={gender_name} item=hair "
+        f"asset={hair_name} vertices={len(hair.data.vertices)}"
+    )'''
 if text.count(setter_old) != 1:
     raise SystemExit("Unexpected upstream MPFB phenotype verification point")
 text = text.replace(setter_old, setter_new, 1)
