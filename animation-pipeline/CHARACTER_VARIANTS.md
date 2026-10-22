@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Generate distinct male and female character presentations from one pinned pull-up motion specification. These are separate generated bodies with separate CC0 clothing and hairstyle meshes—not merely recolored copies of one model.
+Generate distinct male and female character presentations from one pinned pull-up motion spec, including separate body profiles and fitted clothing, hairstyle and running-shoe meshes. The two outputs must not be identical renders.
 
 ## Profiles
 
@@ -11,36 +11,35 @@ Generate distinct male and female character presentations from one pinned pull-u
 | Male | 1.0 | 0.82 | 0.48 | 0.85 | 0.50 |
 | Female | 0.0 | 0.68 | 0.48 | 0.85 | 0.90 |
 
-The gender macro is checked by reading it back after MPFB applies macro details. The female profile is being tested with a higher height macro because the prior neutral-height model could not reach the shared fixed bar using the same motion: its wrist proxy missed by about 0.21 m. The height adjustment is accepted only if the strict bar-contact, clearance and top-position gates pass. These profiles are technical presets, not a claim that any one body type represents all men or women.
+MPFB's gender macro is read back after macro details are applied. Female height 0.90 is under strict validation because the prior neutral-height female rig missed the fixed bar by roughly 0.21 m with the shared pose. The height change is accepted only if contact, clearance, and top-position checks pass. These are technical athletic presets, not claims that one body type represents all men or women.
 
-## Character styling
+## Styling
 
-- Male profile: CC0 fitted T-shirt and shorts plus `cortu_short_messy_hair`.
-- Female profile: CC0 fitted T-shirt and shorts plus `elvs_reverse_french_braid_bun`.
-- Apparel uses FitPulse forest/mint and charcoal materials; the hair assets retain their source materials.
-- Both profiles are exported as separate rigged GLBs and separately rendered 720×720 previews.
+- **Male**: CC0 T-shirt and shorts, CC0 short messy hairstyle, CC-BY running shoes by Punkduck.
+- **Female**: CC0 T-shirt and shorts, CC0 reverse French-braid bun, CC-BY running shoes by Punkduck.
+- Activewear and footwear use FitPulse forest/mint/charcoal materials; hairstyle source material is retained.
+- The build records exact source-asset names in logs and verifies that clothes, hair, and shoes appear in the exported GLB.
 
-## Expected outputs per profile
+## Outputs per profile
 
-- `pull_up.glb`: rigged character, hair, clothing and fixed pull-up apparatus.
+- `pull_up.glb`: rigged character with hair/clothes/shoes and pull-up rig.
 - `pull_up.png`: technical studio thumbnail (512×512).
-- `pull_up_studio.mp4`: studio-background render.
-- `pull_up.mp4`: app preview composited over a dark forest/mint background, 720×720 at 30 fps.
-- `poster.png`: representative video frame.
+- `pull_up_studio.mp4`: studio render.
+- `pull_up.mp4`: branded app preview, 720×720 at 30 fps.
+- `poster.png`: representative frame for exercise cards.
 - `frames_pull_up_alpha/*.png`: 72 transparent 720×720 RGBA frames.
 - `pull_up_contact_sheet.png`: eight-pose review sheet.
-- Build logs and structural QA results.
+- Build and QA logs.
 
-## CI acceptance gates
+## Acceptance gates
 
-- MPFB profile values are applied and verified.
-- Expected shirt, shorts and hairstyle nodes exist in each GLB.
-- Male and female GLBs, thumbnails and posters are genuinely different.
-- Both profiles pass GLB structural QA, fixed-bar contact, foot-clearance and top-position checks.
-- Each MP4 is exactly 720×720, 30 fps and 72 frames.
-- Alpha export has 72 RGBA frames, transparent corners, a visible subject, and at least 60 distinct frames.
-- App media publisher only opens a PR after a successful main-branch build and media metadata checks.
+- MPFB profile macro verified; character meshes and posters differ across profiles.
+- Expected shirt, shorts, hairstyle and running-shoe meshes are present in each GLB.
+- Both profiles pass structural GLB QA and fixed-bar contact, floor-clearance and top-position checks.
+- MP4: 720×720, 30 fps, 72 frames.
+- Transparent sequence: 72 RGBA frames, transparent corners, visibly present subject, at least 60 unique frames.
+- The publisher only proposes app media after a successful main-branch build with metadata checks.
 
 ## Limits
 
-Distinct meshes and successful CI do not by themselves prove premium final art or expert-certified biomechanics. Visual review, deformation testing, expert movement review, app integration and on-device playback remain separate acceptance steps.
+Passing CI does not establish final premium art or expert-certified biomechanics. Contact-sheet review, motion expert review, app integration and device playback remain separate acceptance steps. CC-BY shoe attribution must remain with the asset in downstream documentation.
