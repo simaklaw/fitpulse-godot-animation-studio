@@ -221,8 +221,12 @@ gender_new = '''    gender_name = os.environ.get("FITX_GENDER", "male").strip().
     gender_value = 1.0 if gender_name == "male" else 0.0
     muscle_value = 0.82 if gender_name == "male" else 0.68
     print(f"CHARACTER_PROFILE gender={gender_name} macro={gender_value:.1f} muscle={muscle_value:.2f}")
-    for prop, value in (("gender", gender_value), ("muscle", muscle_value), ("weight", 0.46),
-                        ("proportions", 0.5)):'''
+    # Keep the original pipeline's validated proportions preset (0.85).
+    # A neutral 0.5 makes this female rig unable to reach the fixed bar under IK.
+    proportions_value = 0.85
+    print(f"CHARACTER_PROFILE_DIMENSIONS proportions={proportions_value:.2f}")
+    for prop, value in (("gender", gender_value), ("muscle", muscle_value), ("weight", 0.48),
+                        ("proportions", proportions_value)):'''
 if text.count(gender_old) != 1:
     raise SystemExit("Unexpected upstream character macro block; refusing an unsafe gender patch")
 text = text.replace(gender_old, gender_new, 1)
