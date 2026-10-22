@@ -34,7 +34,7 @@ for pattern, replacement, label in quality_rules:
 # Tighten the framing slightly so the figure reads larger on a phone while
 # keeping the full rack and feet within the camera bounds.
 camera_old = 'def frame_subject(cam, target, basemesh, frames, side="front", margin=1.12,'
-camera_new = 'def frame_subject(cam, target, basemesh, frames, side="front", margin=1.05,'
+camera_new = 'def frame_subject(cam, target, basemesh, frames, side="front", margin=0.98,'
 if text.count(camera_old) != 1:
     raise SystemExit("Unexpected upstream frame_subject camera margin; refusing an unsafe framing patch")
 text = text.replace(camera_old, camera_new, 1)
@@ -60,14 +60,14 @@ helper = r'''def build_pull_up_rig():
     objects = []
 
     bpy.ops.mesh.primitive_cylinder_add(
-        vertices=48, radius=0.028, depth=1.8,
+        vertices=48, radius=0.028, depth=1.1,
         location=(0.0, -0.025, 2.453), rotation=(0.0, math.pi / 2, 0.0))
     bar = bpy.context.active_object
     bar.name = "PullUpBar"
     bar.data.materials.append(steel)
     objects.append(bar)
 
-    for x, side in ((-0.9, "L"), (0.9, "R")):
+    for x, side in ((-0.55, "L"), (0.55, "R")):
         bpy.ops.mesh.primitive_cylinder_add(
             vertices=32, radius=0.036, depth=2.453,
             location=(x, -0.025, 1.2265))
@@ -108,7 +108,7 @@ contact_helper = r'''def assert_pull_up_bar_contact(rig, frame_end):
                 raise RuntimeError(f"pull-up contact gate: missing wrist{side}")
             point = rig.matrix_world @ wrist.tail
             radial = math.sqrt((point.y + 0.025) ** 2 + (point.z - 2.453) ** 2)
-            beyond_bar = max(0.0, abs(point.x) - 0.88)
+            beyond_bar = max(0.0, abs(point.x) - 0.53)
             distance = math.sqrt(radial ** 2 + beyond_bar ** 2)
             print(f"CONTACT_FRAME frame={frame} side={side} wrist=({point.x:.3f},{point.y:.3f},{point.z:.3f}) bar=({0.0:.3f},{-0.025:.3f},{2.453:.3f}) distance={distance:.3f}")
             if distance > worst:
