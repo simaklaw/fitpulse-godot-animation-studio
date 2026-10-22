@@ -351,6 +351,13 @@ jobs:
                   alpha = im.getchannel("A")
                   corners = [alpha.getpixel((0, 0)), alpha.getpixel((im.width - 1, 0)), alpha.getpixel((0, im.height - 1)), alpha.getpixel((im.width - 1, im.height - 1))]
                   assert all(value == 0 for value in corners), f"{gender}/{path.name}: nontransparent corner pixels {corners}"
+                  subject_bbox = alpha.getbbox()
+                  assert subject_bbox is not None, f"{gender}/{path.name}: empty alpha frame"
+                  left, top, right, bottom = subject_bbox
+                  assert left >= 2 and top >= 2 and right <= im.width - 3 and bottom <= im.height - 3, (
+                      f"{gender}/{path.name}: subject/equipment touches frame edge at {subject_bbox}; "
+                      "transparent export must retain safe margins"
+                  )
                   transparent_fraction = alpha.histogram()[0] / (im.width * im.height)
                   assert 0.80 <= transparent_fraction <= 0.98, f"{gender}/{path.name}: transparent fraction {transparent_fraction:.1%}; expected visible subject with clean background"
                   assert alpha.getextrema()[1] == 255, f"{gender}/{path.name}: no fully opaque subject pixels"
