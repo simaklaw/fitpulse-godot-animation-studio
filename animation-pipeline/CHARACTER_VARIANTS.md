@@ -15,9 +15,9 @@ MPFB's gender macro is read back after macro details are applied. Female height 
 
 ## Styling
 
-- **Male**: CC0 fitted crew-neck T-shirt and shorts, CC0 short messy hairstyle, CC-BY running shoes by Punkduck.
-- **Female**: CC0 fitted crew-neck T-shirt and shorts, CC0 reverse French-braid bun, CC-BY running shoes by Punkduck.
-- Activewear and footwear use FitPulse forest/mint/charcoal materials; hairstyle source material is retained.
+- **Male**: CC-BY athletic tank by Elvaerwyn, CC0 shorts, CC0 short messy hairstyle, CC-BY running shoes by Punkduck.
+- **Female**: CC-BY athletic tank by Elvaerwyn, CC0 shorts, CC0 reverse French-braid bun, CC-BY running shoes by Punkduck.
+- Tanks, shorts and footwear use FitPulse forest/mint/charcoal materials; hairstyle source material is retained. Preserve CC-BY credits for Elvaerwyn and Punkduck downstream.
 - The build records exact source-asset names in logs and verifies that clothes, hair, and shoes appear in the exported GLB.
 
 ## Outputs per profile
@@ -42,4 +42,4 @@ MPFB's gender macro is read back after macro details are applied. Female height 
 
 ## Limits
 
-Passing CI does not establish final premium art or expert-certified biomechanics. Contact-sheet review, motion expert review, app integration and device playback remain separate acceptance steps. CC-BY shoe attribution must remain with the asset in downstream documentation.
+Passing CI does not establish final premium art or expert-certified biomechanics. Contact-sheet review, motion expert review, app integration and device playback remain separate acceptance steps. CC-BY attributions for Elvaerwyn's athletic tanks and Punkduck's shoes must remain with downstream assets.
