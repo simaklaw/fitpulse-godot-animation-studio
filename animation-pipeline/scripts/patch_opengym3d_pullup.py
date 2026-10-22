@@ -31,6 +31,16 @@ for pattern, replacement, label in quality_rules:
     if count != 1:
         raise SystemExit(f"Expected exactly one upstream {label} setting; found {count}; refusing an unsafe quality patch")
 
+# Tighten the framing slightly so the figure reads larger on a phone while
+# keeping the full rack and feet within the camera bounds.
+camera_old = 'def frame_subject(cam, target, basemesh, frames, side="front", margin=1.12,'
+camera_new = 'def frame_subject(cam, target, basemesh, frames, side="front", margin=1.05,'
+if text.count(camera_old) != 1:
+    raise SystemExit("Unexpected upstream frame_subject camera margin; refusing an unsafe framing patch")
+text = text.replace(camera_old, camera_new, 1)
+if text.count(camera_new) != 1:
+    raise SystemExit("Camera margin patch did not apply exactly once")
+
 # Replace the cold grey mannequin palette with a warm, modern training palette.
 # Active musculature uses FitPulse mint/forest accents instead of clinical orange.
 palette_rules = [
@@ -239,7 +249,50 @@ setter_new = '''    TargetService.reapply_macro_details(basemesh)
     if abs(actual_gender - gender_value) > 0.01:
         raise RuntimeError(f"MPFB gender macro mismatch: requested {gender_value:.1f}, got {actual_gender:.3f}")
     print(f"CHARACTER_PROFILE_VERIFIED gender={gender_name} macro={actual_gender:.1f}")
-    rig = HumanService.add_builtin_rig(basemesh, "default")'''
+    rig = HumanService.add_builtin_rig(basemesh, "default")
+
+    # CC0 MakeHuman clothes are fetched by CI and fitted to the selected MPFB body.
+    apparel_root = os.environ.get("FITX_APPAREL_ROOT", "").strip()
+    if not apparel_root or not os.path.isdir(apparel_root):
+        raise RuntimeError("FITX_APPAREL_ROOT must point to the verified MakeHuman CC0 clothing packs")
+
+    def find_clothing_asset(filename):
+        matches = []
+        for root, _, filenames in os.walk(apparel_root):
+            if filename in filenames:
+                matches.append(os.path.join(root, filename))
+        if len(matches) != 1:
+            raise RuntimeError(f"Expected exactly one clothing asset {filename!r}; found {len(matches)}")
+        return matches[0]
+
+    shirt_name = (
+        "elvs_crude_t-shirt_male.mhclo"
+        if gender_name == "male"
+        else "joepal_crude_t-shirt_female.mhclo"
+    )
+    clothing_specs = (
+        (shirt_name, (0.025, 0.20, 0.15, 1.0), "shirt"),
+        ("cortu_jeans_shorts.mhclo", (0.018, 0.035, 0.040, 1.0), "shorts"),
+    )
+    for filename, garment_color, garment_label in clothing_specs:
+        asset_path = find_clothing_asset(filename)
+        garment = HumanService.add_mhclo_asset(
+            asset_path, basemesh, asset_type="Clothes", subdiv_levels=1,
+            material_type="GAMEENGINE", set_up_rigging=True,
+            interpolate_weights=True, import_subrig=False, import_weights=True,
+        )
+        garment_material = make_material(
+            f"FitPulse {gender_name} {garment_label}",
+            garment_color, roughness=0.78, subsurface=0.0,
+        )
+        garment.data.materials.clear()
+        garment.data.materials.append(garment_material)
+        for polygon in garment.data.polygons:
+            polygon.material_index = 0
+        print(
+            f"APPAREL_LOADED gender={gender_name} item={garment_label} "
+            f"asset={filename} vertices={len(garment.data.vertices)}"
+        )'''
 if text.count(setter_old) != 1:
     raise SystemExit("Unexpected upstream MPFB phenotype verification point")
 text = text.replace(setter_old, setter_new, 1)
