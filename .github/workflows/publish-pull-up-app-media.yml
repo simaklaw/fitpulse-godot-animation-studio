@@ -55,7 +55,12 @@ jobs:
             test -s "downloaded/$gender/pull_up.mp4"
             test -s "downloaded/$gender/poster.png"
             grep -q "CHARACTER_PROFILE_VERIFIED gender=$gender" "downloaded/$gender/build.log"
-            grep -q "APPAREL_LOADED gender=$gender item=shirt asset=toigo_basic_tucked_t-shirt.mhclo" "downloaded/$gender/build.log"
+            if [ "$gender" = "male" ]; then
+              shirt_asset="elvs_male_athletic_tank1.mhclo"
+            else
+              shirt_asset="elvs_ladies_tank1.mhclo"
+            fi
+            grep -q "APPAREL_LOADED gender=$gender item=shirt asset=$shirt_asset" "downloaded/$gender/build.log"
             grep -q "APPAREL_LOADED gender=$gender item=shorts" "downloaded/$gender/build.log"
             grep -q "APPAREL_LOADED gender=$gender item=hair" "downloaded/$gender/build.log"
             grep -q "APPAREL_LOADED gender=$gender item=shoes" "downloaded/$gender/build.log"
@@ -92,10 +97,11 @@ jobs:
               "video": {"width": 720, "height": 720, "fps": 30, "frames": 72, "durationSeconds": 2.4},
               "sourceAssets": [
                   {
-                      "asset": "toigo_basic_tucked_t-shirt",
-                      "authors": ["Margaret Toigo"],
-                      "license": "CC0",
-                      "source": "https://static.makehumancommunity.org/assets/assetpacks/shirts01.html"
+                      "asset": "elvs_male_athletic_tank1 / elvs_ladies_tank1",
+                      "author": "Elvaerwyn",
+                      "license": "CC-BY (as listed by MakeHuman Community)",
+                      "source": "https://static.makehumancommunity.org/assets/assetpacks/shirts03.html",
+                      "attribution": "Athletic tank tops: Elvaerwyn, MakeHuman Community Shirts 03 asset pack (CC-BY, as listed by the pack index)."
                   },
                   {
                       "asset": "cortu_jeans_shorts",
@@ -148,4 +154,4 @@ jobs:
 
             Included are the 720×720, 30 fps, 72-frame male and female MP4 previews, poster PNGs, and a SHA-256 manifest. The build pipeline validates the gender macro, distinct generated renders, structural GLB integrity, fixed-bar contact, top-position clearance, and transparent-frame sequence before this publication workflow runs.
 
-            These are verified technical prototypes, not final premium character artwork or expert-certified biomechanics.
+            These are verified technical prototypes, not final premium character artwork or expert-certified biomechanics. The manifest retains CC-BY credits for Elvaerwyn's athletic tank tops and Punkduck's running shoes.
