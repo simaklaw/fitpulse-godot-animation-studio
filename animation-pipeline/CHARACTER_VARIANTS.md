@@ -18,10 +18,12 @@ These are practical starting presets for an athletic training figure, not a clai
 ## Expected outputs per presentation
 
 - `pull_up.glb`: rigged animated character and pull-up rack.
-- `pull_up.png`: render thumbnail.
-- `pull_up.mp4`: 72-frame 720×720 preview at 30 fps.
+- `pull_up.png`: original studio thumbnail (512×512, retained for technical review).
+- `pull_up_studio.mp4`: original studio-background render, retained for comparison.
+- `pull_up.mp4`: app preview composited over a dark forest/mint background, 720×720 at 30 fps.
+- `poster.png`: frame 41 from that composited preview for the exercise-card poster.
 - `frames_pull_up_alpha/*.png`: 72 transparent 720×720 RGBA frames.
-- `pull_up_contact_sheet.png`: an 8-pose contact sheet.
+- `pull_up_contact_sheet.png`: an 8-pose contact sheet from the app preview.
 - Build and structural-QA logs.
 
 ## CI acceptance gates
