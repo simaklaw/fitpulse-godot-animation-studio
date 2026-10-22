@@ -8,6 +8,7 @@ on:
       - feat/pull-up-character-variants
       - feat/pull-up-premium-preview
       - feat/pull-up-premium-preview-clean
+      - feat/pull-up-apparel-validation
       - fix/pull-up-render-quality
       - fix/pull-up-prototype-clean-main
       - feat/pull-up-transparent-export
@@ -75,7 +76,46 @@ jobs:
       - name: Install runtime libraries
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq libxi6 libxxf86vm1 libxfixes3 libxrender1 libgl1 libxkbcommon0 libsm6 ffmpeg
+          sudo apt-get install -y -qq libxi6 libxxf86vm1 libxfixes3 libxrender1 libgl1 libxkbcommon0 libsm6 ffmpeg unzip
+
+      - name: Cache MakeHuman CC0 clothing assets
+        id: makehuman-assets
+        uses: actions/cache@v4
+        with:
+          path: third_party/makehuman-cc0
+          key: makehuman-cc0-shirts01-pants01-v1
+
+      - name: Download and verify MakeHuman CC0 apparel packs
+        if: steps.makehuman-assets.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="third_party/makehuman-cc0"
+          mkdir -p "$root"
+          curl --fail --location --retry 3 --connect-timeout 30 --max-time 180 \
+            "https://files2.makehumancommunity.org/asset_packs/shirts01/shirts01_cc0.zip" \
+            -o /tmp/shirts01_cc0.zip
+          curl --fail --location --retry 3 --connect-timeout 30 --max-time 180 \
+            "https://files2.makehumancommunity.org/asset_packs/pants01/pants01_cc0.zip" \
+            -o /tmp/pants01_cc0.zip
+          unzip -tq /tmp/shirts01_cc0.zip
+          unzip -tq /tmp/pants01_cc0.zip
+          unzip -oq /tmp/shirts01_cc0.zip -d "$root"
+          unzip -oq /tmp/pants01_cc0.zip -d "$root"
+          find "$root" -type f -name 'elvs_crude_t-shirt_male.mhclo' -print -quit | grep -q .
+          find "$root" -type f -name 'joepal_crude_t-shirt_female.mhclo' -print -quit | grep -q .
+          find "$root" -type f -name 'cortu_jeans_shorts.mhclo' -print -quit | grep -q .
+          touch "$root/.complete"
+          echo "MakeHuman CC0 apparel ready: male/female shirts and shorts asset found."
+
+      - name: Verify cached apparel contents
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f third_party/makehuman-cc0/.complete
+          find third_party/makehuman-cc0 -type f -name 'elvs_crude_t-shirt_male.mhclo' -print -quit | grep -q .
+          find third_party/makehuman-cc0 -type f -name 'joepal_crude_t-shirt_female.mhclo' -print -quit | grep -q .
+          find third_party/makehuman-cc0 -type f -name 'cortu_jeans_shorts.mhclo' -print -quit | grep -q .
 
       - name: Install Blender
         shell: bash
@@ -96,10 +136,12 @@ jobs:
           mkdir -p ../output/male ../output/female
           for gender in male female; do
             echo "=== Rendering character presentation: $gender ==="
-            FITX_GENDER="$gender" FITX_ECORCHE=0 "$HOME/blender/blender" -b -noaudio --python-exit-code 1 -P pipeline/build_exercise.py -- ../animation-pipeline/exercises/pull_up.json "../output/$gender" 2>&1 | tee "../output/$gender/build.log"
+            FITX_GENDER="$gender" FITX_ECORCHE=0 FITX_APPAREL_ROOT="$GITHUB_WORKSPACE/third_party/makehuman-cc0" "$HOME/blender/blender" -b -noaudio --python-exit-code 1 -P pipeline/build_exercise.py -- ../animation-pipeline/exercises/pull_up.json "../output/$gender" 2>&1 | tee "../output/$gender/build.log"
             test -s "../output/$gender/pull_up.glb"
             test -s "../output/$gender/pull_up.png"
             grep -q "CHARACTER_PROFILE_VERIFIED gender=$gender" "../output/$gender/build.log"
+            grep -q "APPAREL_LOADED gender=$gender item=shirt" "../output/$gender/build.log"
+            grep -q "APPAREL_LOADED gender=$gender item=shorts" "../output/$gender/build.log"
           done
           if cmp -s ../output/male/pull_up.glb ../output/female/pull_up.glb; then
             echo "Male/female GLB files are byte-identical; expected genuinely different generated models." >&2
