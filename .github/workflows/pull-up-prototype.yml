@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - feat/pull-up-animation-prototype
+      - feat/pull-up-character-variants
       - fix/pull-up-render-quality
       - fix/pull-up-prototype-clean-main
       - feat/pull-up-transparent-export
