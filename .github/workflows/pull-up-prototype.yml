@@ -163,6 +163,36 @@ jobs:
           done
         working-directory: upstream
 
+      - name: Verify apparel meshes are embedded in both GLBs
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+          import struct
+
+          for gender, shirt_token in (
+              ("male", "elvs_crude_t-shirt_male"),
+              ("female", "joepal_crude_t-shirt_female"),
+          ):
+              path = Path("output") / gender / "pull_up.glb"
+              data = path.read_bytes()
+              assert data[:4] == b"glTF", f"{gender}: invalid GLB header"
+              json_length = struct.unpack_from("<I", data, 12)[0]
+              json_chunk_type = struct.unpack_from("<I", data, 16)[0]
+              assert json_chunk_type == 0x4E4F534A, f"{gender}: first GLB chunk is not JSON"
+              document = json.loads(data[20:20 + json_length].decode("utf-8").rstrip(" \\0"))
+              names = [node.get("name", "").lower() for node in document.get("nodes", [])]
+              assert any(shirt_token in name for name in names), (
+                  f"{gender}: shirt mesh is absent from GLB nodes: {names[:20]}"
+              )
+              assert any("cortu_jeans_shorts" in name for name in names), (
+                  f"{gender}: shorts mesh is absent from GLB nodes: {names[:20]}"
+              )
+              print(f"APPAREL_GLB_PASS gender={gender} meshes={len(names)} shirt={shirt_token} shorts=cortu_jeans_shorts")
+          PY
+
       - name: Assemble studio review and branded FitPulse previews
         if: always()
         shell: bash
@@ -261,8 +291,9 @@ jobs:
                           f"{gender}/{path.name}: expected transparent corners, got {corners}"
                       )
                       transparent_fraction = alpha.histogram()[0] / (im.width * im.height)
-                      assert transparent_fraction >= 0.80, (
-                          f"{gender}/{path.name}: only {transparent_fraction:.1%} transparent pixels; unexpected background or framing"
+                      assert 0.80 <= transparent_fraction <= 0.98, (
+                          f"{gender}/{path.name}: transparent fraction {transparent_fraction:.1%}; "
+                          "expected a clean transparent canvas with a clearly visible subject"
                       )
                       assert alpha.getextrema()[1] == 255, f"{gender}/{path.name}: no fully opaque subject pixels"
                       transparent_fractions.append(transparent_fraction)
