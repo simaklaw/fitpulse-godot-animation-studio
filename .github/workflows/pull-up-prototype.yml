@@ -83,8 +83,11 @@ jobs:
       - name: Install runtime libraries
         run: |
           set -euo pipefail
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq libxi6 libxxf86vm1 libxfixes3 libxrender1 libgl1 libxkbcommon0 libsm6 ffmpeg unzip
+          # GitHub-hosted Ubuntu runners already have apt indexes. Avoid a
+          # full remote index refresh on every gender job, but bound package
+          # installation so a stalled mirror cannot consume the entire render job.
+          timeout 8m sudo apt-get install -y -qq --no-install-recommends \
+            libxi6 libxxf86vm1 libxfixes3 libxrender1 libgl1 libxkbcommon0 libsm6 ffmpeg unzip
 
       - name: Cache MakeHuman CC0 clothing assets
         id: makehuman-assets
