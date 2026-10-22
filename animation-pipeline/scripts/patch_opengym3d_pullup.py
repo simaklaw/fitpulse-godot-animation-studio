@@ -207,6 +207,11 @@ alpha_new = '''    backdrop = bpy.data.objects.get("Backdrop")
     # Separate transparent PNG sequence for app compositing. Keep the original
     # studio render intact for human review and MP4 preview.
     if spec.get("id") == "pull_up":
+        # Transparent exports are consumed independently in the app, so preserve
+        # breathing room around the whole rack and athlete. The studio MP4 keeps
+        # its tighter composition; only the RGBA pass backs the camera off 12%.
+        camera_target = cam.constraints.get("TRACK_TO").target if cam.constraints.get("TRACK_TO") else target
+        cam.location = camera_target.location + (cam.location - camera_target.location) * 1.12
         scene.render.film_transparent = True
         scene.render.image_settings.file_format = "PNG"
         scene.render.image_settings.color_mode = "RGBA"
