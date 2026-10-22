@@ -81,13 +81,29 @@ jobs:
           path: upstream
 
       - name: Install runtime libraries
+        shell: bash
         run: |
           set -euo pipefail
-          # GitHub-hosted Ubuntu runners already have apt indexes. Avoid a
-          # full remote index refresh on every gender job, but bound package
-          # installation so a stalled mirror cannot consume the entire render job.
-          timeout 8m sudo apt-get install -y -qq --no-install-recommends \
-            libxi6 libxxf86vm1 libxfixes3 libxrender1 libgl1 libxkbcommon0 libsm6 ffmpeg unzip
+          # ffmpeg/unzip are normally preinstalled on hosted runners; only install
+          # what is missing. Retry transient apt mirror/lock delays rather than
+          # failing one gender render before Blender starts.
+          missing=()
+          command -v ffmpeg >/dev/null 2>&1 || missing+=(ffmpeg)
+          command -v unzip >/dev/null 2>&1 || missing+=(unzip)
+          for package in libxi6 libxxf86vm1 libxfixes3 libxrender1 libgl1 libxkbcommon0 libsm6; do
+            dpkg-query -W -f='\u0024{Status}' "$package" 2>/dev/null | grep -q 'install ok installed' || missing+=("$package")
+          done
+          if (("${#missing[@]}" > 0)); then
+            echo "Installing missing runtime packages: ${missing[*]}"
+            sudo apt-get -o Acquire::Retries=4 -o Acquire::http::Timeout=60 \
+              -o Acquire::https::Timeout=60 -o DPkg::Lock::Timeout=180 \
+              install -y --no-install-recommends "${missing[@]}"
+          else
+            echo "All required runtime packages are already available."
+          fi
+          command -v ffmpeg
+          command -v unzip
+          ldconfig -p | grep -E 'libXi.so.6|libGL.so.1|libxkbcommon.so.0'
 
       - name: Cache MakeHuman athletic clothing assets
         id: makehuman-assets
