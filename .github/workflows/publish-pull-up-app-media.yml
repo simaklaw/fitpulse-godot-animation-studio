@@ -45,7 +45,7 @@ jobs:
           set -euo pipefail
           for gender in male female; do
             test -s "downloaded/$gender/pull_up.mp4"
-            test -s "downloaded/$gender/pull_up.png"
+            test -s "downloaded/$gender/poster.png"
             grep -q "CHARACTER_PROFILE_VERIFIED gender=$gender" "downloaded/$gender/build.log"
             ffprobe -v error -select_streams v:0 \
               -show_entries stream=width,height,r_frame_rate,nb_frames \
@@ -59,7 +59,7 @@ jobs:
           mkdir -p assets/fitpulse/pull-up/male assets/fitpulse/pull-up/female
           for gender in male female; do
             cp "downloaded/$gender/pull_up.mp4" "assets/fitpulse/pull-up/$gender/pull_up.mp4"
-            cp "downloaded/$gender/pull_up.png" "assets/fitpulse/pull-up/$gender/poster.png"
+            cp "downloaded/$gender/poster.png" "assets/fitpulse/pull-up/$gender/poster.png"
           done
 
           SOURCE_RUN_ID="$SOURCE_RUN_ID" SOURCE_SHA="$SOURCE_SHA" python3 - <<'PY'
