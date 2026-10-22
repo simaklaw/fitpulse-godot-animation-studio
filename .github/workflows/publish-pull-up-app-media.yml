@@ -55,7 +55,7 @@ jobs:
             test -s "downloaded/$gender/pull_up.mp4"
             test -s "downloaded/$gender/poster.png"
             grep -q "CHARACTER_PROFILE_VERIFIED gender=$gender" "downloaded/$gender/build.log"
-            grep -q "APPAREL_LOADED gender=$gender item=shirt" "downloaded/$gender/build.log"
+            grep -q "APPAREL_LOADED gender=$gender item=shirt asset=toigo_basic_tucked_t-shirt.mhclo" "downloaded/$gender/build.log"
             grep -q "APPAREL_LOADED gender=$gender item=shorts" "downloaded/$gender/build.log"
             grep -q "APPAREL_LOADED gender=$gender item=hair" "downloaded/$gender/build.log"
             grep -q "APPAREL_LOADED gender=$gender item=shoes" "downloaded/$gender/build.log"
@@ -92,8 +92,8 @@ jobs:
               "video": {"width": 720, "height": 720, "fps": 30, "frames": 72, "durationSeconds": 2.4},
               "sourceAssets": [
                   {
-                      "asset": "elvs_crude_t-shirt_male / joepal_crude_t-shirt_female",
-                      "authors": ["Elvaerwyn", "Joel Palmius"],
+                      "asset": "toigo_basic_tucked_t-shirt",
+                      "authors": ["Margaret Toigo"],
                       "license": "CC0",
                       "source": "https://static.makehumancommunity.org/assets/assetpacks/shirts01.html"
                   },
