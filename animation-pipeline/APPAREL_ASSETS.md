@@ -4,7 +4,7 @@
 
 The render workflow fetches and verifies two MakeHuman Community asset packs:
 
-- **Shirts 01**: `elvs_crude_t-shirt_male.mhclo` for the male presentation and `joepal_crude_t-shirt_female.mhclo` for the female presentation.
+- **Shirts 01**: `toigo_basic_tucked_t-shirt.mhclo` is fitted to both body profiles. This generic crew-neck mesh replaces the first sex-specific pair after shoulder/hem clipping appeared under the raised-arm pose.
   - Listing: https://static.makehumancommunity.org/assets/assetpacks/shirts01.html
   - Archive: https://files2.makehumancommunity.org/asset_packs/shirts01/shirts01_cc0.zip
 - **Pants 01**: `cortu_jeans_shorts.mhclo` used as training shorts.
