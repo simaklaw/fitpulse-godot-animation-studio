@@ -6,6 +6,7 @@ on:
       - main
       - feat/pull-up-animation-prototype
       - feat/pull-up-character-variants
+      - feat/pull-up-premium-preview
       - fix/pull-up-render-quality
       - fix/pull-up-prototype-clean-main
       - feat/pull-up-transparent-export
