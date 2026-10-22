@@ -335,6 +335,41 @@ setter_new = '''    TargetService.reapply_macro_details(basemesh)
     print(
         f"APPAREL_LOADED gender={gender_name} item=hair "
         f"asset={hair_name} vertices={len(hair.data.vertices)}"
+    )
+
+    # A pair of running shoes avoids the bare-foot training-demo look. The
+    # source mesh is CC-BY (Punkduck), and attribution is documented in the repo.
+    shoes_root = os.environ.get("FITX_SHOES_ROOT", "").strip()
+    if not shoes_root or not os.path.isdir(shoes_root):
+        raise RuntimeError("FITX_SHOES_ROOT must point to the verified MakeHuman CC-BY shoes pack")
+
+    def find_shoes_asset(filename):
+        matches = []
+        for root, _, filenames in os.walk(shoes_root):
+            if filename in filenames:
+                matches.append(os.path.join(root, filename))
+        if len(matches) != 1:
+            raise RuntimeError(f"Expected exactly one shoe asset {filename!r}; found {len(matches)}")
+        return matches[0]
+
+    shoes_name = "punkduck_running_shoes_01.mhclo"
+    shoes_path = find_shoes_asset(shoes_name)
+    shoes = HumanService.add_mhclo_asset(
+        shoes_path, basemesh, asset_type="Clothes", subdiv_levels=1,
+        material_type="GAMEENGINE", set_up_rigging=True,
+        interpolate_weights=True, import_subrig=False, import_weights=True,
+    )
+    shoes_material = make_material(
+        f"FitPulse {gender_name} running shoes",
+        (0.045, 0.075, 0.072, 1.0), roughness=0.62, subsurface=0.0,
+    )
+    shoes.data.materials.clear()
+    shoes.data.materials.append(shoes_material)
+    for polygon in shoes.data.polygons:
+        polygon.material_index = 0
+    print(
+        f"APPAREL_LOADED gender={gender_name} item=shoes "
+        f"asset={shoes_name} vertices={len(shoes.data.vertices)}"
     )'''
 if text.count(setter_old) != 1:
     raise SystemExit("Unexpected upstream MPFB phenotype verification point")
