@@ -89,42 +89,44 @@ jobs:
           timeout 8m sudo apt-get install -y -qq --no-install-recommends \
             libxi6 libxxf86vm1 libxfixes3 libxrender1 libgl1 libxkbcommon0 libsm6 ffmpeg unzip
 
-      - name: Cache MakeHuman CC0 clothing assets
+      - name: Cache MakeHuman athletic clothing assets
         id: makehuman-assets
         uses: actions/cache@v4
         with:
-          path: third_party/makehuman-cc0
-          key: makehuman-cc0-shirts01-pants01-v1-${{ matrix.gender }}
+          path: third_party/makehuman-clothing
+          key: makehuman-clothing-pants01-shirts03-v1-${{ runner.os }}-${{ matrix.gender }}
 
-      - name: Download and verify MakeHuman CC0 apparel packs
+      - name: Download and verify CC0 shorts and CC-BY athletic tank tops
         if: steps.makehuman-assets.outputs.cache-hit != 'true'
         shell: bash
         run: |
           set -euo pipefail
-          root="third_party/makehuman-cc0"
+          root="third_party/makehuman-clothing"
           mkdir -p "$root"
-          curl --fail --location --retry 3 --connect-timeout 30 --max-time 180 \
-            "https://files2.makehumancommunity.org/asset_packs/shirts01/shirts01_cc0.zip" \
-            -o /tmp/shirts01_cc0.zip
           curl --fail --location --retry 3 --connect-timeout 30 --max-time 180 \
             "https://files2.makehumancommunity.org/asset_packs/pants01/pants01_cc0.zip" \
             -o /tmp/pants01_cc0.zip
-          unzip -tq /tmp/shirts01_cc0.zip
+          curl --fail --location --retry 3 --connect-timeout 30 --max-time 180 \
+            "https://files2.makehumancommunity.org/asset_packs/shirts03/shirts03_ccby.zip" \
+            -o /tmp/shirts03_ccby.zip
           unzip -tq /tmp/pants01_cc0.zip
-          unzip -oq /tmp/shirts01_cc0.zip -d "$root"
+          unzip -tq /tmp/shirts03_ccby.zip
           unzip -oq /tmp/pants01_cc0.zip -d "$root"
-          find "$root" -type f -name 'toigo_basic_tucked_t-shirt.mhclo' -print -quit | grep -q .
+          unzip -oq /tmp/shirts03_ccby.zip -d "$root"
+          find "$root" -type f -name 'elvs_male_athletic_tank1.mhclo' -print -quit | grep -q .
+          find "$root" -type f -name 'elvs_ladies_tank1.mhclo' -print -quit | grep -q .
           find "$root" -type f -name 'cortu_jeans_shorts.mhclo' -print -quit | grep -q .
           touch "$root/.complete"
-          echo "MakeHuman CC0 apparel ready: male/female shirts and shorts asset found."
+          echo "MakeHuman apparel ready: male/female athletic tanks (CC-BY) and shorts (CC0)."
 
       - name: Verify cached apparel contents
         shell: bash
         run: |
           set -euo pipefail
-          test -f third_party/makehuman-cc0/.complete
-          find third_party/makehuman-cc0 -type f -name 'toigo_basic_tucked_t-shirt.mhclo' -print -quit | grep -q .
-          find third_party/makehuman-cc0 -type f -name 'cortu_jeans_shorts.mhclo' -print -quit | grep -q .
+          test -f third_party/makehuman-clothing/.complete
+          find third_party/makehuman-clothing -type f -name 'elvs_male_athletic_tank1.mhclo' -print -quit | grep -q .
+          find third_party/makehuman-clothing -type f -name 'elvs_ladies_tank1.mhclo' -print -quit | grep -q .
+          find third_party/makehuman-clothing -type f -name 'cortu_jeans_shorts.mhclo' -print -quit | grep -q .
 
       - name: Cache MakeHuman CC0 hair assets
         id: makehuman-hair-assets
@@ -206,13 +208,18 @@ jobs:
           set -euo pipefail
           gender="${{ matrix.gender }}"
           mkdir -p "../output/$gender"
-          FITX_GENDER="$gender" FITX_ECORCHE=0 FITX_APPAREL_ROOT="$GITHUB_WORKSPACE/third_party/makehuman-cc0" FITX_HAIR_ROOT="$GITHUB_WORKSPACE/third_party/makehuman-hair01" FITX_SHOES_ROOT="$GITHUB_WORKSPACE/third_party/makehuman-shoes02" \
+          FITX_GENDER="$gender" FITX_ECORCHE=0 FITX_APPAREL_ROOT="$GITHUB_WORKSPACE/third_party/makehuman-clothing" FITX_HAIR_ROOT="$GITHUB_WORKSPACE/third_party/makehuman-hair01" FITX_SHOES_ROOT="$GITHUB_WORKSPACE/third_party/makehuman-shoes02" \
             "$HOME/blender/blender" -b -noaudio --python-exit-code 1 -P pipeline/build_exercise.py -- \
             ../animation-pipeline/exercises/pull_up.json "../output/$gender" 2>&1 | tee "../output/$gender/build.log"
           test -s "../output/$gender/pull_up.glb"
           test -s "../output/$gender/pull_up.png"
           grep -q "CHARACTER_PROFILE_VERIFIED gender=$gender" "../output/$gender/build.log"
-          grep -q "APPAREL_LOADED gender=$gender item=shirt" "../output/$gender/build.log"
+          if [ "$gender" = "male" ]; then
+            shirt_asset="elvs_male_athletic_tank1.mhclo"
+          else
+            shirt_asset="elvs_ladies_tank1.mhclo"
+          fi
+          grep -q "APPAREL_LOADED gender=$gender item=shirt asset=$shirt_asset" "../output/$gender/build.log"
           grep -q "APPAREL_LOADED gender=$gender item=shorts" "../output/$gender/build.log"
           grep -q "APPAREL_LOADED gender=$gender item=hair" "../output/$gender/build.log"
           grep -q "APPAREL_LOADED gender=$gender item=shoes" "../output/$gender/build.log"
@@ -238,7 +245,7 @@ jobs:
           import sys
 
           gender = sys.argv[1]
-          shirt_token = "toigo_basic_tucked_t-shirt"
+          shirt_token = "elvs_male_athletic_tank1" if gender == "male" else "elvs_ladies_tank1"
           hair_token = "cortu_short_messy_hair" if gender == "male" else "elvs_reverse_french_braid_bun"
           shoes_token = "punkduck_running_shoes_01"
           data = (Path("output") / gender / "pull_up.glb").read_bytes()
@@ -391,7 +398,12 @@ jobs:
             test -s "bundle/$gender/pull_up.mp4"
             test -s "bundle/$gender/poster.png"
             grep -q "CHARACTER_PROFILE_VERIFIED gender=$gender" "bundle/$gender/build.log"
-            grep -q "APPAREL_LOADED gender=$gender item=shirt" "bundle/$gender/build.log"
+            if [ "$gender" = "male" ]; then
+              shirt_asset="elvs_male_athletic_tank1.mhclo"
+            else
+              shirt_asset="elvs_ladies_tank1.mhclo"
+            fi
+            grep -q "APPAREL_LOADED gender=$gender item=shirt asset=$shirt_asset" "bundle/$gender/build.log"
             grep -q "APPAREL_LOADED gender=$gender item=shorts" "bundle/$gender/build.log"
             grep -q "APPAREL_LOADED gender=$gender item=hair" "bundle/$gender/build.log"
             grep -q "APPAREL_LOADED gender=$gender item=shoes" "bundle/$gender/build.log"
