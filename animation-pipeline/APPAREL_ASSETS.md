@@ -1,26 +1,39 @@
-# FitPulse Pull-Up Apparel Assets
+# FitPulse Pull-Up Character Assets
 
-## Included source assets
+## Activewear (CC0)
 
-The prototype render workflow fetches two checked MakeHuman community asset packs over HTTPS at build time and caches the unpacked files in GitHub Actions:
+The render workflow downloads and verifies two MakeHuman community asset packs:
 
-- **Shirts 01** — `elvs_crude_t-shirt_male.mhclo` for the male presentation and `joepal_crude_t-shirt_female.mhclo` for the female presentation. The pack is described as a set of T-shirts, sweaters and tops; the listed assets are CC0.
-  - Pack page: https://static.makehumancommunity.org/assets/assetpacks/shirts01.html
+- **Shirts 01**: `elvs_crude_t-shirt_male.mhclo` and `joepal_crude_t-shirt_female.mhclo`, used for the male and female profiles respectively.
+  - Asset listing: https://static.makehumancommunity.org/assets/assetpacks/shirts01.html
   - Archive: https://files2.makehumancommunity.org/asset_packs/shirts01/shirts01_cc0.zip
-- **Pants 01** — `cortu_jeans_shorts.mhclo`, listed as CC0.
-  - Pack page: https://static.makehumancommunity.org/assets/assetpacks/pants01.html
+- **Pants 01**: `cortu_jeans_shorts.mhclo`, used as athletic-style shorts for both profiles.
+  - Asset listing: https://static.makehumancommunity.org/assets/assetpacks/pants01.html
   - Archive: https://files2.makehumancommunity.org/asset_packs/pants01/pants01_cc0.zip
 
-MakeHuman's asset-pack FAQ describes CC0 as permitting use without attribution requirements. The workflow keeps these upstream source URLs documented for traceability.
+The listed source assets are CC0 according to the pack index. The render pipeline refits garments to the generated body, rigs them, assigns a consistent FitPulse forest/mint material palette, and verifies that clothing nodes are embedded in the exported GLB. Sources: https://static.makehumancommunity.org/assets/assetpacks/shirts01.html and https://static.makehumancommunity.org/assets/assetpacks/pants01.html
 
-## Build procedure
+## Hairstyles (CC0)
 
-1. Download and test both zip archives; cache only after archive integrity and required-file checks pass.
-2. MPFB fits the shirt and shorts to the generated body and rigs them to the exercise skeleton.
-3. The renderer assigns a consistent FitPulse forest/mint material palette to the fitted garments.
-4. CI verifies that the build logs include both garment objects and that the motion/GLB/alpha QA still passes.
-5. The MP4 and poster remain derived from the same final render, not a separate stock image.
+The current visual branch also adds separate head silhouettes:
 
-## Known limitations
+- **Male**: `cortu_short_messy_hair.mhclo`
+- **Female**: `elvs_reverse_french_braid_bun.mhclo`
 
-The CC0 shirt/shorts are a first production clothing pass, not custom-designed premium sportswear. Clothing fit, mesh clipping, deformation during the full pull-up cycle, camera framing and readability must be reviewed in the generated contact sheet before this branch is accepted. If the base garment geometry is visibly unsuitable, replace the source mesh or author a tailored asset rather than weakening animation QA.
+Both are listed as CC0 assets in MakeHuman Community Hair 01.
+- Asset listing: https://static.makehumancommunity.org/assets/assetpacks/hair01.html
+- Archive: https://files2.makehumancommunity.org/asset_packs/hair01/hair01_cc0.zip
+
+The source hair materials are retained so any packed color/alpha treatment remains intact. CI verifies that the expected hairstyle object is present in each GLB and that character rendering / transparent export still passes.
+
+## Automated build controls
+
+1. Download archives over HTTPS with retries and bounded timeouts.
+2. Verify ZIP integrity and each required filename before rendering.
+3. Cache source packs in GitHub Actions; do not commit the large raw archives into the app.
+4. Fit clothing and hair through MPFB2 so the assets share the generated character rig.
+5. Export and verify the MP4, poster, transparent frame sequence, GLB and checksums before any app publication PR is opened.
+
+## Current limitation
+
+These community assets are a practical clothing/hair prototype, not bespoke premium activewear. The contact sheet must still be checked for mesh clipping, hair intersections, deformations, and small-screen readability. If a mesh deforms badly during a pull-up, replace or custom-fit that source mesh instead of weakening contact or animation QA.
