@@ -85,46 +85,60 @@ if text.count(needle) != 1:
     raise SystemExit("Could not locate the upstream place_props function")
 text = text.replace(needle, helper + needle, 1)
 
-contact_helper = r'''def assert_pull_up_bar_contact(rig, frame_end):
-    """Check wrist-to-fixed-bar distance at every rendered frame."""
+contact_helper = r'''def fit_pull_up_rack_to_hang_pose(rig):
+    """Fit rack height/grip to the generated model's natural hang reach."""
     scene = bpy.context.scene
-    worst = 0.0
-    worst_at = None
-    for frame in range(1, frame_end + 1):
-        scene.frame_set(frame)
-        for side in (".L", ".R"):
-            wrist = rig.pose.bones.get("wrist" + side)
-            if wrist is None:
-                raise RuntimeError(f"pull-up contact gate: missing wrist{side}")
-            point = rig.matrix_world @ wrist.tail
-            radial = math.sqrt((point.y + 0.025) ** 2 + (point.z - 2.453) ** 2)
-            beyond_bar = max(0.0, abs(point.x) - 0.88)
-            distance = math.sqrt(radial ** 2 + beyond_bar ** 2)
-            print(f"CONTACT_FRAME frame={frame} side={side} wrist=({point.x:.3f},{point.y:.3f},{point.z:.3f}) bar=({0.0:.3f},{-0.025:.3f},{2.453:.3f}) distance={distance:.3f}")
-            if distance > worst:
-                worst = distance
-                worst_at = (frame, side, tuple(round(v, 3) for v in point))
-    limit = 0.08
-    print(f"CONTACT pull_up: max wrist-to-bar distance {worst:.3f} m at {worst_at}; limit {limit:.2f} m")
-    if worst > limit:
-        raise RuntimeError(f"pull-up hand-to-bar contact failed: {worst:.3f} m > {limit:.2f} m")
+    scene.frame_set(1)
+    hands = {}
+    for side in (".L", ".R"):
+        wrist = rig.pose.bones.get("wrist" + side)
+        if wrist is None:
+            raise RuntimeError(f"pull-up fit gate: missing wrist{side}")
+        hands[side] = rig.matrix_world @ wrist.tail
+
+    # Keep the same small wrist-to-bar offset as the original validated male rig,
+    # while adapting for narrower shoulders and different reach in the female rig.
+    bar_z = (hands[".L"].z + hands[".R"].z) / 2.0 + 0.037
+    bar_y = (hands[".L"].y + hands[".R"].y) / 2.0
+    bar = bpy.data.objects.get("PullUpBar")
+    if bar is None:
+        raise RuntimeError("pull-up fit gate: missing PullUpBar")
+    bar.location.z = bar_z
+    bar.location.y = bar_y
+
+    # Adjustable posts stay connected to the fitted bar; feet remain at floor level.
+    for side in ("L", "R"):
+        post = bpy.data.objects.get("PullUpPost_" + side)
+        foot = bpy.data.objects.get("PullUpBase_" + side)
+        if post is None or foot is None:
+            raise RuntimeError(f"pull-up fit gate: incomplete rack side {side}")
+        post.dimensions.z = bar_z
+        post.location.z = bar_z / 2.0
+        post.location.y = bar_y
+        foot.location.y = bar_y
+
+    bpy.context.view_layer.update()
+    targets = {}
+    for side in (".L", ".R"):
+        point = hands[side]
+        targets[side] = (point.x, bar_y, bar_z)
+    print(
+        f"RACK_FIT pull_up: bar=({bar.location.x:.3f},{bar_y:.3f},{bar_z:.3f}) "
+        f"grip_x=({targets['.L'][0]:.3f},{targets['.R'][0]:.3f})"
+    )
+    return targets
 
 
-'''
-if text.count(needle) != 1:
-    raise SystemExit("Could not locate the upstream prop helper insertion point")
-ik_helper = r'''def add_pull_up_ik(rig):
-    """Solve both hand endpoints against fixed targets on the pull-up bar."""
+def add_pull_up_ik(rig, target_positions):
+    """Solve wrist endpoints against the model-fitted fixed bar."""
     scene = bpy.context.scene
-    targets = []
-    for x, side in ((-0.235, ".L"), (0.235, ".R")):
+    for side in (".L", ".R"):
         target = bpy.data.objects.new("PullUpIKTarget" + side, None)
         scene.collection.objects.link(target)
-        target.location = (x, -0.025, 2.453)
+        target.location = target_positions[side]
         target.empty_display_type = "SPHERE"
         target.empty_display_size = 0.025
         target.hide_render = True
-        targets.append(target)
 
         wrist = rig.pose.bones.get("wrist" + side)
         if wrist is None:
@@ -137,7 +151,41 @@ ik_helper = r'''def add_pull_up_ik(rig):
         constraint.use_stretch = False
         constraint.influence = 1.0
     bpy.context.view_layer.update()
-    return targets
+
+
+def assert_pull_up_bar_contact(rig, frame_end):
+    """Check wrist-to-bar distance at every rendered frame."""
+    scene = bpy.context.scene
+    bar = bpy.data.objects.get("PullUpBar")
+    if bar is None:
+        raise RuntimeError("pull-up contact gate: missing PullUpBar")
+    bar_center = bar.matrix_world.translation.copy()
+    half_length = max(0.0, bar.dimensions.x / 2.0 - 0.02)
+    worst = 0.0
+    worst_at = None
+    for frame in range(1, frame_end + 1):
+        scene.frame_set(frame)
+        for side in (".L", ".R"):
+            wrist = rig.pose.bones.get("wrist" + side)
+            if wrist is None:
+                raise RuntimeError(f"pull-up contact gate: missing wrist{side}")
+            point = rig.matrix_world @ wrist.tail
+            radial = math.sqrt((point.y - bar_center.y) ** 2 + (point.z - bar_center.z) ** 2)
+            beyond_bar = max(0.0, abs(point.x - bar_center.x) - half_length)
+            distance = math.sqrt(radial ** 2 + beyond_bar ** 2)
+            print(
+                f"CONTACT_FRAME frame={frame} side={side} "
+                f"wrist=({point.x:.3f},{point.y:.3f},{point.z:.3f}) "
+                f"bar=({bar_center.x:.3f},{bar_center.y:.3f},{bar_center.z:.3f}) "
+                f"distance={distance:.3f}"
+            )
+            if distance > worst:
+                worst = distance
+                worst_at = (frame, side, tuple(round(v, 3) for v in point))
+    limit = 0.08
+    print(f"CONTACT pull_up: max wrist-to-bar distance {worst:.3f} m at {worst_at}; limit {limit:.2f} m")
+    if worst > limit:
+        raise RuntimeError(f"pull-up hand-to-bar contact failed: {worst:.3f} m > {limit:.2f} m")
 
 
 def assert_pull_up_body_pose(rig, frame_end):
@@ -163,10 +211,11 @@ def assert_pull_up_body_pose(rig, frame_end):
     top_frame = max(1, min(frame_end, 1 + round((frame_end - 1) * 0.56)))
     scene.frame_set(top_frame)
     head = rig.pose.bones.get("head")
-    if head is None:
-        raise RuntimeError("pull-up top-position gate: missing head bone")
+    bar = bpy.data.objects.get("PullUpBar")
+    if head is None or bar is None:
+        raise RuntimeError("pull-up top-position gate: missing head bone or PullUpBar")
     head_base_z = (rig.matrix_world @ head.head).z
-    bar_top_z = 2.453 + 0.028
+    bar_top_z = bar.location.z + bar.dimensions.z / 2.0
     required_head_base_z = bar_top_z + 0.03
     print(f"TOP pull_up: head-base proxy {head_base_z:.3f} m at frame {top_frame}; bar top {bar_top_z:.3f} m; minimum {required_head_base_z:.3f} m")
     if head_base_z < required_head_base_z:
@@ -174,7 +223,9 @@ def assert_pull_up_body_pose(rig, frame_end):
 
 
 '''
-text = text.replace(needle, contact_helper + ik_helper + needle, 1)
+if text.count(needle) != 1:
+    raise SystemExit("Could not locate the upstream prop helper insertion point")
+text = text.replace(needle, contact_helper + needle, 1)
 
 main_old = '        prop_objs = build_props(spec)\n        if mocap and mocap_kind == "video":'
 main_new = '        prop_objs = build_props(spec)\n        if spec.get("id") == "pull_up":\n            prop_objs.extend((obj, "static") for obj in build_pull_up_rig())\n        if mocap and mocap_kind == "video":'
@@ -183,7 +234,7 @@ if text.count(main_old) != 1:
 text = text.replace(main_old, main_new, 1)
 
 anim_old = '            animate(driver, rig, spec, frame_end, prop_objs)\n        bpy.data.objects.remove(driver, do_unlink=True)'
-anim_new = '            animate(driver, rig, spec, frame_end, prop_objs)\n            if spec.get("id") == "pull_up":\n                add_pull_up_ik(rig)\n                assert_pull_up_bar_contact(rig, frame_end)\n                assert_pull_up_body_pose(rig, frame_end)\n        bpy.data.objects.remove(driver, do_unlink=True)'
+anim_new = '            animate(driver, rig, spec, frame_end, prop_objs)\n            if spec.get("id") == "pull_up":\n                hand_targets = fit_pull_up_rack_to_hang_pose(rig)\n                add_pull_up_ik(rig, hand_targets)\n                assert_pull_up_bar_contact(rig, frame_end)\n                assert_pull_up_body_pose(rig, frame_end)\n        bpy.data.objects.remove(driver, do_unlink=True)'
 if text.count(anim_old) != 1:
     raise SystemExit("Unexpected upstream animation block; refusing an unsafe contact-check patch")
 text = text.replace(anim_old, anim_new, 1)
