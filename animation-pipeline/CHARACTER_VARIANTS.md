@@ -34,6 +34,8 @@ These are practical starting presets for an athletic training figure, not a clai
 - Each MP4 is exactly 720×720, 30 fps and 72 frames.
 - Each alpha sequence has 72 720×720 RGBA frames, four fully transparent corners, at least 80% fully transparent pixels, opaque subject pixels and at least 60 unique frames.
 
+The post-build publisher in `.github/workflows/publish-pull-up-app-media.yml` opens a separate PR with only the verified MP4s, posters and SHA-256 manifest after a successful build on `main`; it does not copy every PNG frame into the mobile app repository.
+
 ## Not yet implied by these checks
 
 Distinct body geometry does not equal premium final character art. The current output is a technical anatomical prototype; clothes/styling, camera/readability review at phone size, expert biomechanics review, integration into the FitPulse app and on-device performance all require separate acceptance.
