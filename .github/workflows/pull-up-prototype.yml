@@ -10,6 +10,7 @@ on:
       - feat/pull-up-premium-preview-clean
       - feat/pull-up-apparel-validation
       - feat/pull-up-compact-rack-framing
+      - feat/pull-up-premium-hair
       - fix/pull-up-render-quality
       - fix/pull-up-prototype-clean-main
       - feat/pull-up-transparent-export
@@ -123,6 +124,38 @@ jobs:
           find third_party/makehuman-cc0 -type f -name 'joepal_crude_t-shirt_female.mhclo' -print -quit | grep -q .
           find third_party/makehuman-cc0 -type f -name 'cortu_jeans_shorts.mhclo' -print -quit | grep -q .
 
+      - name: Cache MakeHuman CC0 hair assets
+        id: makehuman-hair-assets
+        uses: actions/cache@v4
+        with:
+          path: third_party/makehuman-hair01
+          key: makehuman-hair01-cc0-v1-${{ runner.os }}
+
+      - name: Download and verify MakeHuman CC0 hair pack
+        if: steps.makehuman-hair-assets.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="third_party/makehuman-hair01"
+          mkdir -p "$root"
+          curl --fail --location --retry 3 --connect-timeout 30 --max-time 300 \
+            "https://files2.makehumancommunity.org/asset_packs/hair01/hair01_cc0.zip" \
+            -o /tmp/hair01_cc0.zip
+          unzip -tq /tmp/hair01_cc0.zip
+          unzip -oq /tmp/hair01_cc0.zip -d "$root"
+          find "$root" -type f -name 'cortu_short_messy_hair.mhclo' -print -quit | grep -q .
+          find "$root" -type f -name 'elvs_reverse_french_braid_bun.mhclo' -print -quit | grep -q .
+          touch "$root/.complete"
+          echo "MakeHuman CC0 Hair 01 ready: short male hair and female braided bun found."
+
+      - name: Verify cached hairstyle contents
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f third_party/makehuman-hair01/.complete
+          find third_party/makehuman-hair01 -type f -name 'cortu_short_messy_hair.mhclo' -print -quit | grep -q .
+          find third_party/makehuman-hair01 -type f -name 'elvs_reverse_french_braid_bun.mhclo' -print -quit | grep -q .
+
       - name: Install Blender
         shell: bash
         run: |
@@ -131,7 +164,7 @@ jobs:
           tar xJf /tmp/blender.tar.xz -C "$HOME"
           mv "$HOME/blender-${BLENDER_VERSION}-linux-x64" "$HOME/blender"
 
-      - name: Patch upstream renderer for FitPulse pull-up and clothing
+      - name: Patch upstream renderer for FitPulse pull-up, clothing and hair
         run: python3 ../animation-pipeline/scripts/patch_opengym3d_pullup.py
         working-directory: upstream
 
@@ -141,7 +174,7 @@ jobs:
           set -euo pipefail
           gender="${{ matrix.gender }}"
           mkdir -p "../output/$gender"
-          FITX_GENDER="$gender" FITX_ECORCHE=0 FITX_APPAREL_ROOT="$GITHUB_WORKSPACE/third_party/makehuman-cc0" \
+          FITX_GENDER="$gender" FITX_ECORCHE=0 FITX_APPAREL_ROOT="$GITHUB_WORKSPACE/third_party/makehuman-cc0" FITX_HAIR_ROOT="$GITHUB_WORKSPACE/third_party/makehuman-hair01" \
             "$HOME/blender/blender" -b -noaudio --python-exit-code 1 -P pipeline/build_exercise.py -- \
             ../animation-pipeline/exercises/pull_up.json "../output/$gender" 2>&1 | tee "../output/$gender/build.log"
           test -s "../output/$gender/pull_up.glb"
@@ -149,6 +182,7 @@ jobs:
           grep -q "CHARACTER_PROFILE_VERIFIED gender=$gender" "../output/$gender/build.log"
           grep -q "APPAREL_LOADED gender=$gender item=shirt" "../output/$gender/build.log"
           grep -q "APPAREL_LOADED gender=$gender item=shorts" "../output/$gender/build.log"
+          grep -q "APPAREL_LOADED gender=$gender item=hair" "../output/$gender/build.log"
         working-directory: upstream
 
       - name: Run upstream joint-integrity QA
@@ -172,6 +206,7 @@ jobs:
 
           gender = sys.argv[1]
           shirt_token = "elvs_crude_t-shirt_male" if gender == "male" else "joepal_crude_t-shirt_female"
+          hair_token = "cortu_short_messy_hair" if gender == "male" else "elvs_reverse_french_braid_bun"
           data = (Path("output") / gender / "pull_up.glb").read_bytes()
           assert data[:4] == b"glTF", f"{gender}: invalid GLB header"
           json_length = struct.unpack_from("<I", data, 12)[0]
@@ -181,7 +216,8 @@ jobs:
           names = [node.get("name", "").lower() for node in document.get("nodes", [])]
           assert any(shirt_token in name for name in names), f"{gender}: shirt mesh is absent from GLB nodes: {names[:20]}"
           assert any("cortu_jeans_shorts" in name for name in names), f"{gender}: shorts mesh is absent from GLB nodes: {names[:20]}"
-          print(f"APPAREL_GLB_PASS gender={gender} meshes={len(names)} shirt={shirt_token} shorts=cortu_jeans_shorts")
+          assert any(hair_token in name for name in names), f"{gender}: hairstyle mesh {hair_token} is absent from GLB nodes: {names[:20]}"
+          print(f"APPAREL_GLB_PASS gender={gender} meshes={len(names)} shirt={shirt_token} shorts=cortu_jeans_shorts hair={hair_token}")
           PY
 
       - name: Assemble studio review and branded FitPulse preview
@@ -322,6 +358,7 @@ jobs:
             grep -q "CHARACTER_PROFILE_VERIFIED gender=$gender" "bundle/$gender/build.log"
             grep -q "APPAREL_LOADED gender=$gender item=shirt" "bundle/$gender/build.log"
             grep -q "APPAREL_LOADED gender=$gender item=shorts" "bundle/$gender/build.log"
+            grep -q "APPAREL_LOADED gender=$gender item=hair" "bundle/$gender/build.log"
           done
           if cmp -s bundle/male/pull_up.glb bundle/female/pull_up.glb; then
             echo "Male/female GLB files are byte-identical." >&2
