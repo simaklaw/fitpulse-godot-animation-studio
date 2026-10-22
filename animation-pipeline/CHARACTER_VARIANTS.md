@@ -15,8 +15,8 @@ MPFB's gender macro is read back after macro details are applied. Female height 
 
 ## Styling
 
-- **Male**: CC0 T-shirt and shorts, CC0 short messy hairstyle, CC-BY running shoes by Punkduck.
-- **Female**: CC0 T-shirt and shorts, CC0 reverse French-braid bun, CC-BY running shoes by Punkduck.
+- **Male**: CC0 fitted crew-neck T-shirt and shorts, CC0 short messy hairstyle, CC-BY running shoes by Punkduck.
+- **Female**: CC0 fitted crew-neck T-shirt and shorts, CC0 reverse French-braid bun, CC-BY running shoes by Punkduck.
 - Activewear and footwear use FitPulse forest/mint/charcoal materials; hairstyle source material is retained.
 - The build records exact source-asset names in logs and verifies that clothes, hair, and shoes appear in the exported GLB.
 
