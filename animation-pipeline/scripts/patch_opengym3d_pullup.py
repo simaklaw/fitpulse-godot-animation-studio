@@ -234,9 +234,21 @@ gender_new = '''    gender_name = os.environ.get("FITX_GENDER", "male").strip().
     # Keep the original pipeline's validated proportions preset (0.85).
     # A neutral 0.5 makes this female rig unable to reach the fixed bar under IK.
     proportions_value = 0.85
-    print(f"CHARACTER_PROFILE_DIMENSIONS proportions={proportions_value:.2f}")
-    for prop, value in (("gender", gender_value), ("muscle", muscle_value), ("weight", 0.48),
-                        ("proportions", proportions_value)):'''
+    # The same arm pose does not fit the generated female rig at neutral height:
+    # its wrist tails sit ~21 cm below the fixed bar. Use MakeHuman's height
+    # macro to keep stature/limb reach compatible with the shared exercise rig.
+    height_value = 0.50 if gender_name == "male" else 0.90
+    print(
+        f"CHARACTER_PROFILE_DIMENSIONS proportions={proportions_value:.2f} "
+        f"height={height_value:.2f}"
+    )
+    for prop, value in (
+        ("gender", gender_value),
+        ("muscle", muscle_value),
+        ("weight", 0.48),
+        ("proportions", proportions_value),
+        ("height", height_value),
+    ):'''
 if text.count(gender_old) != 1:
     raise SystemExit("Unexpected upstream character macro block; refusing an unsafe gender patch")
 text = text.replace(gender_old, gender_new, 1)
