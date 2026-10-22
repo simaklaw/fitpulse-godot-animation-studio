@@ -31,6 +31,19 @@ for pattern, replacement, label in quality_rules:
     if count != 1:
         raise SystemExit(f"Expected exactly one upstream {label} setting; found {count}; refusing an unsafe quality patch")
 
+# Replace the cold grey mannequin palette with a warm, modern training palette.
+# Active musculature uses FitPulse mint/forest accents instead of clinical orange.
+palette_rules = [
+    ("SKIN_COLOR = (0.62, 0.64, 0.68, 1.0)", "SKIN_COLOR = (0.48, 0.31, 0.24, 1.0)"),
+    ("PRIMARY_COLOR = (0.95, 0.16, 0.03, 1.0)", "PRIMARY_COLOR = (0.44, 0.84, 0.65, 1.0)"),
+    ("SECONDARY_COLOR = (0.66, 0.075, 0.02, 1.0)", "SECONDARY_COLOR = (0.14, 0.40, 0.31, 1.0)"),
+]
+for old, new in palette_rules:
+    if text.count(old) != 1:
+        raise SystemExit(f"Expected exactly one upstream palette constant {old!r}; refusing an unsafe visual patch")
+    text = text.replace(old, new, 1)
+
+
 helper = r'''def build_pull_up_rig():
     """Create a stationary powder-coated rack used only by the pull-up spec."""
     steel = make_material("Pull-up rig steel", (0.095, 0.115, 0.135, 1.0), roughness=0.3)
