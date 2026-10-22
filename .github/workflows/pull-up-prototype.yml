@@ -53,7 +53,7 @@ jobs:
   render:
     needs: validate-spec
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 180
     env:
       BLENDER_VERSION: "4.5.11"
       FITX_ECORCHE: "0"
@@ -85,85 +85,131 @@ jobs:
         run: python3 ../animation-pipeline/scripts/patch_opengym3d_pullup.py
         working-directory: upstream
 
-      - name: Render GLB and thumbnail
+      - name: Render male and female GLB plus transparent sequences
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p ../output
-          FITX_ECORCHE=0 "$HOME/blender/blender" -b -noaudio --python-exit-code 1 -P pipeline/build_exercise.py -- ../animation-pipeline/exercises/pull_up.json ../output 2>&1 | tee ../output/build.log
-          test -s ../output/pull_up.glb
-          test -s ../output/pull_up.png
+          mkdir -p ../output/male ../output/female
+          for gender in male female; do
+            echo "=== Rendering character presentation: $gender ==="
+            FITX_GENDER="$gender" FITX_ECORCHE=0 "$HOME/blender/blender" -b -noaudio --python-exit-code 1 -P pipeline/build_exercise.py -- ../animation-pipeline/exercises/pull_up.json "../output/$gender" 2>&1 | tee "../output/$gender/build.log"
+            test -s "../output/$gender/pull_up.glb"
+            test -s "../output/$gender/pull_up.png"
+            grep -q "CHARACTER_PROFILE_VERIFIED gender=$gender" "../output/$gender/build.log"
+          done
+          if cmp -s ../output/male/pull_up.glb ../output/female/pull_up.glb; then
+            echo "Male/female GLB files are byte-identical; expected genuinely different generated models." >&2
+            exit 1
+          fi
+          if cmp -s ../output/male/pull_up.png ../output/female/pull_up.png; then
+            echo "Male/female render thumbnails are byte-identical; gender variants were not visually distinguished." >&2
+            exit 1
+          fi
         working-directory: upstream
 
-      - name: Run upstream joint-integrity QA
+      - name: Run upstream joint-integrity QA for both presentations
         shell: bash
         run: |
-          set -o pipefail
-          python3 pipeline/qa_glb.py ../output/pull_up.glb 2>&1 | tee ../output/qa.log
+          set -euo pipefail
+          for gender in male female; do
+            echo "=== Structural GLB QA: $gender ==="
+            python3 pipeline/qa_glb.py "../output/$gender/pull_up.glb" 2>&1 | tee "../output/$gender/qa.log"
+          done
         working-directory: upstream
 
-      - name: Assemble MP4 preview
-        if: always()
-        shell: bash
-        run: |
-          if compgen -G "output/frames_pull_up/*.png" > /dev/null; then
-            ffmpeg -y -v error -framerate 30 -pattern_type glob -i 'output/frames_pull_up/*.png' -c:v libx264 -pix_fmt yuv420p -movflags +faststart output/pull_up.mp4
-            ffprobe -v error -select_streams v:0 -show_entries stream=width,height,r_frame_rate,nb_frames -of default=noprint_wrappers=1 output/pull_up.mp4 | tee output/video-qa.txt
-            grep -qx 'width=720' output/video-qa.txt
-            grep -qx 'height=720' output/video-qa.txt
-            grep -qx 'r_frame_rate=30/1' output/video-qa.txt
-            grep -qx 'nb_frames=72' output/video-qa.txt
-          fi
-
-      - name: Generate visual QA contact sheet
-        if: always()
-        shell: bash
-        run: |
-          if [ -s output/pull_up.mp4 ]; then
-            ffmpeg -y -v error -i output/pull_up.mp4 -vf "fps=10/3,scale=360:360,tile=4x2" -frames:v 1 output/pull_up_contact_sheet.png
-            test -s output/pull_up_contact_sheet.png
-          fi
-
-      - name: Verify transparent frame sequence
+      - name: Assemble and verify male/female MP4 previews
         if: always()
         shell: bash
         run: |
           set -euo pipefail
-          test -d output/frames_pull_up_alpha
-          test "$(find output/frames_pull_up_alpha -maxdepth 1 -type f -name '*.png' | wc -l)" -eq 72
+          for gender in male female; do
+            frame_dir="output/$gender/frames_pull_up"
+            if ! compgen -G "$frame_dir/*.png" > /dev/null; then
+              echo "Missing studio frame sequence for $gender" >&2
+              exit 1
+            fi
+            ffmpeg -y -v error -framerate 30 -pattern_type glob -i "$frame_dir/*.png" -c:v libx264 -pix_fmt yuv420p -movflags +faststart "output/$gender/pull_up.mp4"
+            ffprobe -v error -select_streams v:0 -show_entries stream=width,height,r_frame_rate,nb_frames -of default=noprint_wrappers=1 "output/$gender/pull_up.mp4" | tee "output/$gender/video-qa.txt"
+            grep -qx 'width=720' "output/$gender/video-qa.txt"
+            grep -qx 'height=720' "output/$gender/video-qa.txt"
+            grep -qx 'r_frame_rate=30/1' "output/$gender/video-qa.txt"
+            grep -qx 'nb_frames=72' "output/$gender/video-qa.txt"
+          done
+
+      - name: Generate both visual QA contact sheets
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          for gender in male female; do
+            video="output/$gender/pull_up.mp4"
+            if [ ! -s "$video" ]; then
+              echo "Missing MP4 for $gender; cannot create its contact sheet" >&2
+              exit 1
+            fi
+            ffmpeg -y -v error -i "$video" -vf "fps=10/3,scale=360:360,tile=4x2" -frames:v 1 "output/$gender/pull_up_contact_sheet.png"
+            test -s "output/$gender/pull_up_contact_sheet.png"
+          done
+
+      - name: Verify transparent PNG sequences and distinct character geometry
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          for gender in male female; do
+            test -d "output/$gender/frames_pull_up_alpha"
+            test "$(find "output/$gender/frames_pull_up_alpha" -maxdepth 1 -type f -name '*.png' | wc -l)" -eq 72
+          done
           python3 -m venv /tmp/fitpulse-alpha-qa
           /tmp/fitpulse-alpha-qa/bin/python -m pip install --quiet --disable-pip-version-check pillow
           /tmp/fitpulse-alpha-qa/bin/python - <<'PY'
           from pathlib import Path
           from PIL import Image
+          import hashlib
 
-          frames = sorted(Path("output/frames_pull_up_alpha").glob("*.png"))
-          assert len(frames) == 72, f"expected 72 transparent frames, got {len(frames)}"
-          unique_frames = set()
-          for path in frames:
-              with Image.open(path) as im:
-                  assert im.size == (720, 720), f"{path.name}: unexpected size {im.size}"
-                  assert im.mode == "RGBA", f"{path.name}: missing RGBA alpha channel"
-                  alpha = im.getchannel("A")
-                  corners = [
-                      alpha.getpixel((0, 0)),
-                      alpha.getpixel((im.width - 1, 0)),
-                      alpha.getpixel((0, im.height - 1)),
-                      alpha.getpixel((im.width - 1, im.height - 1)),
-                  ]
-                  assert all(value == 0 for value in corners), (
-                      f"{path.name}: expected transparent corners, got {corners}"
-                  )
-                  transparent_fraction = alpha.histogram()[0] / (im.width * im.height)
-                  assert transparent_fraction >= 0.80, (
-                      f"{path.name}: only {transparent_fraction:.1%} transparent pixels; unexpected background or framing"
-                  )
-                  assert alpha.getextrema()[1] == 255, f"{path.name}: no fully opaque subject pixels"
-                  unique_frames.add(__import__("hashlib").sha256(im.tobytes()).digest())
-          assert len(unique_frames) >= 60, (
-              f"only {len(unique_frames)} visually unique RGBA frames; animation may be static"
-          )
-          print(f"Alpha QA PASS: {len(frames)} frames, 720x720 RGBA; transparent corners, >=80% transparent pixels, opaque subject, and {len(unique_frames)} unique frames.")
+          for gender in ("male", "female"):
+              folder = Path("output") / gender / "frames_pull_up_alpha"
+              frames = sorted(folder.glob("*.png"))
+              assert len(frames) == 72, f"{gender}: expected 72 transparent frames, got {len(frames)}"
+              unique_frames = set()
+              transparent_fractions = []
+              for path in frames:
+                  with Image.open(path) as im:
+                      assert im.size == (720, 720), f"{gender}/{path.name}: unexpected size {im.size}"
+                      assert im.mode == "RGBA", f"{gender}/{path.name}: missing RGBA alpha channel"
+                      alpha = im.getchannel("A")
+                      corners = [
+                          alpha.getpixel((0, 0)),
+                          alpha.getpixel((im.width - 1, 0)),
+                          alpha.getpixel((0, im.height - 1)),
+                          alpha.getpixel((im.width - 1, im.height - 1)),
+                      ]
+                      assert all(value == 0 for value in corners), (
+                          f"{gender}/{path.name}: expected transparent corners, got {corners}"
+                      )
+                      transparent_fraction = alpha.histogram()[0] / (im.width * im.height)
+                      assert transparent_fraction >= 0.80, (
+                          f"{gender}/{path.name}: only {transparent_fraction:.1%} transparent pixels; unexpected background or framing"
+                      )
+                      assert alpha.getextrema()[1] == 255, f"{gender}/{path.name}: no fully opaque subject pixels"
+                      transparent_fractions.append(transparent_fraction)
+                      unique_frames.add(hashlib.sha256(im.tobytes()).digest())
+              assert len(unique_frames) >= 60, (
+                  f"{gender}: only {len(unique_frames)} visually unique RGBA frames; animation may be static"
+              )
+              print(
+                  f"Alpha QA PASS: {gender}, {len(frames)} frames, 720x720 RGBA; "
+                  f"transparent corners, >=80% transparent pixels, opaque subject, "
+                  f"{len(unique_frames)} unique frames, min transparent fraction "
+                  f"{min(transparent_fractions):.1%}."
+              )
+
+          with Image.open("output/male/pull_up.png") as male, Image.open("output/female/pull_up.png") as female:
+              assert male.size == female.size == (512, 512)
+              assert hashlib.sha256(male.tobytes()).digest() != hashlib.sha256(female.tobytes()).digest(), (
+                  "male/female thumbnails are pixel-identical"
+              )
+          print("Character presentation QA PASS: male/female thumbnails are genuinely different renders.")
           PY
 
       - name: Upload animation and QA artifacts
@@ -172,14 +218,7 @@ jobs:
         with:
           name: fitpulse-pull-up-prototype
           path: |
-            output/pull_up.glb
-            output/pull_up.png
-            output/pull_up.mp4
-            output/pull_up_contact_sheet.png
-            output/frames_pull_up_alpha/*.png
-            output/pull_up.glb.qa.json
-            output/build.log
-            output/qa.log
-            output/video-qa.txt
+            output/male/**
+            output/female/**
           if-no-files-found: warn
           retention-days: 14
