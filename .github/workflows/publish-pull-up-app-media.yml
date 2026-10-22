@@ -1,0 +1,112 @@
+name: Publish Verified Pull-Up App Media
+
+on:
+  workflow_run:
+    workflows:
+      - Build Pull-Up Animation Prototype
+    types:
+      - completed
+    branches:
+      - main
+
+permissions:
+  actions: read
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: publish-verified-pull-up-app-media
+  cancel-in-progress: false
+
+jobs:
+  prepare-media-pr:
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout current main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Download validated renderer artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: fitpulse-pull-up-prototype
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: downloaded
+
+      - name: Verify media and prepare app-sized publication
+        shell: bash
+        env:
+          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+          SOURCE_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          for gender in male female; do
+            test -s "downloaded/$gender/pull_up.mp4"
+            test -s "downloaded/$gender/poster.png"
+            grep -q "CHARACTER_PROFILE_VERIFIED gender=$gender" "downloaded/$gender/build.log"
+            ffprobe -v error -select_streams v:0 \
+              -show_entries stream=width,height,r_frame_rate,nb_frames \
+              -of default=noprint_wrappers=1 "downloaded/$gender/pull_up.mp4" > "/tmp/$gender-video-qa.txt"
+            grep -qx 'width=720' "/tmp/$gender-video-qa.txt"
+            grep -qx 'height=720' "/tmp/$gender-video-qa.txt"
+            grep -qx 'r_frame_rate=30/1' "/tmp/$gender-video-qa.txt"
+            grep -qx 'nb_frames=72' "/tmp/$gender-video-qa.txt"
+          done
+
+          mkdir -p assets/fitpulse/pull-up/male assets/fitpulse/pull-up/female
+          for gender in male female; do
+            cp "downloaded/$gender/pull_up.mp4" "assets/fitpulse/pull-up/$gender/pull_up.mp4"
+            cp "downloaded/$gender/poster.png" "assets/fitpulse/pull-up/$gender/poster.png"
+          done
+
+          SOURCE_RUN_ID="$SOURCE_RUN_ID" SOURCE_SHA="$SOURCE_SHA" python3 - <<'PY'
+          from hashlib import sha256
+          from pathlib import Path
+          import json
+          import os
+
+          root = Path("assets/fitpulse/pull-up")
+          manifest = {
+              "schemaVersion": 1,
+              "exerciseId": "pull_up",
+              "generatedFrom": {
+                  "repository": "simaklaw/fitpulse-godot-animation-studio",
+                  "commit": os.environ["SOURCE_SHA"],
+                  "workflowRunId": int(os.environ["SOURCE_RUN_ID"]),
+              },
+              "video": {"width": 720, "height": 720, "fps": 30, "frames": 72, "durationSeconds": 2.4},
+              "profiles": {},
+          }
+          for gender in ("male", "female"):
+              video = root / gender / "pull_up.mp4"
+              poster = root / gender / "poster.png"
+              manifest["profiles"][gender] = {
+                  "video": f"assets/fitpulse/pull-up/{gender}/pull_up.mp4",
+                  "poster": f"assets/fitpulse/pull-up/{gender}/poster.png",
+                  "videoSha256": sha256(video.read_bytes()).hexdigest(),
+                  "posterSha256": sha256(poster.read_bytes()).hexdigest(),
+                  "videoBytes": video.stat().st_size,
+              }
+          (root / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
+          print(json.dumps(manifest, indent=2))
+          PY
+
+          echo "Published payload candidate:"
+          du -h assets/fitpulse/pull-up/male/* assets/fitpulse/pull-up/female/*
+
+      - name: Open or update a PR with the verified media
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: automation/publish-pull-up-media
+          delete-branch: false
+          title: "chore(assets): publish verified male/female pull-up media"
+          commit-message: "chore(assets): publish verified pull-up media"
+          body: |
+            Automated media publication from a successful main-branch animation build.
+
+            Included are the 720×720, 30 fps, 72-frame male and female MP4 previews, poster PNGs, and a SHA-256 manifest. The build pipeline validates the gender macro, distinct generated renders, structural GLB integrity, fixed-bar contact, top-position clearance, and transparent-frame sequence before this publication workflow runs.
+
+            These are verified technical prototypes, not final premium character artwork or expert-certified biomechanics.
