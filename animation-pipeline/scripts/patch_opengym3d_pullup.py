@@ -31,6 +31,19 @@ for pattern, replacement, label in quality_rules:
     if count != 1:
         raise SystemExit(f"Expected exactly one upstream {label} setting; found {count}; refusing an unsafe quality patch")
 
+# Replace the cold grey mannequin palette with a warm, modern training palette.
+# Active musculature uses FitPulse mint/forest accents instead of clinical orange.
+palette_rules = [
+    ("SKIN_COLOR = (0.62, 0.64, 0.68, 1.0)", "SKIN_COLOR = (0.48, 0.31, 0.24, 1.0)"),
+    ("PRIMARY_COLOR = (0.95, 0.16, 0.03, 1.0)", "PRIMARY_COLOR = (0.44, 0.84, 0.65, 1.0)"),
+    ("SECONDARY_COLOR = (0.66, 0.075, 0.02, 1.0)", "SECONDARY_COLOR = (0.14, 0.40, 0.31, 1.0)"),
+]
+for old, new in palette_rules:
+    if text.count(old) != 1:
+        raise SystemExit(f"Expected exactly one upstream palette constant {old!r}; refusing an unsafe visual patch")
+    text = text.replace(old, new, 1)
+
+
 helper = r'''def build_pull_up_rig():
     """Create a stationary powder-coated rack used only by the pull-up spec."""
     steel = make_material("Pull-up rig steel", (0.095, 0.115, 0.135, 1.0), roughness=0.3)
@@ -199,6 +212,34 @@ if text.count(alpha_old) != 1:
     raise SystemExit("Unexpected upstream backdrop/export block; refusing unsafe alpha patch")
 text = text.replace(alpha_old, alpha_new, 1)
 
+# Choose an intentional anatomical presentation. MPFB's gender macro is 0=female, 1=male.
+gender_old = '''    for prop, value in (("gender", 1.0), ("muscle", 1.0), ("weight", 0.48),
+                        ("proportions", 0.85)):'''
+gender_new = '''    gender_name = os.environ.get("FITX_GENDER", "male").strip().lower()
+    if gender_name not in ("male", "female"):
+        raise ValueError(f"Unsupported FITX_GENDER={gender_name!r}; expected 'male' or 'female'")
+    gender_value = 1.0 if gender_name == "male" else 0.0
+    muscle_value = 0.82 if gender_name == "male" else 0.68
+    print(f"CHARACTER_PROFILE gender={gender_name} macro={gender_value:.1f} muscle={muscle_value:.2f}")
+    for prop, value in (("gender", gender_value), ("muscle", muscle_value), ("weight", 0.46),
+                        ("proportions", 0.5)):'''
+if text.count(gender_old) != 1:
+    raise SystemExit("Unexpected upstream character macro block; refusing an unsafe gender patch")
+text = text.replace(gender_old, gender_new, 1)
+
+# Confirm MPFB accepted the selected phenotype before building the rig.
+setter_old = '''    TargetService.reapply_macro_details(basemesh)
+    rig = HumanService.add_builtin_rig(basemesh, "default")'''
+setter_new = '''    TargetService.reapply_macro_details(basemesh)
+    actual_gender = float(HumanObjectProperties.get_value("gender", entity_reference=basemesh))
+    if abs(actual_gender - gender_value) > 0.01:
+        raise RuntimeError(f"MPFB gender macro mismatch: requested {gender_value:.1f}, got {actual_gender:.3f}")
+    print(f"CHARACTER_PROFILE_VERIFIED gender={gender_name} macro={actual_gender:.1f}")
+    rig = HumanService.add_builtin_rig(basemesh, "default")'''
+if text.count(setter_old) != 1:
+    raise SystemExit("Unexpected upstream MPFB phenotype verification point")
+text = text.replace(setter_old, setter_new, 1)
+
 # Bound MPFB asset downloads so a stalled extensions endpoint cannot hold CI forever.
 download_old = 'with urllib.request.urlopen(req) as resp, open(zpath, "wb") as f:'
 download_new = 'with urllib.request.urlopen(req, timeout=60) as resp, open(zpath, "wb") as f:'
@@ -207,4 +248,4 @@ if text.count(download_old) != 1:
 text = text.replace(download_old, download_new, 1)
 
 source.write_text(text)
-print("Patched upstream renderer: fixed pull-up rack, render profile, and bounded MPFB download.")
+print("Patched upstream renderer: male/female profile selection, render profile, and bounded MPFB download.")
