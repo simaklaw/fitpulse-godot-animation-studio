@@ -57,6 +57,10 @@ jobs:
 
   render:
     needs: validate-spec
+    strategy:
+      fail-fast: false
+      matrix:
+        gender: [male, female]
     runs-on: ubuntu-latest
     timeout-minutes: 180
     env:
@@ -75,6 +79,7 @@ jobs:
 
       - name: Install runtime libraries
         run: |
+          set -euo pipefail
           sudo apt-get update -qq
           sudo apt-get install -y -qq libxi6 libxxf86vm1 libxfixes3 libxrender1 libgl1 libxkbcommon0 libsm6 ffmpeg unzip
 
@@ -83,7 +88,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: third_party/makehuman-cc0
-          key: makehuman-cc0-shirts01-pants01-v1
+          key: makehuman-cc0-shirts01-pants01-v1-${{ matrix.gender }}
 
       - name: Download and verify MakeHuman CC0 apparel packs
         if: steps.makehuman-assets.outputs.cache-hit != 'true'
@@ -125,79 +130,65 @@ jobs:
           tar xJf /tmp/blender.tar.xz -C "$HOME"
           mv "$HOME/blender-${BLENDER_VERSION}-linux-x64" "$HOME/blender"
 
-      - name: Patch upstream renderer for a fixed pull-up rack
+      - name: Patch upstream renderer for FitPulse pull-up and clothing
         run: python3 ../animation-pipeline/scripts/patch_opengym3d_pullup.py
         working-directory: upstream
 
-      - name: Render male and female GLB plus transparent sequences
+      - name: Render ${{ matrix.gender }} GLB and transparent sequences
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p ../output/male ../output/female
-          for gender in male female; do
-            echo "=== Rendering character presentation: $gender ==="
-            FITX_GENDER="$gender" FITX_ECORCHE=0 FITX_APPAREL_ROOT="$GITHUB_WORKSPACE/third_party/makehuman-cc0" "$HOME/blender/blender" -b -noaudio --python-exit-code 1 -P pipeline/build_exercise.py -- ../animation-pipeline/exercises/pull_up.json "../output/$gender" 2>&1 | tee "../output/$gender/build.log"
-            test -s "../output/$gender/pull_up.glb"
-            test -s "../output/$gender/pull_up.png"
-            grep -q "CHARACTER_PROFILE_VERIFIED gender=$gender" "../output/$gender/build.log"
-            grep -q "APPAREL_LOADED gender=$gender item=shirt" "../output/$gender/build.log"
-            grep -q "APPAREL_LOADED gender=$gender item=shorts" "../output/$gender/build.log"
-          done
-          if cmp -s ../output/male/pull_up.glb ../output/female/pull_up.glb; then
-            echo "Male/female GLB files are byte-identical; expected genuinely different generated models." >&2
-            exit 1
-          fi
-          if cmp -s ../output/male/pull_up.png ../output/female/pull_up.png; then
-            echo "Male/female render thumbnails are byte-identical; gender variants were not visually distinguished." >&2
-            exit 1
-          fi
+          gender="${{ matrix.gender }}"
+          mkdir -p "../output/$gender"
+          FITX_GENDER="$gender" FITX_ECORCHE=0 FITX_APPAREL_ROOT="$GITHUB_WORKSPACE/third_party/makehuman-cc0" \
+            "$HOME/blender/blender" -b -noaudio --python-exit-code 1 -P pipeline/build_exercise.py -- \
+            ../animation-pipeline/exercises/pull_up.json "../output/$gender" 2>&1 | tee "../output/$gender/build.log"
+          test -s "../output/$gender/pull_up.glb"
+          test -s "../output/$gender/pull_up.png"
+          grep -q "CHARACTER_PROFILE_VERIFIED gender=$gender" "../output/$gender/build.log"
+          grep -q "APPAREL_LOADED gender=$gender item=shirt" "../output/$gender/build.log"
+          grep -q "APPAREL_LOADED gender=$gender item=shorts" "../output/$gender/build.log"
         working-directory: upstream
 
-      - name: Run upstream joint-integrity QA for both presentations
+      - name: Run upstream joint-integrity QA
         shell: bash
         run: |
           set -euo pipefail
-          for gender in male female; do
-            echo "=== Structural GLB QA: $gender ==="
-            python3 pipeline/qa_glb.py "../output/$gender/pull_up.glb" 2>&1 | tee "../output/$gender/qa.log"
-          done
+          gender="${{ matrix.gender }}"
+          python3 pipeline/qa_glb.py "../output/$gender/pull_up.glb" 2>&1 | tee "../output/$gender/qa.log"
         working-directory: upstream
 
-      - name: Verify apparel meshes are embedded in both GLBs
+      - name: Verify apparel meshes are embedded in the GLB
         shell: bash
         run: |
           set -euo pipefail
-          python3 - <<'PY'
+          gender="${{ matrix.gender }}"
+          python3 - "$gender" <<'PY'
           from pathlib import Path
           import json
           import struct
+          import sys
 
-          for gender, shirt_token in (
-              ("male", "elvs_crude_t-shirt_male"),
-              ("female", "joepal_crude_t-shirt_female"),
-          ):
-              path = Path("output") / gender / "pull_up.glb"
-              data = path.read_bytes()
-              assert data[:4] == b"glTF", f"{gender}: invalid GLB header"
-              json_length = struct.unpack_from("<I", data, 12)[0]
-              json_chunk_type = struct.unpack_from("<I", data, 16)[0]
-              assert json_chunk_type == 0x4E4F534A, f"{gender}: first GLB chunk is not JSON"
-              document = json.loads(data[20:20 + json_length].decode("utf-8").rstrip(" \\0"))
-              names = [node.get("name", "").lower() for node in document.get("nodes", [])]
-              assert any(shirt_token in name for name in names), (
-                  f"{gender}: shirt mesh is absent from GLB nodes: {names[:20]}"
-              )
-              assert any("cortu_jeans_shorts" in name for name in names), (
-                  f"{gender}: shorts mesh is absent from GLB nodes: {names[:20]}"
-              )
-              print(f"APPAREL_GLB_PASS gender={gender} meshes={len(names)} shirt={shirt_token} shorts=cortu_jeans_shorts")
+          gender = sys.argv[1]
+          shirt_token = "elvs_crude_t-shirt_male" if gender == "male" else "joepal_crude_t-shirt_female"
+          data = (Path("output") / gender / "pull_up.glb").read_bytes()
+          assert data[:4] == b"glTF", f"{gender}: invalid GLB header"
+          json_length = struct.unpack_from("<I", data, 12)[0]
+          json_chunk_type = struct.unpack_from("<I", data, 16)[0]
+          assert json_chunk_type == 0x4E4F534A, f"{gender}: first GLB chunk is not JSON"
+          document = json.loads(data[20:20 + json_length].decode("utf-8").rstrip(" "))
+          names = [node.get("name", "").lower() for node in document.get("nodes", [])]
+          assert any(shirt_token in name for name in names), f"{gender}: shirt mesh is absent from GLB nodes: {names[:20]}"
+          assert any("cortu_jeans_shorts" in name for name in names), f"{gender}: shorts mesh is absent from GLB nodes: {names[:20]}"
+          print(f"APPAREL_GLB_PASS gender={gender} meshes={len(names)} shirt={shirt_token} shorts=cortu_jeans_shorts")
           PY
 
-      - name: Assemble studio review and branded FitPulse previews
+      - name: Assemble studio review and branded FitPulse preview
         if: always()
         shell: bash
         run: |
           set -euo pipefail
+          gender="${{ matrix.gender }}"
           python3 - <<'PY'
           import math
           from pathlib import Path
@@ -223,106 +214,138 @@ jobs:
           Path('/tmp/fitpulse-pull-up-bg.ppm').write_bytes(f'P6\n{width} {height}\n255\n'.encode() + data)
           print('Generated dark forest/mint background for transparent-frame compositing.')
           PY
-          for gender in male female; do
-            frame_dir="output/$gender/frames_pull_up"
-            alpha_dir="output/$gender/frames_pull_up_alpha"
-            test "$(find "$frame_dir" -maxdepth 1 -type f -name '*.png' | wc -l)" -eq 72
-            test "$(find "$alpha_dir" -maxdepth 1 -type f -name '*.png' | wc -l)" -eq 72
-            ffmpeg -y -v error -framerate 30 -pattern_type glob -i "$frame_dir/*.png" -c:v libx264 -pix_fmt yuv420p -movflags +faststart "output/$gender/pull_up_studio.mp4"
-            ffmpeg -y -v error -loop 1 -framerate 30 -i /tmp/fitpulse-pull-up-bg.ppm -framerate 30 -pattern_type glob -i "$alpha_dir/*.png" -filter_complex "[0:v][1:v]overlay=shortest=1:format=auto,format=yuv420p[v]" -map "[v]" -frames:v 72 -c:v libx264 -crf 19 -preset medium -movflags +faststart "output/$gender/pull_up.mp4"
-            ffprobe -v error -select_streams v:0 -show_entries stream=width,height,r_frame_rate,nb_frames -of default=noprint_wrappers=1 "output/$gender/pull_up.mp4" | tee "output/$gender/video-qa.txt"
-            grep -qx 'width=720' "output/$gender/video-qa.txt"
-            grep -qx 'height=720' "output/$gender/video-qa.txt"
-            grep -qx 'r_frame_rate=30/1' "output/$gender/video-qa.txt"
-            grep -qx 'nb_frames=72' "output/$gender/video-qa.txt"
-            ffmpeg -y -v error -i "output/$gender/pull_up.mp4" -vf "select='eq(n,40)'" -vsync 0 -frames:v 1 "output/$gender/poster.png"
-            test -s "output/$gender/poster.png"
-          done
+          frame_dir="output/$gender/frames_pull_up"
+          alpha_dir="output/$gender/frames_pull_up_alpha"
+          test "$(find "$frame_dir" -maxdepth 1 -type f -name '*.png' | wc -l)" -eq 72
+          test "$(find "$alpha_dir" -maxdepth 1 -type f -name '*.png' | wc -l)" -eq 72
+          ffmpeg -y -v error -framerate 30 -pattern_type glob -i "$frame_dir/*.png" -c:v libx264 -pix_fmt yuv420p -movflags +faststart "output/$gender/pull_up_studio.mp4"
+          ffmpeg -y -v error -loop 1 -framerate 30 -i /tmp/fitpulse-pull-up-bg.ppm -framerate 30 -pattern_type glob -i "$alpha_dir/*.png" -filter_complex "[0:v][1:v]overlay=shortest=1:format=auto,format=yuv420p[v]" -map "[v]" -frames:v 72 -c:v libx264 -crf 19 -preset medium -movflags +faststart "output/$gender/pull_up.mp4"
+          ffprobe -v error -select_streams v:0 -show_entries stream=width,height,r_frame_rate,nb_frames -of default=noprint_wrappers=1 "output/$gender/pull_up.mp4" | tee "output/$gender/video-qa.txt"
+          grep -qx 'width=720' "output/$gender/video-qa.txt"
+          grep -qx 'height=720' "output/$gender/video-qa.txt"
+          grep -qx 'r_frame_rate=30/1' "output/$gender/video-qa.txt"
+          grep -qx 'nb_frames=72' "output/$gender/video-qa.txt"
+          ffmpeg -y -v error -i "output/$gender/pull_up.mp4" -vf "select='eq(n,40)'" -vsync 0 -frames:v 1 "output/$gender/poster.png"
+          test -s "output/$gender/poster.png"
 
-      - name: Generate both visual QA contact sheets
+      - name: Generate visual QA contact sheet
         if: always()
         shell: bash
         run: |
           set -euo pipefail
-          for gender in male female; do
-            video="output/$gender/pull_up.mp4"
-            if [ ! -s "$video" ]; then
-              echo "Missing MP4 for $gender; cannot create its contact sheet" >&2
-              exit 1
-            fi
-            ffmpeg -y -v error -i "$video" -vf "fps=10/3,scale=360:360,tile=4x2" -frames:v 1 "output/$gender/pull_up_contact_sheet.png"
-            test -s "output/$gender/pull_up_contact_sheet.png"
-          done
+          gender="${{ matrix.gender }}"
+          video="output/$gender/pull_up.mp4"
+          if [ ! -s "$video" ]; then
+            echo "Missing MP4 for $gender; cannot create its contact sheet" >&2
+            exit 1
+          fi
+          ffmpeg -y -v error -i "$video" -vf "fps=10/3,scale=360:360,tile=4x2" -frames:v 1 "output/$gender/pull_up_contact_sheet.png"
+          test -s "output/$gender/pull_up_contact_sheet.png"
 
-      - name: Verify transparent PNG sequences and distinct character geometry
+      - name: Verify transparent PNG sequence
         if: always()
         shell: bash
         run: |
           set -euo pipefail
-          for gender in male female; do
-            test -d "output/$gender/frames_pull_up_alpha"
-            test "$(find "output/$gender/frames_pull_up_alpha" -maxdepth 1 -type f -name '*.png' | wc -l)" -eq 72
-          done
+          gender="${{ matrix.gender }}"
+          alpha_dir="output/$gender/frames_pull_up_alpha"
+          test -d "$alpha_dir"
+          test "$(find "$alpha_dir" -maxdepth 1 -type f -name '*.png' | wc -l)" -eq 72
           python3 -m venv /tmp/fitpulse-alpha-qa
           /tmp/fitpulse-alpha-qa/bin/python -m pip install --quiet --disable-pip-version-check pillow
-          /tmp/fitpulse-alpha-qa/bin/python - <<'PY'
+          GENDER="$gender" /tmp/fitpulse-alpha-qa/bin/python - <<'PY'
+          from pathlib import Path
+          from PIL import Image
+          import hashlib
+          import os
+
+          gender = os.environ["GENDER"]
+          folder = Path("output") / gender / "frames_pull_up_alpha"
+          frames = sorted(folder.glob("*.png"))
+          assert len(frames) == 72, f"{gender}: expected 72 transparent frames, got {len(frames)}"
+          unique_frames = set()
+          transparent_fractions = []
+          for path in frames:
+              with Image.open(path) as im:
+                  assert im.size == (720, 720), f"{gender}/{path.name}: unexpected size {im.size}"
+                  assert im.mode == "RGBA", f"{gender}/{path.name}: missing RGBA alpha channel"
+                  alpha = im.getchannel("A")
+                  corners = [alpha.getpixel((0, 0)), alpha.getpixel((im.width - 1, 0)), alpha.getpixel((0, im.height - 1)), alpha.getpixel((im.width - 1, im.height - 1))]
+                  assert all(value == 0 for value in corners), f"{gender}/{path.name}: nontransparent corner pixels {corners}"
+                  transparent_fraction = alpha.histogram()[0] / (im.width * im.height)
+                  assert 0.80 <= transparent_fraction <= 0.98, f"{gender}/{path.name}: transparent fraction {transparent_fraction:.1%}; expected visible subject with clean background"
+                  assert alpha.getextrema()[1] == 255, f"{gender}/{path.name}: no fully opaque subject pixels"
+                  transparent_fractions.append(transparent_fraction)
+                  unique_frames.add(hashlib.sha256(im.tobytes()).digest())
+          assert len(unique_frames) >= 60, f"{gender}: only {len(unique_frames)} visually unique RGBA frames; animation may be static"
+          with Image.open(Path("output") / gender / "pull_up.png") as thumbnail:
+              assert thumbnail.size == (512, 512), f"{gender}: unexpected thumbnail size {thumbnail.size}"
+          print(f"Alpha QA PASS: {gender}, {len(frames)} frames, 720x720 RGBA; transparent corners, 80–98% transparent pixels, opaque subject, {len(unique_frames)} unique frames, min transparent fraction {min(transparent_fractions):.1%}.")
+          PY
+
+      - name: Upload per-profile animation and QA artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fitpulse-pull-up-${{ matrix.gender }}
+          path: output/${{ matrix.gender }}/**
+          if-no-files-found: warn
+          retention-days: 14
+
+  verify-pair:
+    needs: render
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Download male render artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: fitpulse-pull-up-male
+          path: bundle/male
+
+      - name: Download female render artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: fitpulse-pull-up-female
+          path: bundle/female
+
+      - name: Verify distinct male and female render outputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          for gender in male female; do
+            test -s "bundle/$gender/pull_up.glb"
+            test -s "bundle/$gender/pull_up.png"
+            test -s "bundle/$gender/pull_up.mp4"
+            test -s "bundle/$gender/poster.png"
+            grep -q "CHARACTER_PROFILE_VERIFIED gender=$gender" "bundle/$gender/build.log"
+            grep -q "APPAREL_LOADED gender=$gender item=shirt" "bundle/$gender/build.log"
+            grep -q "APPAREL_LOADED gender=$gender item=shorts" "bundle/$gender/build.log"
+          done
+          if cmp -s bundle/male/pull_up.glb bundle/female/pull_up.glb; then
+            echo "Male/female GLB files are byte-identical." >&2
+            exit 1
+          fi
+          python3 -m venv /tmp/fitpulse-pair-qa
+          /tmp/fitpulse-pair-qa/bin/python -m pip install --quiet --disable-pip-version-check pillow
+          /tmp/fitpulse-pair-qa/bin/python - <<'PY'
           from pathlib import Path
           from PIL import Image
           import hashlib
 
-          for gender in ("male", "female"):
-              folder = Path("output") / gender / "frames_pull_up_alpha"
-              frames = sorted(folder.glob("*.png"))
-              assert len(frames) == 72, f"{gender}: expected 72 transparent frames, got {len(frames)}"
-              unique_frames = set()
-              transparent_fractions = []
-              for path in frames:
-                  with Image.open(path) as im:
-                      assert im.size == (720, 720), f"{gender}/{path.name}: unexpected size {im.size}"
-                      assert im.mode == "RGBA", f"{gender}/{path.name}: missing RGBA alpha channel"
-                      alpha = im.getchannel("A")
-                      corners = [
-                          alpha.getpixel((0, 0)),
-                          alpha.getpixel((im.width - 1, 0)),
-                          alpha.getpixel((0, im.height - 1)),
-                          alpha.getpixel((im.width - 1, im.height - 1)),
-                      ]
-                      assert all(value == 0 for value in corners), (
-                          f"{gender}/{path.name}: expected transparent corners, got {corners}"
-                      )
-                      transparent_fraction = alpha.histogram()[0] / (im.width * im.height)
-                      assert 0.80 <= transparent_fraction <= 0.98, (
-                          f"{gender}/{path.name}: transparent fraction {transparent_fraction:.1%}; "
-                          "expected a clean transparent canvas with a clearly visible subject"
-                      )
-                      assert alpha.getextrema()[1] == 255, f"{gender}/{path.name}: no fully opaque subject pixels"
-                      transparent_fractions.append(transparent_fraction)
-                      unique_frames.add(hashlib.sha256(im.tobytes()).digest())
-              assert len(unique_frames) >= 60, (
-                  f"{gender}: only {len(unique_frames)} visually unique RGBA frames; animation may be static"
-              )
-              print(
-                  f"Alpha QA PASS: {gender}, {len(frames)} frames, 720x720 RGBA; "
-                  f"transparent corners, >=80% transparent pixels, opaque subject, "
-                  f"{len(unique_frames)} unique frames, min transparent fraction "
-                  f"{min(transparent_fractions):.1%}."
-              )
-
-          with Image.open("output/male/pull_up.png") as male, Image.open("output/female/pull_up.png") as female:
-              assert male.size == female.size == (512, 512)
-              assert hashlib.sha256(male.tobytes()).digest() != hashlib.sha256(female.tobytes()).digest(), (
-                  "male/female thumbnails are pixel-identical"
-              )
-          print("Character presentation QA PASS: male/female thumbnails are genuinely different renders.")
+          with Image.open("bundle/male/pull_up.png") as male_thumb, Image.open("bundle/female/pull_up.png") as female_thumb:
+              assert male_thumb.size == female_thumb.size == (512, 512)
+              assert hashlib.sha256(male_thumb.tobytes()).digest() != hashlib.sha256(female_thumb.tobytes()).digest(), "male/female thumbnails are pixel-identical"
+          with Image.open("bundle/male/poster.png") as male_poster, Image.open("bundle/female/poster.png") as female_poster:
+              assert male_poster.size == female_poster.size == (720, 720)
+              assert hashlib.sha256(male_poster.tobytes()).digest() != hashlib.sha256(female_poster.tobytes()).digest(), "male/female posters are pixel-identical"
+          print("Character presentation QA PASS: both GLBs, thumbnails and posters differ across verified profiles.")
           PY
 
-      - name: Upload animation and QA artifacts
-        if: always()
+      - name: Publish combined verified artifact
         uses: actions/upload-artifact@v4
         with:
           name: fitpulse-pull-up-prototype
-          path: |
-            output/male/**
-            output/female/**
-          if-no-files-found: warn
+          path: bundle/**
+          if-no-files-found: error
           retention-days: 14
