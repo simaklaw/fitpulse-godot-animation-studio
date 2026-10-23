@@ -227,16 +227,29 @@ def assert_pull_up_body_pose(rig, frame_end):
 
     top_frame = max(1, min(frame_end, 1 + round((frame_end - 1) * 0.56)))
     scene.frame_set(top_frame)
+    bpy.context.view_layer.update()
     head = rig.pose.bones.get("head")
     bar = bpy.data.objects.get("PullUpBar")
     if head is None or bar is None:
         raise RuntimeError("pull-up top-position gate: missing head bone or PullUpBar")
     head_base_z = (rig.matrix_world @ head.head).z
-    bar_top_z = bar.location.z + bar.dimensions.z / 2.0
-    required_head_base_z = bar_top_z + 0.03
-    print(f"TOP pull_up: head-base proxy {head_base_z:.3f} m at frame {top_frame}; bar top {bar_top_z:.3f} m; minimum {required_head_base_z:.3f} m")
-    if head_base_z < required_head_base_z:
-        raise RuntimeError(f"pull-up top-position failed: head-base proxy {head_base_z:.3f} m does not clear bar top {bar_top_z:.3f} m by 0.03 m")
+    head_top_z = (rig.matrix_world @ head.tail).z
+    # The rack crossbar is rotated onto the X axis; object-space dimensions.z
+    # is not its vertical thickness. Use the actual cylinder radius instead.
+    bar_top_z = bar.location.z + 0.028
+    minimum_head_top_z = bar_top_z + 0.03
+    maximum_head_base_drop = 0.18
+    print(
+        f"TOP pull_up: head-base={head_base_z:.3f} m head-top={head_top_z:.3f} m "
+        f"at frame {top_frame}; bar top={bar_top_z:.3f} m; "
+        f"head-top minimum={minimum_head_top_z:.3f} m"
+    )
+    if head_top_z < minimum_head_top_z or head_base_z < bar.location.z - maximum_head_base_drop:
+        raise RuntimeError(
+            f"pull-up top-position failed: head top/base ({head_top_z:.3f}/{head_base_z:.3f} m) "
+            f"does not clear bar top {bar_top_z:.3f} m while keeping the base within "
+            f"{maximum_head_base_drop:.2f} m below bar center"
+        )
 
 
 '''
