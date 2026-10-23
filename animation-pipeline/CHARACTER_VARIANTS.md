@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Generate distinct male and female character presentations from one pinned pull-up motion spec, including separate body profiles and fitted clothing, hairstyle and running-shoe meshes. The two outputs must not be identical renders.
+Generate distinct male and female character presentations from one pinned pull-up motion spec, including separate body profiles and fitted clothing, hairstyle and running-shoe meshes. The two outputs must not be identical renders. The shared overhand grip uses a 60 cm target span (±0.30 m), pending visual validation across both generated profiles.
 
 ## Profiles
 
