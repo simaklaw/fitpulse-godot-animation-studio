@@ -110,7 +110,7 @@ jobs:
                   )
               result[gender] = {"meanAbsoluteRgbDifference": round(mae, 4), "limit": limit}
               print(f"MP4_LOOP_SEAM_PASS gender={gender} mean_absolute_rgb_difference={mae:.4f} limit={limit:.1f}")
-          Path("/tmp/loop-seam-qa.json").write_text(json.dumps(result, indent=2) + "\\n")
+          Path("/tmp/loop-seam-qa.json").write_text(json.dumps(result, indent=2) + "\n")
           PY
 
           mkdir -p assets/fitpulse/pull-up/male assets/fitpulse/pull-up/female
