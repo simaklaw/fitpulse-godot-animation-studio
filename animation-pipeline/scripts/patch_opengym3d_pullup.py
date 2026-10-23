@@ -164,7 +164,17 @@ def assert_pull_up_bar_contact(rig, frame_end):
     if bar is None:
         raise RuntimeError("pull-up contact gate: missing PullUpBar")
     bar_center = bar.matrix_world.translation.copy()
-    half_length = max(0.0, bar.dimensions.x / 2.0 - 0.02)
+    # Blender can report dimensions along the cylinder's local axis despite its
+    # rotation. Use the actual world-space rack-post spacing as the grip span.
+    post_l = bpy.data.objects.get("PullUpPost_L")
+    post_r = bpy.data.objects.get("PullUpPost_R")
+    if post_l is None or post_r is None:
+        raise RuntimeError("pull-up contact gate: missing rack posts")
+    half_length = max(
+        0.0,
+        abs(post_r.matrix_world.translation.x - post_l.matrix_world.translation.x) / 2.0 - 0.02,
+    )
+    print(f"CONTACT_GATE rack_half_length={half_length:.3f} m")
     worst = 0.0
     worst_at = None
     for frame in range(1, frame_end + 1):
