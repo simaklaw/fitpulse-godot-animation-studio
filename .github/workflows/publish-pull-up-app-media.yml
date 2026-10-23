@@ -44,6 +44,11 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: downloaded/female
 
+      - name: Install media metadata verifier
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ffmpeg
+
       - name: Verify media and prepare app-sized publication
         shell: bash
         env:
