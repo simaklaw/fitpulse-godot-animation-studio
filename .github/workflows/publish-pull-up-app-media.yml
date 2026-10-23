@@ -82,7 +82,36 @@ jobs:
             grep -qx 'height=720' "/tmp/$gender-video-qa.txt"
             grep -qx 'r_frame_rate=30/1' "/tmp/$gender-video-qa.txt"
             grep -qx 'nb_frames=72' "/tmp/$gender-video-qa.txt"
+            # Compare the decoded first/last MP4 frames, not just the GLB keys.
+            ffmpeg -y -v error -i "downloaded/$gender/pull_up.mp4" \
+              -vf "select='eq(n,0)+eq(n,71)'" -vsync 0 -frames:v 2 \
+              -f rawvideo -pix_fmt rgb24 "/tmp/$gender-loop.rgb"
           done
+
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+
+          width = height = 720
+          frame_bytes = width * height * 3
+          limit = 3.0
+          result = {}
+          for gender in ("male", "female"):
+              data = Path(f"/tmp/{gender}-loop.rgb").read_bytes()
+              if len(data) != frame_bytes * 2:
+                  raise RuntimeError(
+                      f"{gender}: expected two decoded RGB frames, got {len(data)} bytes"
+                  )
+              first, last = data[:frame_bytes], data[frame_bytes:]
+              mae = sum(abs(a - b) for a, b in zip(first, last)) / frame_bytes
+              if mae > limit:
+                  raise RuntimeError(
+                      f"{gender}: MP4 loop seam MAE {mae:.3f} > permitted {limit:.1f}"
+                  )
+              result[gender] = {"meanAbsoluteRgbDifference": round(mae, 4), "limit": limit}
+              print(f"MP4_LOOP_SEAM_PASS gender={gender} mean_absolute_rgb_difference={mae:.4f} limit={limit:.1f}")
+          Path("/tmp/loop-seam-qa.json").write_text(json.dumps(result, indent=2) + "\\n")
+          PY
 
           mkdir -p assets/fitpulse/pull-up/male assets/fitpulse/pull-up/female
           for gender in male female; do
@@ -97,6 +126,7 @@ jobs:
           import os
 
           root = Path("assets/fitpulse/pull-up")
+          loop_qa = json.loads(Path("/tmp/loop-seam-qa.json").read_text())
           manifest = {
               "schemaVersion": 1,
               "exerciseId": "pull_up",
@@ -105,7 +135,14 @@ jobs:
                   "commit": os.environ["SOURCE_SHA"],
                   "workflowRunId": int(os.environ["SOURCE_RUN_ID"]),
               },
-              "video": {"width": 720, "height": 720, "fps": 30, "frames": 72, "durationSeconds": 2.4},
+              "video": {
+                  "width": 720,
+                  "height": 720,
+                  "fps": 30,
+                  "frames": 72,
+                  "durationSeconds": 2.4,
+                  "loopSeamMaxMeanAbsoluteRgbDifference": 3.0,
+              },
               "sourceAssets": [
                   {
                       "asset": "elvs_male_athletic_tank1 / elvs_ladies_tank1",
@@ -145,6 +182,7 @@ jobs:
                   "videoSha256": sha256(video.read_bytes()).hexdigest(),
                   "posterSha256": sha256(poster.read_bytes()).hexdigest(),
                   "videoBytes": video.stat().st_size,
+                  "loopSeamMeanAbsoluteRgbDifference": loop_qa[gender]["meanAbsoluteRgbDifference"],
               }
           (root / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
           print(json.dumps(manifest, indent=2))
