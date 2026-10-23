@@ -31,20 +31,43 @@ for pattern, replacement, label in quality_rules:
     if count != 1:
         raise SystemExit(f"Expected exactly one upstream {label} setting; found {count}; refusing an unsafe quality patch")
 
+# Tighten the framing slightly so the figure reads larger on a phone while
+# keeping the full rack and feet within the camera bounds.
+camera_old = 'def frame_subject(cam, target, basemesh, frames, side="front", margin=1.12,'
+camera_new = 'def frame_subject(cam, target, basemesh, frames, side="front", margin=0.98,'
+if text.count(camera_old) != 1:
+    raise SystemExit("Unexpected upstream frame_subject camera margin; refusing an unsafe framing patch")
+text = text.replace(camera_old, camera_new, 1)
+if text.count(camera_new) != 1:
+    raise SystemExit("Camera margin patch did not apply exactly once")
+
+# Replace the cold grey mannequin palette with a warm, modern training palette.
+# Active musculature uses FitPulse mint/forest accents instead of clinical orange.
+palette_rules = [
+    ("SKIN_COLOR = (0.62, 0.64, 0.68, 1.0)", "SKIN_COLOR = (0.48, 0.31, 0.24, 1.0)"),
+    ("PRIMARY_COLOR = (0.95, 0.16, 0.03, 1.0)", "PRIMARY_COLOR = (0.44, 0.84, 0.65, 1.0)"),
+    ("SECONDARY_COLOR = (0.66, 0.075, 0.02, 1.0)", "SECONDARY_COLOR = (0.14, 0.40, 0.31, 1.0)"),
+]
+for old, new in palette_rules:
+    if text.count(old) != 1:
+        raise SystemExit(f"Expected exactly one upstream palette constant {old!r}; refusing an unsafe visual patch")
+    text = text.replace(old, new, 1)
+
+
 helper = r'''def build_pull_up_rig():
     """Create a stationary powder-coated rack used only by the pull-up spec."""
     steel = make_material("Pull-up rig steel", (0.095, 0.115, 0.135, 1.0), roughness=0.3)
     objects = []
 
     bpy.ops.mesh.primitive_cylinder_add(
-        vertices=48, radius=0.028, depth=1.8,
+        vertices=48, radius=0.028, depth=1.1,
         location=(0.0, -0.025, 2.453), rotation=(0.0, math.pi / 2, 0.0))
     bar = bpy.context.active_object
     bar.name = "PullUpBar"
     bar.data.materials.append(steel)
     objects.append(bar)
 
-    for x, side in ((-0.9, "L"), (0.9, "R")):
+    for x, side in ((-0.55, "L"), (0.55, "R")):
         bpy.ops.mesh.primitive_cylinder_add(
             vertices=32, radius=0.036, depth=2.453,
             location=(x, -0.025, 1.2265))
@@ -85,7 +108,7 @@ contact_helper = r'''def assert_pull_up_bar_contact(rig, frame_end):
                 raise RuntimeError(f"pull-up contact gate: missing wrist{side}")
             point = rig.matrix_world @ wrist.tail
             radial = math.sqrt((point.y + 0.025) ** 2 + (point.z - 2.453) ** 2)
-            beyond_bar = max(0.0, abs(point.x) - 0.88)
+            beyond_bar = max(0.0, abs(point.x) - 0.53)
             distance = math.sqrt(radial ** 2 + beyond_bar ** 2)
             print(f"CONTACT_FRAME frame={frame} side={side} wrist=({point.x:.3f},{point.y:.3f},{point.z:.3f}) bar=({0.0:.3f},{-0.025:.3f},{2.453:.3f}) distance={distance:.3f}")
             if distance > worst:
@@ -184,6 +207,11 @@ alpha_new = '''    backdrop = bpy.data.objects.get("Backdrop")
     # Separate transparent PNG sequence for app compositing. Keep the original
     # studio render intact for human review and MP4 preview.
     if spec.get("id") == "pull_up":
+        # Transparent exports are consumed independently in the app, so preserve
+        # breathing room around the whole rack and athlete. The studio MP4 keeps
+        # its tighter composition; only the RGBA pass backs the camera off 12%.
+        camera_target = cam.constraints.get("TRACK_TO").target if cam.constraints.get("TRACK_TO") else target
+        cam.location = camera_target.location + (cam.location - camera_target.location) * 1.12
         scene.render.film_transparent = True
         scene.render.image_settings.file_format = "PNG"
         scene.render.image_settings.color_mode = "RGBA"
@@ -199,6 +227,175 @@ if text.count(alpha_old) != 1:
     raise SystemExit("Unexpected upstream backdrop/export block; refusing unsafe alpha patch")
 text = text.replace(alpha_old, alpha_new, 1)
 
+# Choose an intentional anatomical presentation. MPFB's gender macro is 0=female, 1=male.
+gender_old = '''    for prop, value in (("gender", 1.0), ("muscle", 1.0), ("weight", 0.48),
+                        ("proportions", 0.85)):'''
+gender_new = '''    gender_name = os.environ.get("FITX_GENDER", "male").strip().lower()
+    if gender_name not in ("male", "female"):
+        raise ValueError(f"Unsupported FITX_GENDER={gender_name!r}; expected 'male' or 'female'")
+    gender_value = 1.0 if gender_name == "male" else 0.0
+    muscle_value = 0.82 if gender_name == "male" else 0.68
+    print(f"CHARACTER_PROFILE gender={gender_name} macro={gender_value:.1f} muscle={muscle_value:.2f}")
+    # Keep the original pipeline's validated proportions preset (0.85).
+    # A neutral 0.5 makes this female rig unable to reach the fixed bar under IK.
+    proportions_value = 0.85
+    # The same arm pose does not fit the generated female rig at neutral height:
+    # its wrist tails sit ~21 cm below the fixed bar. Use MakeHuman's height
+    # macro to keep stature/limb reach compatible with the shared exercise rig.
+    height_value = 0.50 if gender_name == "male" else 0.90
+    print(
+        f"CHARACTER_PROFILE_DIMENSIONS proportions={proportions_value:.2f} "
+        f"height={height_value:.2f}"
+    )
+    for prop, value in (
+        ("gender", gender_value),
+        ("muscle", muscle_value),
+        ("weight", 0.48),
+        ("proportions", proportions_value),
+        ("height", height_value),
+    ):'''
+if text.count(gender_old) != 1:
+    raise SystemExit("Unexpected upstream character macro block; refusing an unsafe gender patch")
+text = text.replace(gender_old, gender_new, 1)
+
+# Confirm MPFB accepted the selected phenotype before building the rig.
+setter_old = '''    TargetService.reapply_macro_details(basemesh)
+    rig = HumanService.add_builtin_rig(basemesh, "default")'''
+setter_new = '''    TargetService.reapply_macro_details(basemesh)
+    actual_gender = float(HumanObjectProperties.get_value("gender", entity_reference=basemesh))
+    if abs(actual_gender - gender_value) > 0.01:
+        raise RuntimeError(f"MPFB gender macro mismatch: requested {gender_value:.1f}, got {actual_gender:.3f}")
+    print(f"CHARACTER_PROFILE_VERIFIED gender={gender_name} macro={actual_gender:.1f}")
+    rig = HumanService.add_builtin_rig(basemesh, "default")
+
+    # CC0 MakeHuman clothes are fetched by CI and fitted to the selected MPFB body.
+    apparel_root = os.environ.get("FITX_APPAREL_ROOT", "").strip()
+    if not apparel_root or not os.path.isdir(apparel_root):
+        raise RuntimeError("FITX_APPAREL_ROOT must point to the verified MakeHuman CC0 clothing packs")
+
+    def find_clothing_asset(filename):
+        matches = []
+        for root, _, filenames in os.walk(apparel_root):
+            if filename in filenames:
+                matches.append(os.path.join(root, filename))
+        if len(matches) != 1:
+            raise RuntimeError(f"Expected exactly one clothing asset {filename!r}; found {len(matches)}")
+        return matches[0]
+
+    # Pull-ups keep both arms overhead for much of the cycle. Sleeveless athletic
+    # tops make the exposed deltoid/underarm area intentional, unlike irregular
+    # sleeve-cap clipping from the short-sleeve shirt meshes.
+    shirt_name = (
+        "elvs_male_athletic_tank1.mhclo"
+        if gender_name == "male"
+        else "elvs_ladies_tank1.mhclo"
+    )
+    clothing_specs = (
+        (shirt_name, (0.025, 0.20, 0.15, 1.0), "shirt"),
+        ("cortu_jeans_shorts.mhclo", (0.018, 0.035, 0.040, 1.0), "shorts"),
+    )
+    for filename, garment_color, garment_label in clothing_specs:
+        asset_path = find_clothing_asset(filename)
+        garment = HumanService.add_mhclo_asset(
+            asset_path, basemesh, asset_type="Clothes", subdiv_levels=1,
+            material_type="GAMEENGINE", set_up_rigging=True,
+            interpolate_weights=True, import_subrig=False, import_weights=True,
+        )
+        garment_material = make_material(
+            f"FitPulse {gender_name} {garment_label}",
+            garment_color, roughness=0.78, subsurface=0.0,
+        )
+        garment.data.materials.clear()
+        garment.data.materials.append(garment_material)
+        for polygon in garment.data.polygons:
+            polygon.material_index = 0
+        if garment_label in ("shirt", "shorts"):
+            # Tiny outward normal offset reduces z-fighting and skin poke-through
+            # when elbows are flexed and shoulders are elevated under the bar.
+            garment.data.update()
+            for vertex in garment.data.vertices:
+                normal = vertex.normal
+                if normal.length_squared > 1.0e-10:
+                    vertex.co += normal.normalized() * 0.002
+            garment.data.update()
+            print(
+                f"APPAREL_SURFACE_OFFSET gender={gender_name} item={garment_label} "
+                "offset_m=0.002"
+            )
+        print(
+            f"APPAREL_LOADED gender={gender_name} item={garment_label} "
+            f"asset={filename} vertices={len(garment.data.vertices)}"
+        )
+
+    # Add a different CC0 hairstyle for each profile so the silhouette reads
+    # as a deliberately designed athlete rather than a bald generic mannequin.
+    hair_root = os.environ.get("FITX_HAIR_ROOT", "").strip()
+    if not hair_root or not os.path.isdir(hair_root):
+        raise RuntimeError("FITX_HAIR_ROOT must point to the verified MakeHuman CC0 hair pack")
+
+    def find_hair_asset(filename):
+        matches = []
+        for root, _, filenames in os.walk(hair_root):
+            if filename in filenames:
+                matches.append(os.path.join(root, filename))
+        if len(matches) != 1:
+            raise RuntimeError(f"Expected exactly one hairstyle {filename!r}; found {len(matches)}")
+        return matches[0]
+
+    hair_name = (
+        "cortu_short_messy_hair.mhclo"
+        if gender_name == "male"
+        else "elvs_reverse_french_braid_bun.mhclo"
+    )
+    hair_path = find_hair_asset(hair_name)
+    hair = HumanService.add_mhclo_asset(
+        hair_path, basemesh, asset_type="Hair", subdiv_levels=1,
+        material_type="GAMEENGINE", set_up_rigging=True,
+        interpolate_weights=True, import_subrig=False, import_weights=True,
+    )
+    print(
+        f"APPAREL_LOADED gender={gender_name} item=hair "
+        f"asset={hair_name} vertices={len(hair.data.vertices)}"
+    )
+
+    # A pair of running shoes avoids the bare-foot training-demo look. The
+    # source mesh is CC-BY (Punkduck), and attribution is documented in the repo.
+    shoes_root = os.environ.get("FITX_SHOES_ROOT", "").strip()
+    if not shoes_root or not os.path.isdir(shoes_root):
+        raise RuntimeError("FITX_SHOES_ROOT must point to the verified MakeHuman CC-BY shoes pack")
+
+    def find_shoes_asset(filename):
+        matches = []
+        for root, _, filenames in os.walk(shoes_root):
+            if filename in filenames:
+                matches.append(os.path.join(root, filename))
+        if len(matches) != 1:
+            raise RuntimeError(f"Expected exactly one shoe asset {filename!r}; found {len(matches)}")
+        return matches[0]
+
+    shoes_name = "punkduck_running_shoes_01.mhclo"
+    shoes_path = find_shoes_asset(shoes_name)
+    shoes = HumanService.add_mhclo_asset(
+        shoes_path, basemesh, asset_type="Clothes", subdiv_levels=1,
+        material_type="GAMEENGINE", set_up_rigging=True,
+        interpolate_weights=True, import_subrig=False, import_weights=True,
+    )
+    shoes_material = make_material(
+        f"FitPulse {gender_name} running shoes",
+        (0.045, 0.075, 0.072, 1.0), roughness=0.62, subsurface=0.0,
+    )
+    shoes.data.materials.clear()
+    shoes.data.materials.append(shoes_material)
+    for polygon in shoes.data.polygons:
+        polygon.material_index = 0
+    print(
+        f"APPAREL_LOADED gender={gender_name} item=shoes "
+        f"asset={shoes_name} vertices={len(shoes.data.vertices)}"
+    )'''
+if text.count(setter_old) != 1:
+    raise SystemExit("Unexpected upstream MPFB phenotype verification point")
+text = text.replace(setter_old, setter_new, 1)
+
 # Bound MPFB asset downloads so a stalled extensions endpoint cannot hold CI forever.
 download_old = 'with urllib.request.urlopen(req) as resp, open(zpath, "wb") as f:'
 download_new = 'with urllib.request.urlopen(req, timeout=60) as resp, open(zpath, "wb") as f:'
@@ -207,4 +404,4 @@ if text.count(download_old) != 1:
 text = text.replace(download_old, download_new, 1)
 
 source.write_text(text)
-print("Patched upstream renderer: fixed pull-up rack, render profile, and bounded MPFB download.")
+print("Patched upstream renderer: male/female profile selection, render profile, and bounded MPFB download.")
