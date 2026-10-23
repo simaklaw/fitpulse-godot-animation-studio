@@ -44,15 +44,16 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: downloaded/female
 
-      - name: Install media metadata verifier
+      - name: Install media tools (ffmpeg and ffprobe)
+        shell: bash
         run: |
-          sudo apt-get update
+          set -euo pipefail
+          sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends ffmpeg
-
-      - name: Install media metadata verifier
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends ffmpeg
+          command -v ffmpeg
+          command -v ffprobe
+          ffmpeg -version
+          ffprobe -version
 
       - name: Verify media and prepare app-sized publication
         shell: bash
