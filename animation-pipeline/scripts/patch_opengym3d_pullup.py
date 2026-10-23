@@ -165,6 +165,9 @@ def assert_pull_up_bar_contact(rig, frame_end):
     worst_at = None
     for frame in range(1, frame_end + 1):
         scene.frame_set(frame)
+        # Force dependency-graph evaluation before sampling wrist endpoints.
+        # Otherwise the first sampled frame can expose the pre-IK pose.
+        bpy.context.view_layer.update()
         for side in (".L", ".R"):
             wrist = rig.pose.bones.get("wrist" + side)
             if wrist is None:
