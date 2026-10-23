@@ -89,6 +89,10 @@ contact_helper = r'''def fit_pull_up_rack_to_hang_pose(rig):
     """Fit rack height/grip to the generated model's natural hang reach."""
     scene = bpy.context.scene
     scene.frame_set(1)
+    # Evaluate animation/deformation before sampling the hang pose. Without this,
+    # Blender can expose the previous dependency-graph pose for the first frame,
+    # fitting the bar to stale wrist coordinates (seen as a 21 cm female miss).
+    bpy.context.view_layer.update()
     hands = {}
     for side in (".L", ".R"):
         wrist = rig.pose.bones.get("wrist" + side)
