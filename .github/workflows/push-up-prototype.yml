@@ -253,7 +253,7 @@ jobs:
           from pathlib import Path
 
           gender = sys.argv[1]
-          report = json.loads((Path("output") / gender / "push_up.glb.qa.json").read_text())
+          report = json.loads((Path("../output") / gender / "push_up.glb.qa.json").read_text())
           duration = float(report["duration"])
           assert report["summary"]["pass"], f"{gender}: joint QA did not pass"
           assert abs(duration - 3.2) <= 0.05, f"{gender}: GLB duration {duration:.3f}s, expected 3.2s"
