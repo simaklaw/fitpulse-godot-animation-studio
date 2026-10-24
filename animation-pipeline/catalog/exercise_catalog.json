@@ -85,7 +85,8 @@
             "kind": "return",
             "cue_ru": "Первый и последний кадры совпадают по контактам и силуэту."
           }
-        ]
+        ],
+        "renderer_adapter": "fixed_bar_pull"
       },
       "primary_muscles": [
         "latissimus_dorsi"
@@ -223,7 +224,8 @@
             "kind": "return",
             "cue_ru": "Контролируемое разгибание без провала плеч."
           }
-        ]
+        ],
+        "renderer_adapter": "floor_bodyweight_push"
       },
       "primary_muscles": [
         "pectoralis_major"
@@ -361,7 +363,8 @@
             "kind": "return",
             "cue_ru": "Баланс и положение стоп совпадают с началом."
           }
-        ]
+        ],
+        "renderer_adapter": "bodyweight_squat"
       },
       "primary_muscles": [
         "quadriceps",
@@ -499,7 +502,8 @@
             "kind": "return",
             "cue_ru": "Цикл заканчивается симметрично и без рывка."
           }
-        ]
+        ],
+        "renderer_adapter": "alternating_floor_cardio"
       },
       "primary_muscles": [
         "rectus_abdominis",
@@ -648,7 +652,8 @@
             "kind": "return",
             "cue_ru": "Без раскачки и смены угла корпуса."
           }
-        ]
+        ],
+        "renderer_adapter": "unilateral_hinge_pull"
       },
       "primary_muscles": [
         "latissimus_dorsi",
@@ -786,7 +791,8 @@
             "kind": "return",
             "cue_ru": "Баланс и положение грифа совпадают с началом."
           }
-        ]
+        ],
+        "renderer_adapter": "barbell_front_squat"
       },
       "primary_muscles": [
         "quadriceps",
@@ -913,7 +919,8 @@
             "kind": "return",
             "cue_ru": "Переход плавный, опора не смещается."
           }
-        ]
+        ],
+        "renderer_adapter": "spinal_mobility"
       },
       "primary_muscles": [
         "erector_spinae"
@@ -1047,7 +1054,8 @@
             "kind": "return",
             "cue_ru": "Сиденье и рукоять возвращаются к исходному положению без рывка."
           }
-        ]
+        ],
+        "renderer_adapter": "rowing_machine_cycle"
       },
       "primary_muscles": [
         "quadriceps",
@@ -1190,7 +1198,8 @@
             "kind": "return",
             "cue_ru": "Исходная стойка совпадает с началом."
           }
-        ]
+        ],
+        "renderer_adapter": "dumbbell_elbow_flexion"
       },
       "primary_muscles": [
         "biceps_brachii"
@@ -1321,7 +1330,8 @@
             "kind": "return",
             "cue_ru": "Позиция совпадает со стартом без броска."
           }
-        ]
+        ],
+        "renderer_adapter": "kneeling_anti_extension"
       },
       "primary_muscles": [
         "rectus_abdominis",
@@ -1449,7 +1459,8 @@
             "kind": "return",
             "cue_ru": "Выход из позиции контролируемый."
           }
-        ]
+        ],
+        "renderer_adapter": "static_floor_hold"
       },
       "primary_muscles": [
         "transverse_abdominis",
