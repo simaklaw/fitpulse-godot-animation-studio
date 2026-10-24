@@ -304,9 +304,9 @@ if source_text.count(alpha_old) != 1:
     raise SystemExit("Could not locate the unique transparent-export gate; refusing unsafe push-up patch")
 source_text = source_text.replace(alpha_old, alpha_new, 1)
 
-foot_aim_old = ```        aim_bone(mh_pb, overrides.get(syn_name) or driver_target_dir(syn_pb),
-                 frame, twists.get(syn_name))```
-foot_aim_new = ```        target_dir = overrides.get(syn_name) or driver_target_dir(syn_pb)
+foot_aim_old = '''        aim_bone(mh_pb, overrides.get(syn_name) or driver_target_dir(syn_pb),
+                 frame, twists.get(syn_name))'''
+foot_aim_new = '''        target_dir = overrides.get(syn_name) or driver_target_dir(syn_pb)
         if os.environ.get("FITX_PUSHUP_FLOOR_CONTACT") == "1" and syn_name in ("foot.L", "foot.R"):
             # Aim each toe endpoint to the floor while preserving its current horizontal
             # travel direction. The foot head (ankle) stays attached to the retargeted leg.
@@ -325,7 +325,7 @@ foot_aim_new = ```        target_dir = overrides.get(syn_name) or driver_target_
             horizontal.normalize()
             horizontal *= math.sqrt(max(0.0, 1.0 - vertical * vertical))
             target_dir = Vector((horizontal.x, horizontal.y, vertical)).normalized()
-        aim_bone(mh_pb, target_dir, frame, twists.get(syn_name))```
+        aim_bone(mh_pb, target_dir, frame, twists.get(syn_name))'''
 if source_text.count(foot_aim_old) != 1:
     raise SystemExit("Could not locate unique retarget foot aim; refusing unsafe floor-contact patch")
 source_text = source_text.replace(foot_aim_old, foot_aim_new, 1)
