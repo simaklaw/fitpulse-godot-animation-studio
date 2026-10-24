@@ -272,23 +272,23 @@
       ],
       "media_profiles": {
         "male": {
-          "status": "brief_only",
+          "status": "rendering",
           "sprite_frames": null,
           "poster": null,
           "video": null,
-          "source_commit": null,
+          "source_commit": "6f4ced649625e757703473cd214e5514f4189474",
           "sha256": null
         },
         "female": {
-          "status": "brief_only",
+          "status": "rendering",
           "sprite_frames": null,
           "poster": null,
           "video": null,
-          "source_commit": null,
+          "source_commit": "6f4ced649625e757703473cd214e5514f4189474",
           "sha256": null
         }
       },
-      "production_status": "brief_only",
+      "production_status": "rendering",
       "human_review_evidence": null
     },
     {
