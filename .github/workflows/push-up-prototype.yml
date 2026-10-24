@@ -50,7 +50,9 @@ jobs:
               assert "forearm.*" in frame["bones"]
           assert spec.get("mocap", "").endswith("#Pushup"), "CC0 Pushup motion clip is required"
           assert spec.get("camera") == "side", "side view required to inspect push-up body line"
-          print(f"Push-up spec valid: {len(times)} fallback keyframes, motion capture clip wired.")
+          assert spec.get("fps") == 30, "FitPulse output timeline must be 30 fps"
+          assert abs(float(spec.get("duration", 0)) - 3.2) < 0.01, "push-up cycle must match catalog duration of 3.2 s"
+          print(f"Push-up spec valid: {len(times)} fallback keyframes, 3.2 s / 30 fps target, motion capture clip wired.")
           PY
 
   render:
@@ -243,7 +245,20 @@ jobs:
           gender="${{ matrix.gender }}"
           python3 pipeline/qa_glb.py "../output/$gender/push_up.glb" 2>&1 | tee "../output/$gender/qa.log"
           grep -q "PUSHUP_QA PASS" "../output/$gender/build.log"
+          grep -q "PUSHUP_RETIME PASS" "../output/$gender/build.log"
           grep -q "MOCAP cc0/mesh2motion/human-addon-animations.glb#Pushup" "../output/$gender/build.log"
+          python3 - "$gender" <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+
+          gender = sys.argv[1]
+          report = json.loads((Path("output") / gender / "push_up.glb.qa.json").read_text())
+          duration = float(report["duration"])
+          assert report["summary"]["pass"], f"{gender}: joint QA did not pass"
+          assert abs(duration - 3.2) <= 0.05, f"{gender}: GLB duration {duration:.3f}s, expected 3.2s"
+          print(f"TIMING_QA PASS gender={gender} glb_duration={duration:.3f}s target=3.200s")
+          PY
         working-directory: upstream
 
       - name: Verify apparel meshes are embedded in the GLB
