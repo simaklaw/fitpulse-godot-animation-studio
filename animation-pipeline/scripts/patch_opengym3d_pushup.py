@@ -22,6 +22,51 @@ if "def assert_push_up_pose(rig, frame_end):" in source_text:
     raise SystemExit("Push-up QA patch appears to be applied already; refusing duplicate patch")
 
 qa = r'''
+def apply_push_up_toe_ik(rig):
+    """Pin both toe endpoints to the floor by solving the lower-leg chain."""
+    scene = bpy.context.scene
+    view_layer = bpy.context.view_layer
+    scene.frame_set(1)
+    view_layer.update()
+
+    target_positions = {}
+    for side in (".L", ".R"):
+        foot = rig.pose.bones.get("foot" + side)
+        if foot is None:
+            raise RuntimeError(f"push-up toe IK: missing foot bone {side}")
+        original_toe = rig.matrix_world @ foot.tail
+        target_positions[side] = Vector((original_toe.x, original_toe.y, 0.02))
+
+    for side in (".L", ".R"):
+        foot = rig.pose.bones["foot" + side]
+        target = bpy.data.objects.new("FitPulsePushUpToeTarget" + side, None)
+        scene.collection.objects.link(target)
+        target.location = target_positions[side]
+        target.empty_display_type = "SPHERE"
+        target.empty_display_size = 0.02
+        target.hide_render = True
+
+        constraint = foot.constraints.new(type="IK")
+        constraint.name = "FitPulsePushUpToeIK" + side
+        constraint.target = target
+        constraint.chain_count = 3
+        constraint.iterations = 100
+        constraint.use_stretch = False
+        constraint.influence = 1.0
+
+    scene.frame_set(1)
+    view_layer.update()
+    print(
+        "PUSHUP_TOE_IK targets="
+        + ", ".join(
+            f"{side}({target_positions[side].x:.3f},"
+            f"{target_positions[side].y:.3f},0.020)"
+            for side in (".L", ".R")
+        )
+        + " chain=3"
+    )
+
+
 def assert_push_up_pose(rig, frame_end):
     """Gate palm/toe support, body line, elbow path, and cyclic continuity."""
     scene = bpy.context.scene
@@ -158,9 +203,15 @@ def assert_push_up_pose(rig, frame_end):
             forearm = wrist_point - elbow_point
             trunk = hip - shoulder
             joint_angle = angle_degrees(upper, forearm)
-            # For the arm-to-trunk path, use the proximal-to-distal shoulder->elbow
-            # vector; the internal joint angle above intentionally uses the reverse.
-            arm_to_trunk = angle_degrees(elbow_point - shoulder_point, trunk)
+            # Elbow flare is assessed in the horizontal/top-down plane, not by
+            # the 3D side-view angle that naturally approaches 90 degrees.
+            arm_horizontal = Vector((
+                elbow_point.x - shoulder_point.x,
+                elbow_point.y - shoulder_point.y,
+                0.0,
+            ))
+            trunk_horizontal = Vector((trunk.x, trunk.y, 0.0))
+            arm_to_trunk = angle_degrees(arm_horizontal, trunk_horizontal)
             elbow_angles.append(joint_angle)
             elbow_to_trunk_angles.append(arm_to_trunk)
             if joint_angle < 45.0 or joint_angle > 180.0:
@@ -168,11 +219,11 @@ def assert_push_up_pose(rig, frame_end):
                     f"push-up elbow flexion failed at frame {frame} {side}: "
                     f"{joint_angle:.1f} degrees outside 45–180 degrees"
                 )
-            if arm_to_trunk < 20.0 or arm_to_trunk > 105.0:
+            if arm_to_trunk < 20.0 or arm_to_trunk > 80.0:
                 raise RuntimeError(
                     f"push-up elbow path failed at frame {frame} {side}: "
-                    f"upper-arm/trunk angle={arm_to_trunk:.1f} degrees; "
-                    "expected a controlled push-up path (20–105 degrees)"
+                    f"horizontal upper-arm/trunk angle={arm_to_trunk:.1f} degrees; "
+                    "expected a controlled back-and-out path (20–80 degrees)"
                 )
 
     if first is None or last is None:
@@ -230,7 +281,7 @@ def assert_push_up_pose(rig, frame_end):
         f"hip_deviation_max={max_hip_deviation:.3f}m "
         f"knee_deviation_max={max_knee_deviation:.3f}m "
         f"elbow_angle=[{min(elbow_angles):.1f},{max(elbow_angles):.1f}]deg "
-        f"elbow_trunk=[{min(elbow_to_trunk_angles):.1f},{max(elbow_to_trunk_angles):.1f}]deg "
+        f"elbow_abduction=[{min(elbow_to_trunk_angles):.1f},{max(elbow_to_trunk_angles):.1f}]deg "
         f"loop_drift_max={max(seam_distances.values()):.3f}m"
     )
 
@@ -283,6 +334,7 @@ retime_push_up = '''    if spec.get("id") == "push_up":
             f"PUSHUP_RETIME PASS source_frames={source_frame_end} "
             f"output_frames={frame_end} duration={actual_duration:.3f}s fps={fps:g}"
         )
+        apply_push_up_toe_ik(rig)
         assert_push_up_pose(rig, frame_end)
 
 '''
@@ -303,32 +355,6 @@ alpha_new = '''    # Separate transparent PNG sequence for app compositing. Keep
 if source_text.count(alpha_old) != 1:
     raise SystemExit("Could not locate the unique transparent-export gate; refusing unsafe push-up patch")
 source_text = source_text.replace(alpha_old, alpha_new, 1)
-
-foot_aim_old = '''        aim_bone(mh_pb, overrides.get(syn_name) or driver_target_dir(syn_pb),
-                 frame, twists.get(syn_name))'''
-foot_aim_new = '''        target_dir = overrides.get(syn_name) or driver_target_dir(syn_pb)
-        if os.environ.get("FITX_PUSHUP_FLOOR_CONTACT") == "1" and syn_name in ("foot.L", "foot.R"):
-            # Aim each toe endpoint to the floor while preserving its current horizontal
-            # travel direction. The foot head (ankle) stays attached to the retargeted leg.
-            foot_head = rig.matrix_world @ mh_pb.head
-            bone_length = max(float(mh_pb.bone.length), 1e-6)
-            floor_z = 0.02
-            vertical = (floor_z - foot_head.z) / bone_length
-            if abs(vertical) > 0.98:
-                raise RuntimeError(
-                    f"push-up toe contact impossible for {syn_name}: ankle z={foot_head.z:.3f} m, "
-                    f"foot length={bone_length:.3f} m"
-                )
-            horizontal = Vector((target_dir.x, target_dir.y, 0.0))
-            if horizontal.length < 1e-6:
-                raise RuntimeError(f"push-up toe contact has no horizontal direction for {syn_name}")
-            horizontal.normalize()
-            horizontal *= math.sqrt(max(0.0, 1.0 - vertical * vertical))
-            target_dir = Vector((horizontal.x, horizontal.y, vertical)).normalized()
-        aim_bone(mh_pb, target_dir, frame, twists.get(syn_name))'''
-if source_text.count(foot_aim_old) != 1:
-    raise SystemExit("Could not locate unique retarget foot aim; refusing unsafe floor-contact patch")
-source_text = source_text.replace(foot_aim_old, foot_aim_new, 1)
 
 SOURCE.write_text(source_text, encoding="utf-8")
 print("Patched upstream renderer: FitPulse character/apparel pipeline plus push-up floor-contact, body-line, elbow-path, loop-seam QA, and transparent PNG export.")

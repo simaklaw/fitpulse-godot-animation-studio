@@ -221,7 +221,7 @@ jobs:
           set -euo pipefail
           gender="${{ matrix.gender }}"
           mkdir -p "../output/$gender"
-          FITX_GENDER="$gender" FITX_ECORCHE=0 FITX_PUSHUP_FLOOR_CONTACT=1 FITX_APPAREL_ROOT="$GITHUB_WORKSPACE/third_party/makehuman-clothing" FITX_HAIR_ROOT="$GITHUB_WORKSPACE/third_party/makehuman-hair01" FITX_SHOES_ROOT="$GITHUB_WORKSPACE/third_party/makehuman-shoes02" \
+          FITX_GENDER="$gender" FITX_ECORCHE=0 FITX_APPAREL_ROOT="$GITHUB_WORKSPACE/third_party/makehuman-clothing" FITX_HAIR_ROOT="$GITHUB_WORKSPACE/third_party/makehuman-hair01" FITX_SHOES_ROOT="$GITHUB_WORKSPACE/third_party/makehuman-shoes02" \
             "$HOME/blender/blender" -b -noaudio --python-exit-code 1 -P pipeline/build_exercise.py -- \
             ../animation-pipeline/exercises/push_up.json "../output/$gender" 2>&1 | tee "../output/$gender/build.log"
           test -s "../output/$gender/push_up.glb"
