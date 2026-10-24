@@ -3,8 +3,8 @@
 config_version=5
 
 [application]
-config/name="FitPulse Pull-Up Motion Prototype"
-run/main_scene="res://scenes/pull_up_preview.tscn"
+config/name="FitPulse Exercise Animation Workshop"
+run/main_scene="res://scenes/workshop_home.tscn"
 
 [display]
 window/size/viewport_width=720
