@@ -299,8 +299,17 @@ func _profile_media(exercise: Dictionary) -> Dictionary:
     return profiles.get(_profile_code, {})
 
 
+func _as_resource_path(value: String) -> String:
+    var path := value.strip_edges()
+    if path.is_empty():
+        return ""
+    if path.begins_with("res://") or path.begins_with("user://"):
+        return path
+    return "res://" + path.trim_prefix("/")
+
+
 func _build_media_preview(media: Dictionary, target_size: Vector2) -> Control:
-    var sprite_path := str(media.get("sprite_frames") or "")
+    var sprite_path := _as_resource_path(str(media.get("sprite_frames") or ""))
     if not sprite_path.is_empty() and ResourceLoader.exists(sprite_path):
         var frames := load(sprite_path) as SpriteFrames
         if frames != null and not frames.get_animation_names().is_empty():
@@ -324,7 +333,7 @@ func _build_media_preview(media: Dictionary, target_size: Vector2) -> Control:
             sprite.play()
             return holder
 
-    var video_path := str(media.get("video") or "")
+    var video_path := _as_resource_path(str(media.get("video") or ""))
     if not video_path.is_empty() and ResourceLoader.exists(video_path):
         var stream := load(video_path)
         if stream is VideoStream:
@@ -336,7 +345,7 @@ func _build_media_preview(media: Dictionary, target_size: Vector2) -> Control:
             player.loop = true
             return player
 
-    var poster_path := str(media.get("poster") or "")
+    var poster_path := _as_resource_path(str(media.get("poster") or ""))
     if not poster_path.is_empty() and ResourceLoader.exists(poster_path):
         var texture := load(poster_path) as Texture2D
         if texture != null:
@@ -378,6 +387,13 @@ func _render_detail() -> void:
 
     _detail.add_child(_label(str(exercise.get("name_ru", exercise.get("id", ""))), 24, Color("#edf3f0")))
     _detail.add_child(_label(str(exercise.get("name_en", "")) + "  ·  " + str(exercise.get("id", "")), 12, Color("#8fd9b8")))
+    _detail.add_child(_label("Renderer adapter: " + str(exercise.get("movement", {}).get("renderer_adapter", "not_assigned")), 12, Color("#aebbb6")))
+    if str(exercise.get("id", "")) == "pull_up":
+        var open_preview := Button.new()
+        open_preview.text = "Открыть текущий 2D-прототип подтягивания"
+        open_preview.custom_minimum_size.y = 42
+        open_preview.pressed.connect(_open_pull_up_preview)
+        _detail.add_child(open_preview)
     _detail.add_child(_build_media_preview(_profile_media(exercise), Vector2(280, 190)))
     _detail.add_child(_label("СТАТУС", 12, Color("#8fd9b8")))
     _detail.add_child(_label(_status_label(str(exercise.get("production_status", "brief_only"))), 15, Color("#f0c77b")))
@@ -395,6 +411,12 @@ func _render_detail() -> void:
     _append_bullets("Вспомогательные мышцы", exercise.get("secondary_muscles", []))
     _append_bullets("Альтернативы оборудования", _alternative_lines(exercise.get("equipment_alternatives", [])))
     _append_bullets("Обязательные ворота качества", exercise.get("quality_gates", []))
+
+
+func _open_pull_up_preview() -> void:
+    var error := get_tree().change_scene_to_file("res://scenes/pull_up_preview.tscn")
+    if error != OK:
+        push_error("Could not open pull-up prototype scene; error code: %d" % error)
 
 
 func _phase_lines(phases: Array) -> Array:
