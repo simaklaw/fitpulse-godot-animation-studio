@@ -51,8 +51,11 @@ class ExerciseCatalogTests(unittest.TestCase):
         push_up["media_profiles"]["female"]["status"] = "automated_qa_passed"
         push_up["media_profiles"]["female"]["video"] = "assets/fitpulse/push-up/female.mp4"
         push_up["media_profiles"]["female"]["poster"] = "assets/fitpulse/push-up/female.png"
+        planned_registry = copy.deepcopy(self.registry)
+        adapter = next(item for item in planned_registry["adapters"] if item["id"] == "floor_bodyweight_push")
+        adapter["status"] = "planned"
         with self.assertRaisesRegex(CatalogValidationError, "is planned only"):
-            validate_catalog(broken, self.schema, ROOT, self.registry)
+            validate_catalog(broken, self.schema, ROOT, planned_registry)
 
     def test_existing_pull_up_renderer_spec_stays_valid(self):
         count = validate_legacy_pull_up_spec(ROOT / "animation-pipeline/exercises/pull_up.json")
