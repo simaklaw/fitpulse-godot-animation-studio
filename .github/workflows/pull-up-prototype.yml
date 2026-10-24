@@ -15,9 +15,14 @@ on:
       - fix/pull-up-render-quality
       - fix/pull-up-prototype-clean-main
       - feat/pull-up-transparent-export
+      - audit/motifect-motion-packs
     paths:
       - "animation-pipeline/**"
       - ".github/workflows/pull-up-prototype.yml"
+      - "motifect_sports_and_athletics_v1_0_fbx.zip"
+      - "motifect_martial_arts_v1_0_fbx.zip"
+      - "tools/audit_motifect_archives.py"
+      - "tools/audit_motifect_blender.py"
   pull_request:
     branches:
       - main
@@ -59,7 +64,45 @@ jobs:
           print(f"Motion spec valid: {len(times)} keyframes, normalized 0..1.")
           PY
 
+  audit-motifect:
+    if: startsWith(github.ref_name, 'audit/motifect-motion-packs')
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout repo including the provided archives
+        uses: actions/checkout@v4
+      - name: Inventory and extract FBX/BVH motion data into temporary build output
+        run: python3 tools/audit_motifect_archives.py --root . --out build/motifect-audit
+      - name: Install Blender for headless FBX import checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="4.5.11"
+          curl -fsSL "https://download.blender.org/release/Blender4.5/blender-$version-linux-x64.tar.xz" -o /tmp/blender.tar.xz
+          tar xJf /tmp/blender.tar.xz -C "$HOME"
+          mv "$HOME/blender-$version-linux-x64" "$HOME/blender"
+          "$HOME/blender/blender" --version
+      - name: Import every FBX and audit skeleton/action metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$HOME/blender/blender" -b --python-exit-code 1 --python tools/audit_motifect_blender.py -- \
+            build/motifect-audit/extracted/sports \
+            build/motifect-audit/extracted/martial_arts \
+            build/motifect-audit/blender-report.json
+      - name: Publish inventory report artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: motifect-motion-pack-audit
+          path: |
+            build/motifect-audit/inventory.md
+            build/motifect-audit/inventory.json
+            build/motifect-audit/blender-report.json
+          if-no-files-found: error
+          retention-days: 14
+
   render:
+    if: ${{ !startsWith(github.ref_name, 'audit/motifect-motion-packs') }}
     needs: validate-spec
     strategy:
       fail-fast: false
