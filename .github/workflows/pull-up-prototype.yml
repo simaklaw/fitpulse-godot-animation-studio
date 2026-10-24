@@ -65,7 +65,7 @@ jobs:
           PY
 
   audit-motifect:
-    if: startsWith(github.ref_name, 'audit/motifect-motion-packs')
+    if: startsWith(github.head_ref || github.ref_name, 'audit/motifect-motion-packs')
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
@@ -102,7 +102,7 @@ jobs:
           retention-days: 14
 
   render:
-    if: ${{ !startsWith(github.ref_name, 'audit/motifect-motion-packs') }}
+    if: ${{ !startsWith(github.head_ref || github.ref_name, 'audit/motifect-motion-packs') }}
     needs: validate-spec
     strategy:
       fail-fast: false
