@@ -137,11 +137,13 @@ def apply_push_up_contact_ik(rig):
             pole_position = shoulder_point + arm_axis * 0.25 + pole_offset.normalized() * 0.35
             pole_targets[side][frame] = pole_position
 
-            # Calculate the roll-aware pole angle from the actual source elbow
-            # position and the fixed hand target. Near-straight poses can make
-            # the bend plane undefined; those frames are filled from neighbours.
+            # Calculate the roll-aware pole angle from the intended elbow point,
+            # not the original mocap elbow. Using elbow_point here recalibrates the
+            # pole to the old bend plane and can cancel the desired elbow tracking.
+            # Near-straight source poses can make the intended bend plane undefined;
+            # those frames are filled from neighbouring stable samples.
             pole_angles[side][frame] = calculated_pole_angle(
-                shoulder_point, elbow_point, hand_targets[side], pole_position
+                shoulder_point, desired_elbow, hand_targets[side], pole_position
             )
 
     # Fill frames where the source limb was too straight to define a stable bend
@@ -266,7 +268,7 @@ def apply_push_up_contact_ik(rig):
         f"hand_z=({hand_targets['.L'].z:.3f},{hand_targets['.R'].z:.3f})m "
         f"toe_targets_z=({toe_targets['.L'].z:.3f},{toe_targets['.R'].z:.3f})m "
         f"elbow_pole=animated_per_frame frames={len(frame_range)} "
-        "target_flare=45deg chain_arm=5 tail_contact=on chain_leg=3"
+        "target_flare=45deg pole_basis=desired_elbow chain_arm=5 tail_contact=on chain_leg=3"
     )
 
 
