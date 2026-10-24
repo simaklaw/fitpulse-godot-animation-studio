@@ -151,7 +151,10 @@ def assert_push_up_pose(rig, frame_end):
             shoulder_point = pose["elbow_bases"][side]
             elbow_point = pose["elbows"][side]
             wrist_point = pose["hands"][side]
-            upper = elbow_point - shoulder_point
+            # Internal elbow angle uses both vectors pointing away from the elbow:
+            # elbow->shoulder and elbow->wrist. Using shoulder->elbow here would
+            # report 0 degrees for a locked straight arm and invert the acceptance test.
+            upper = shoulder_point - elbow_point
             forearm = wrist_point - elbow_point
             trunk = hip - shoulder
             joint_angle = angle_degrees(upper, forearm)
