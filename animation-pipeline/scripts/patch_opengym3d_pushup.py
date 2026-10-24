@@ -73,9 +73,11 @@ def apply_push_up_contact_ik(rig):
             lateral = Vector((trunk.y, -trunk.x, 0.0))
             sign = 1.0 if side == ".L" else -1.0
 
-            # Target a 45-degree back-and-out upper-arm projection while
-            # preserving the current vertical reach and upper-arm length.
-            flare = math.radians(45.0)
+            # The retargeted 5-bone IK chain produces less lateral flare than
+            # the pole's requested direction. Pre-compensate the pole angle so
+            # the measured floor-plane elbow path lands near 45 degrees, while
+            # QA below continues to enforce the actual 25–75 degree result.
+            flare = math.radians(72.0)
             desired_horizontal = (
                 -trunk * math.cos(flare) +
                 lateral * sign * math.sin(flare)
@@ -168,7 +170,7 @@ def apply_push_up_contact_ik(rig):
         f"hand_z=({hand_targets['.L'].z:.3f},{hand_targets['.R'].z:.3f})m "
         f"toe_targets_z=({toe_targets['.L'].z:.3f},{toe_targets['.R'].z:.3f})m "
         f"elbow_pole=animated_projected frames={len(frame_range)} "
-        "target_flare=45deg chain_arm=5 chain_leg=3"
+        "target_flare=72deg_compensated chain_arm=5 chain_leg=3"
     )
 
 
