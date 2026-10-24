@@ -64,6 +64,11 @@ helper = r'''def build_pull_up_rig():
         location=(0.0, -0.025, 2.453), rotation=(0.0, math.pi / 2, 0.0))
     bar = bpy.context.active_object
     bar.name = "PullUpBar"
+    # The primitive cylinder is authored along local Z, then rotated onto world X.
+    # Bake that rotation into the mesh so grip_hands() can use the same local-X
+    # bar-axis convention as the dumbbell/barbell props (instead of curling fingers
+    # around world Z, which leaves the palms open above the bar in the preview).
+    bpy.ops.object.transform_apply(location=False, rotation=True, scale=False)
     bar.data.materials.append(steel)
     objects.append(bar)
 
