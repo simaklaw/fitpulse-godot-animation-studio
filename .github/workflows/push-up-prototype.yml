@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - feat/push-up-render-adapter
     paths:
       - "animation-pipeline/exercises/push_up.json"
       - "animation-pipeline/scripts/patch_opengym3d_pushup.py"
