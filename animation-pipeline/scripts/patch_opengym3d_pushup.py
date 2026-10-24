@@ -158,7 +158,9 @@ def assert_push_up_pose(rig, frame_end):
             forearm = wrist_point - elbow_point
             trunk = hip - shoulder
             joint_angle = angle_degrees(upper, forearm)
-            arm_to_trunk = angle_degrees(upper, trunk)
+            # For the arm-to-trunk path, use the proximal-to-distal shoulder->elbow
+            # vector; the internal joint angle above intentionally uses the reverse.
+            arm_to_trunk = angle_degrees(elbow_point - shoulder_point, trunk)
             elbow_angles.append(joint_angle)
             elbow_to_trunk_angles.append(arm_to_trunk)
             if joint_angle < 45.0 or joint_angle > 180.0:
