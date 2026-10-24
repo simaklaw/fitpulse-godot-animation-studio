@@ -59,7 +59,10 @@ def apply_push_up_contact_ik(rig):
         # and outward from the torso. A pole target guides the IK bend plane.
         lateral = Vector((trunk.y, -trunk.x, 0.0))
         sign = 1.0 if side == ".L" else -1.0
-        desired_dir = (trunk * math.cos(math.radians(45.0)) +
+        # The elbow vector can point toward either end of the torso axis;
+        # use the front-and-out pole branch so the undirected top-down line
+        # resolves to ~45 degrees rather than a near-perpendicular flare.
+        desired_dir = (-trunk * math.cos(math.radians(45.0)) +
                        lateral * sign * math.sin(math.radians(45.0))).normalized()
         pole_targets[side] = shoulder_point + desired_dir * 0.32 + Vector(
             (0.0, 0.0, elbow_point.z - shoulder_point.z)
