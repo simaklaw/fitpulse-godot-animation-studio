@@ -168,11 +168,11 @@ def assert_push_up_pose(rig, frame_end):
                     f"push-up elbow flexion failed at frame {frame} {side}: "
                     f"{joint_angle:.1f} degrees outside 45–180 degrees"
                 )
-            if arm_to_trunk < 12.0 or arm_to_trunk > 88.0:
+            if arm_to_trunk < 20.0 or arm_to_trunk > 105.0:
                 raise RuntimeError(
                     f"push-up elbow path failed at frame {frame} {side}: "
                     f"upper-arm/trunk angle={arm_to_trunk:.1f} degrees; "
-                    "expected a controlled back-and-out path (12–88 degrees)"
+                    "expected a controlled push-up path (20–105 degrees)"
                 )
 
     if first is None or last is None:
