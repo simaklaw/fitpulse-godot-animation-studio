@@ -1,0 +1,162 @@
+{
+  "schema_version": 1,
+  "source_archive": {
+    "filename": "repdb-preview(1).zip",
+    "sha256": "696a80cf672f40700b9a57f861031ef09503c5711cc23785638ea75f3459dd07",
+    "archive_bytes": 170913087,
+    "metadata_exercises": 22,
+    "animated_webp_count": 44,
+    "combined_animation_bytes": 163880568,
+    "frame_size_px": [
+      960,
+      960
+    ],
+    "frame_count_min": 28,
+    "frame_count_max": 150,
+    "frame_delay_samples_ms": [
+      50,
+      51,
+      55
+    ],
+    "loop_metadata": "infinite (0)",
+    "transparent_first_frame_count": 44,
+    "source_url": "https://repdb.co/preview/",
+    "local_source_media_committed": false
+  },
+  "interpretation_ru": "Это референсная оценка структуры и читаемости, а не сертификат техники и не импортированный rig. Не использовать один и тот же клип для близких, но механически разных движений.",
+  "mapping_policy": "direct_reference means same exercise concept only; it does not authorize copying media. related_pattern is not an animation-equivalence claim. not_covered means a new brief/adapter must be made.",
+  "source_mappings": [
+    {
+      "source_exercise_id": "ab-wheel-rollout",
+      "fitpulse_exercise_id": "ab_wheel_rollout",
+      "relationship": "direct_reference",
+      "note_ru": "The equipment and anti-extension pattern match; independently validate range and lumbar position."
+    },
+    {
+      "source_exercise_id": "barbell-reverse-lunge",
+      "fitpulse_exercise_id": null,
+      "relationship": "not_covered",
+      "note_ru": "Requires a new lunge brief, bar path and split-stance knee/foot checks."
+    },
+    {
+      "source_exercise_id": "bench-leg-pull-in",
+      "fitpulse_exercise_id": null,
+      "relationship": "not_covered",
+      "note_ru": "Requires an abdominal hip-flexion brief and bench-contact constraints."
+    },
+    {
+      "source_exercise_id": "bent-over-db-row",
+      "fitpulse_exercise_id": "dumbbell_row",
+      "relationship": "related_pattern",
+      "note_ru": "Not identical: source is a bent-over dumbbell row; current brief uses one-arm row with optional support. Keep as separate renderer variant if adopted."
+    },
+    {
+      "source_exercise_id": "bicep-curl",
+      "fitpulse_exercise_id": "bicep_curl",
+      "relationship": "direct_reference",
+      "note_ru": "Equipment and elbow-flexion pattern match; keep elbows quiet."
+    },
+    {
+      "source_exercise_id": "cat-cow",
+      "fitpulse_exercise_id": "cat_cow",
+      "relationship": "direct_reference",
+      "note_ru": "Same mobility movement; validate spinal motion and ground contacts."
+    },
+    {
+      "source_exercise_id": "decline-db-fly",
+      "fitpulse_exercise_id": null,
+      "relationship": "not_covered",
+      "note_ru": "Requires bench-angle, shoulder range and paired dumbbell path."
+    },
+    {
+      "source_exercise_id": "ez-bar-upright-row",
+      "fitpulse_exercise_id": null,
+      "relationship": "not_covered",
+      "note_ru": "Requires separate equipment and shoulder-elevation range gates."
+    },
+    {
+      "source_exercise_id": "front-squat",
+      "fitpulse_exercise_id": "front_squat",
+      "relationship": "direct_reference",
+      "note_ru": "Front rack is similar; ensure elbows stay high and bar tracks over mid-foot."
+    },
+    {
+      "source_exercise_id": "incline-db-curl",
+      "fitpulse_exercise_id": "bicep_curl",
+      "relationship": "related_pattern",
+      "note_ru": "Incline bench changes shoulder position; do not use the standing curl clip as equivalent."
+    },
+    {
+      "source_exercise_id": "kneeling-cable-row",
+      "fitpulse_exercise_id": "dumbbell_row",
+      "relationship": "related_pattern",
+      "note_ru": "Cable tension and anchor point differ from a dumbbell; requires a separate cable-row adapter."
+    },
+    {
+      "source_exercise_id": "machine-chest-fly",
+      "fitpulse_exercise_id": null,
+      "relationship": "not_covered",
+      "note_ru": "Requires a machine-specific lever/handle contact model."
+    },
+    {
+      "source_exercise_id": "mountain-climbers",
+      "fitpulse_exercise_id": "mountain_climbers",
+      "relationship": "direct_reference",
+      "note_ru": "Same alternating high-plank cardio movement; check palm contact and trunk stability."
+    },
+    {
+      "source_exercise_id": "one-arm-kettlebell-row",
+      "fitpulse_exercise_id": "dumbbell_row",
+      "relationship": "related_pattern",
+      "note_ru": "Different implement and stance; reuse only shared technique concepts, not animation."
+    },
+    {
+      "source_exercise_id": "pull-up",
+      "fitpulse_exercise_id": "pull_up",
+      "relationship": "direct_reference",
+      "note_ru": "Same high-level pattern; supplied preview is reference-only and does not replace the rigged prototype."
+    },
+    {
+      "source_exercise_id": "reverse-grip-lat-pulldown",
+      "fitpulse_exercise_id": null,
+      "relationship": "not_covered",
+      "note_ru": "Vertical pull is related but uses seated contact, cable and a different grip/path."
+    },
+    {
+      "source_exercise_id": "rowing-machine",
+      "fitpulse_exercise_id": "rowing_machine",
+      "relationship": "direct_reference",
+      "note_ru": "Same machine cycle; check seat rail, foot straps, handle path and legs-trunk-arms sequence."
+    },
+    {
+      "source_exercise_id": "running",
+      "fitpulse_exercise_id": null,
+      "relationship": "not_covered",
+      "note_ru": "Requires a gait-specific cyclic adapter, foot contact and flight-phase validation."
+    },
+    {
+      "source_exercise_id": "side-lying-lateral-raise",
+      "fitpulse_exercise_id": null,
+      "relationship": "not_covered",
+      "note_ru": "Requires side-lying floor/bench contact and shoulder-abduction range."
+    },
+    {
+      "source_exercise_id": "single-arm-tricep-pushdown",
+      "fitpulse_exercise_id": null,
+      "relationship": "not_covered",
+      "note_ru": "Requires cable anchor, unilateral elbow-extension path and trunk-stability checks."
+    },
+    {
+      "source_exercise_id": "smith-machine-front-squat",
+      "fitpulse_exercise_id": null,
+      "relationship": "not_covered",
+      "note_ru": "Do not reuse barbell front squat: guided bar rails and machine contact must be represented."
+    },
+    {
+      "source_exercise_id": "thruster",
+      "fitpulse_exercise_id": null,
+      "relationship": "not_covered",
+      "note_ru": "Compound squat-to-overhead press needs a linked two-phase renderer and controlled bar path."
+    }
+  ]
+}

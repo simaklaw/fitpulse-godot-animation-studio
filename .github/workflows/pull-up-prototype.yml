@@ -16,13 +16,15 @@ on:
       - fix/pull-up-prototype-clean-main
       - feat/pull-up-transparent-export
     paths:
-      - "animation-pipeline/**"
+      - "animation-pipeline/exercises/pull_up.json"
+      - "animation-pipeline/scripts/patch_opengym3d_pullup.py"
       - ".github/workflows/pull-up-prototype.yml"
   pull_request:
     branches:
       - main
     paths:
-      - "animation-pipeline/**"
+      - "animation-pipeline/exercises/pull_up.json"
+      - "animation-pipeline/scripts/patch_opengym3d_pullup.py"
       - ".github/workflows/pull-up-prototype.yml"
   workflow_dispatch:
 

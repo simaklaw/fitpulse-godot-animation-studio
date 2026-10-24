@@ -1,0 +1,70 @@
+name: Validate FitPulse Exercise Production Catalog
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "animation-pipeline/catalog/**"
+      - "animation-pipeline/scripts/validate_exercise_catalog.py"
+      - "animation-pipeline/scripts/audit_animation_reference_zip.py"
+      - "animation-pipeline/tests/**"
+      - "scripts/exercise_catalog_preview.gd"
+      - "scripts/workshop_home.gd"
+      - "scenes/exercise_catalog_preview.tscn"
+      - "scenes/workshop_home.tscn"
+      - "project.godot"
+      - ".github/workflows/validate-exercise-catalog.yml"
+  pull_request:
+    paths:
+      - "animation-pipeline/catalog/**"
+      - "animation-pipeline/scripts/validate_exercise_catalog.py"
+      - "animation-pipeline/scripts/audit_animation_reference_zip.py"
+      - "animation-pipeline/tests/**"
+      - "scripts/exercise_catalog_preview.gd"
+      - "scripts/workshop_home.gd"
+      - "scenes/exercise_catalog_preview.tscn"
+      - "scenes/workshop_home.tscn"
+      - "project.godot"
+      - ".github/workflows/validate-exercise-catalog.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: exercise-catalog-\${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  catalog:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install validation dependencies
+        run: python -m pip install --disable-pip-version-check "jsonschema>=4.23,<5" "pillow>=10,<13"
+      - name: Validate catalog schema and production acceptance gates
+        run: python animation-pipeline/scripts/validate_exercise_catalog.py
+      - name: Run catalog regression tests
+        run: python -m unittest discover -s animation-pipeline/tests -v
+      - name: Check reference ZIP auditor CLI
+        run: python animation-pipeline/scripts/audit_animation_reference_zip.py --help
+
+  godot:
+    runs-on: ubuntu-latest
+    container:
+      image: barichello/godot-ci:4.3
+    steps:
+      - uses: actions/checkout@v4
+      - name: Parse and import the Godot project
+        run: |
+          godot --version
+          godot --headless --path . --editor --quit
+      - name: Instantiate the workshop home, exercise catalog, and pull-up preview
+        run: |
+          grep -F 'run/main_scene="res://scenes/workshop_home.tscn"' project.godot
+          godot --headless --path . res://scenes/workshop_home.tscn --quit-after 3
+          godot --headless --path . res://scenes/exercise_catalog_preview.tscn --quit-after 3
+          godot --headless --path . res://scenes/pull_up_preview.tscn --quit-after 3

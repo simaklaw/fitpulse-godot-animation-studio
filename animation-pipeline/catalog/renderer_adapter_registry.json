@@ -1,0 +1,217 @@
+{
+  "schema_version": 1,
+  "description_ru": "Реестр renderer adapters. Наличие ключа в каталоге обозначает только маршрутизацию задания; фактическая реализация и принятие медиа указаны в status.",
+  "adapter_contract": {
+    "required_inputs": [
+      "exercise_id",
+      "movement.phases",
+      "technique",
+      "equipment",
+      "quality_gates",
+      "media_profiles"
+    ],
+    "must_emit": [
+      "male",
+      "female",
+      "poster_per_profile",
+      "source_commit",
+      "sha256_per_asset",
+      "qa_report"
+    ],
+    "phase_timebase": "normalized_0_to_1",
+    "frame_count_policy": "variants_may_differ; preserve semantic phase timings and validate loop seam per profile",
+    "default_release_status": "prototype_unreviewed"
+  },
+  "adapters": [
+    {
+      "id": "fixed_bar_pull",
+      "name_ru": "Тяга вертикальная на перекладине",
+      "status": "existing_prototype",
+      "input_bridge": "animation-pipeline/exercises/pull_up.json (renderer-specific; catalog-to-renderer bridge not yet automated)",
+      "contact_model": "fixed horizontal bar, closed overhand grip on bar axis",
+      "constraints": [
+        "fixed_equipment",
+        "hand_contact",
+        "grip_flexion",
+        "top_position",
+        "foot_clearance",
+        "loop_seam",
+        "joint_continuity"
+      ],
+      "known_limits": [
+        "Finger closure is currently under fresh rerender review; do not publish media before visual grip review."
+      ]
+    },
+    {
+      "id": "floor_bodyweight_push",
+      "name_ru": "Отжимание на полу",
+      "status": "planned",
+      "input_bridge": null,
+      "contact_model": "both palms and both feet or knees remain on floor; whole trunk moves as one supported chain",
+      "constraints": [
+        "hand_floor_contact",
+        "body_line",
+        "elbow_path",
+        "stable_trunk",
+        "joint_continuity",
+        "loop_seam"
+      ],
+      "known_limits": [
+        "Bodyweight push must not reuse pull-up arm rotations."
+      ]
+    },
+    {
+      "id": "bodyweight_squat",
+      "name_ru": "Приседание без внешнего веса",
+      "status": "planned",
+      "input_bridge": null,
+      "contact_model": "both feet remain grounded; knees track toward toe direction",
+      "constraints": [
+        "foot_floor_contact",
+        "knee_tracking",
+        "depth_range",
+        "stable_trunk",
+        "joint_continuity",
+        "loop_seam"
+      ],
+      "known_limits": [
+        "Depth is individualized; don't gate one universal hip depth."
+      ]
+    },
+    {
+      "id": "alternating_floor_cardio",
+      "name_ru": "Чередующееся движение ног в планке",
+      "status": "planned",
+      "input_bridge": null,
+      "contact_model": "hands fixed to floor; alternating leg motion must not bounce the pelvis",
+      "constraints": [
+        "hand_floor_contact",
+        "body_line",
+        "stable_trunk",
+        "side_symmetry",
+        "loop_seam"
+      ],
+      "known_limits": [
+        "Validate left/right semantic parity and avoid exaggerated hip oscillation."
+      ]
+    },
+    {
+      "id": "unilateral_hinge_pull",
+      "name_ru": "Односторонняя тяга в наклоне",
+      "status": "planned",
+      "input_bridge": null,
+      "contact_model": "stable foot/optional bench support; hand-held dumbbell follows a controlled arc without torso rotation",
+      "constraints": [
+        "stable_trunk",
+        "side_symmetry",
+        "prop_collision",
+        "joint_continuity",
+        "loop_seam"
+      ],
+      "known_limits": [
+        "Keep exercise setup distinct from two-arm bent-over row, cable row and kettlebell row."
+      ]
+    },
+    {
+      "id": "barbell_front_squat",
+      "name_ru": "Фронтальный присед со штангой",
+      "status": "planned",
+      "input_bridge": null,
+      "contact_model": "bar remains supported at front shoulders; elbows remain high; bar path stays over mid-foot",
+      "constraints": [
+        "fixed_equipment",
+        "foot_floor_contact",
+        "knee_tracking",
+        "depth_range",
+        "bar_path",
+        "prop_collision",
+        "loop_seam"
+      ],
+      "known_limits": [
+        "Use a separate adapter/profile for Smith machine; do not fake it by attaching a moving barbell to the hands."
+      ]
+    },
+    {
+      "id": "spinal_mobility",
+      "name_ru": "Кошка — корова",
+      "status": "planned",
+      "input_bridge": null,
+      "contact_model": "hands and knees remain grounded while spine flexes/extends through a comfortable arc",
+      "constraints": [
+        "hand_floor_contact",
+        "stable_trunk",
+        "joint_continuity",
+        "loop_seam"
+      ],
+      "known_limits": [
+        "Do not exaggerate lumbar hyperextension or animate the head independently."
+      ]
+    },
+    {
+      "id": "rowing_machine_cycle",
+      "name_ru": "Гребля на тренажёре",
+      "status": "planned",
+      "input_bridge": null,
+      "contact_model": "seat travels on rail; feet stay strapped; handle and elbows follow leg-body-arm sequencing",
+      "constraints": [
+        "fixed_equipment",
+        "seat_rail_alignment",
+        "handle_path",
+        "stable_trunk",
+        "prop_collision",
+        "loop_seam"
+      ],
+      "known_limits": [
+        "Drive order: legs, then trunk, then arms; return order is arms, trunk, legs."
+      ]
+    },
+    {
+      "id": "dumbbell_elbow_flexion",
+      "name_ru": "Сгибание рук с гантелями",
+      "status": "planned",
+      "input_bridge": null,
+      "contact_model": "dumbbells follow hands; elbows remain near torso; shoulder swing is constrained",
+      "constraints": [
+        "stable_trunk",
+        "prop_collision",
+        "joint_continuity",
+        "loop_seam"
+      ],
+      "known_limits": [
+        "Differentiate a seated/incline curl and EZ-bar variant as separate setup parameters."
+      ]
+    },
+    {
+      "id": "kneeling_anti_extension",
+      "name_ru": "Выкат с роликом на коленях",
+      "status": "planned",
+      "input_bridge": null,
+      "contact_model": "hands remain on wheel handles; wheel rolls along floor; trunk stays within controlled anti-extension range",
+      "constraints": [
+        "hand_floor_contact",
+        "stable_trunk",
+        "prop_collision",
+        "joint_continuity",
+        "loop_seam"
+      ],
+      "known_limits": [
+        "Enforce a controlled range; must not infer safe max extension from a reference drawing."
+      ]
+    },
+    {
+      "id": "static_floor_hold",
+      "name_ru": "Статическое удержание на предплечьях",
+      "status": "planned",
+      "input_bridge": null,
+      "contact_model": "forearms and toes remain grounded; trunk stays within a bounded plank line",
+      "constraints": [
+        "body_line",
+        "stable_trunk",
+        "hand_floor_contact"
+      ],
+      "known_limits": [
+        "A hold needs an exit pose/timing policy rather than a forced looping repetition."
+      ]
+    }
+  ]
+}
