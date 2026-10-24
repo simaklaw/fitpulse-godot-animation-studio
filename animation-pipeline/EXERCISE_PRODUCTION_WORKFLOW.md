@@ -15,7 +15,7 @@
 ## Файлы
 
 - animation-pipeline/catalog/exercise-catalog.schema.json — JSON Schema v1 для будущих упражнений.
-- animation-pipeline/catalog/exercise_catalog.json — 10 собственных русскоязычных briefs для разных движений; это не означает, что 10 анимаций уже готовы.
+- animation-pipeline/catalog/exercise_catalog.json — 11 собственных русскоязычных briefs для разных движений; это не означает, что 10 анимаций уже готовы.
 - animation-pipeline/scripts/validate_exercise_catalog.py — схема и межполевые проверки, монотонность фаз, обязательные quality gates, безопасность медиа-путей и защита от преждевременного human-approved.
 - animation-pipeline/scripts/audit_animation_reference_zip.py — нерушающий аудит ZIP анимированных WebP.
 - scenes/exercise_catalog_preview.tscn и scripts/exercise_catalog_preview.gd — браузер каталога в Godot: поиск, фильтр «дом/зал», мужской/женский профиль, фазы, подсказки техники, ошибки, альтернативы и gates качества.
@@ -40,6 +40,6 @@
 
 ## Статус
 
-- Готово: каталог/schema v1, 10 briefs для дома и зала, валидатор, регрессионные тесты, Godot scene browser и ZIP metadata auditor.
+- Готово: каталог/schema v1, 11 briefs для дома и зала, валидатор, регрессионные тесты, Godot scene browser и ZIP metadata auditor.
 - Проверяется через CI: парсер Godot 4.3, загрузка сцены, схема и тесты.
 - Ещё не сделано: renderer adapters для всех новых движений; сами дополнительные клипы не заявлены как сгенерированные; экспертный просмотр техники для нового набора не пройден.
