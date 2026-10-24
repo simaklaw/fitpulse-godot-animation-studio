@@ -18,6 +18,7 @@ except ImportError as exc:  # pragma: no cover - covered by CI install guard
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_CATALOG = ROOT / "animation-pipeline/catalog/exercise_catalog.json"
 DEFAULT_SCHEMA = ROOT / "animation-pipeline/catalog/exercise-catalog.schema.json"
+DEFAULT_ADAPTER_REGISTRY = ROOT / "animation-pipeline/catalog/renderer_adapter_registry.json"
 VALID_STATUSES = {"brief_only", "rendering", "prototype_unreviewed", "automated_qa_passed", "human_approved", "rejected"}
 BUILT_STATUSES = {"automated_qa_passed", "human_approved"}
 SLUG_RE = re.compile(r"^[a-z0-9]+(?:_[a-z0-9]+)*$")
@@ -54,7 +55,12 @@ def _safe_asset_path(value: str, repo_root: Path, exercise_id: str, profile_name
         )
 
 
-def validate_catalog(catalog: dict[str, Any], schema: dict[str, Any], repo_root: Path = ROOT) -> dict[str, Any]:
+def validate_catalog(
+    catalog: dict[str, Any],
+    schema: dict[str, Any],
+    repo_root: Path = ROOT,
+    adapter_registry: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     Draft202012Validator.check_schema(schema)
     schema_errors = sorted(Draft202012Validator(schema).iter_errors(catalog), key=lambda err: list(map(str, err.absolute_path)))
     if schema_errors:
@@ -71,9 +77,37 @@ def validate_catalog(catalog: dict[str, Any], schema: dict[str, Any], repo_root:
     if duplicate_ids:
         raise CatalogValidationError(f"Duplicate exercise IDs: {duplicate_ids}")
 
+    registry_by_id: dict[str, dict[str, Any]] = {}
+    if adapter_registry is not None:
+        adapters = adapter_registry.get("adapters")
+        if not isinstance(adapters, list):
+            raise CatalogValidationError("Renderer adapter registry must contain adapters[]")
+        for adapter in adapters:
+            adapter_id = adapter.get("id")
+            if not isinstance(adapter_id, str) or not SLUG_RE.fullmatch(adapter_id):
+                raise CatalogValidationError(f"Invalid renderer adapter id: {adapter_id!r}")
+            if adapter_id in registry_by_id:
+                raise CatalogValidationError(f"Duplicate renderer adapter id: {adapter_id}")
+            registry_by_id[adapter_id] = adapter
+
     for exercise in exercises:
         exercise_id = exercise["id"]
         movement = exercise["movement"]
+        adapter_id = movement["renderer_adapter"]
+        adapter = registry_by_id.get(adapter_id) if adapter_registry is not None else None
+        if adapter_registry is not None and adapter is None:
+            raise CatalogValidationError(f"{exercise_id}: renderer adapter {adapter_id!r} is missing from the adapter registry")
+        if adapter is not None:
+            required_gates = set(adapter.get("constraints", []))
+            missing_gates = sorted(required_gates - set(exercise["quality_gates"]))
+            if missing_gates:
+                raise CatalogValidationError(
+                    f"{exercise_id}: quality_gates do not satisfy adapter {adapter_id!r}; missing {missing_gates}"
+                )
+            if exercise["production_status"] in BUILT_STATUSES and adapter.get("status") == "planned":
+                raise CatalogValidationError(
+                    f"{exercise_id}: adapter {adapter_id!r} is planned only; implement and test it before marking media built"
+                )
         phases = movement["phases"]
         phase_ids = [phase["id"] for phase in phases]
         if len(phase_ids) != len(set(phase_ids)):
@@ -160,13 +194,15 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--catalog", type=Path, default=DEFAULT_CATALOG)
     parser.add_argument("--schema", type=Path, default=DEFAULT_SCHEMA)
+    parser.add_argument("--adapter-registry", type=Path, default=DEFAULT_ADAPTER_REGISTRY)
     parser.add_argument("--repo-root", type=Path, default=ROOT)
     parser.add_argument("--pull-up-spec", type=Path, default=ROOT / "animation-pipeline/exercises/pull_up.json")
     args = parser.parse_args()
     try:
         schema = _load_json(args.schema)
         catalog = _load_json(args.catalog)
-        summary = validate_catalog(catalog, schema, args.repo_root)
+        adapter_registry = _load_json(args.adapter_registry)
+        summary = validate_catalog(catalog, schema, args.repo_root, adapter_registry)
         keyframes = validate_legacy_pull_up_spec(args.pull_up_spec)
     except CatalogValidationError as exc:
         print(f"FAIL: {exc}", file=sys.stderr)
