@@ -21,6 +21,7 @@ def main():
     ap.add_argument("--out",type=Path,default=Path("build/motifect-audit"))
     args=ap.parse_args()
     args.out.mkdir(parents=True,exist_ok=True)
+    print("MOTIFECT_ARCHIVE_AUDIT_BEGIN", flush=True)
     result={"source":"Motifect","packs":{}}
     markdown=["# Motifect motion-pack audit","","> Inventory and import-compatibility checks only. No animation is marked production-ready until retargeted and reviewed on a FitPulse character.",""]
     for key,filename in CATEGORIES.items():
