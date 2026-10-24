@@ -77,7 +77,7 @@ def apply_push_up_contact_ik(rig):
             # the pole's requested direction. Pre-compensate the pole angle so
             # the measured floor-plane elbow path lands near 45 degrees, while
             # QA below continues to enforce the actual 25–75 degree result.
-            flare = math.radians(76.0)
+            flare = math.radians(90.0)
             desired_horizontal = (
                 -trunk * math.cos(flare) +
                 lateral * sign * math.sin(flare)
@@ -170,7 +170,7 @@ def apply_push_up_contact_ik(rig):
         f"hand_z=({hand_targets['.L'].z:.3f},{hand_targets['.R'].z:.3f})m "
         f"toe_targets_z=({toe_targets['.L'].z:.3f},{toe_targets['.R'].z:.3f})m "
         f"elbow_pole=animated_projected frames={len(frame_range)} "
-        "target_flare=76deg_compensated chain_arm=5 chain_leg=3"
+        "target_flare=90deg_compensated chain_arm=5 chain_leg=3"
     )
 
 
