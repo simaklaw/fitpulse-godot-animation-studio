@@ -15,12 +15,20 @@
 ## Файлы
 
 - animation-pipeline/catalog/exercise-catalog.schema.json — JSON Schema v1 для будущих упражнений.
-- animation-pipeline/catalog/exercise_catalog.json — 11 собственных русскоязычных briefs для разных движений; это не означает, что 10 анимаций уже готовы.
-- animation-pipeline/scripts/validate_exercise_catalog.py — схема и межполевые проверки, монотонность фаз, обязательные quality gates, безопасность медиа-путей и защита от преждевременного human-approved.
+- animation-pipeline/catalog/exercise_catalog.json — 11 собственных русскоязычных briefs для разных движений; это не означает, что 11 анимаций уже готовы.
+- animation-pipeline/catalog/renderer_adapter_registry.json — реестр ключей renderer adapter с ожидаемыми контактами и обязательными quality gates. Метка `planned` явно означает, что рендерер ещё не реализован.
+- animation-pipeline/catalog/repdb-preview-coverage.json — 22 источника и связь с текущими briefs: `direct_reference` не означает, что можно использовать чужой клип вместо своей анимации; `related_pattern` специально не объявляет движения эквивалентными.
+- animation-pipeline/scripts/validate_exercise_catalog.py — схема и межполевые проверки, монотонность фаз, наличие adapter в реестре, обязательные quality gates, безопасность медиа-путей и защита от преждевременного human-approved.
 - animation-pipeline/scripts/audit_animation_reference_zip.py — нерушающий аудит ZIP анимированных WebP.
 - scenes/exercise_catalog_preview.tscn и scripts/exercise_catalog_preview.gd — браузер каталога в Godot: поиск, фильтр «дом/зал», мужской/женский профиль, фазы, подсказки техники, ошибки, альтернативы и gates качества.
 
 Открой scenes/exercise_catalog_preview.tscn в Godot 4.x и запусти сцену. Медиа показывается только при наличии валидного ресурса в media_profiles. Когда клип не создан, UI прямо пишет об этом и не рисует фальшивую анатомию.
+
+## Renderer adapter и соответствие источникам
+
+Каждая запись содержит `movement.renderer_adapter`. Перед созданием клипа валидатор требует, чтобы ключ был в реестре и упражнение включало все обязательные для этого adapter quality gates. Для `planned` adapter нельзя выставить статус с готовым медиа. У подтягивания есть только существующий прототип и отдельный renderer-specific JSON; bridge из общего каталога в Blender-сборщик ещё не автоматизирован. Это намеренное разделение: общий каталог не должен переиспользовать неподходящие суставные углы от одного упражнения для другого.
+
+`repdb-preview-coverage.json` размечает каждое из 22 упражнений источника как прямой визуальный ориентир, родственный паттерн или не покрытый задачами каталог. Например, front squat не взаимозаменяем со Smith machine squat, а row на блоке не является тем же движением, что поддержанная тяга одной гантели. Для отсутствующих push-up и приседания с весом тела добавлены свои briefs, а не ложное соответствие неподходящим клипам.
 
 ## Как добавлять новое упражнение
 
