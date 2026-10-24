@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "adapter_id": "motifect_humanoid_source_v1",
+  "status": "candidate_map_only",
+  "source": {
+    "publisher": "Motifect",
+    "formats_audited": ["FBX"],
+    "expected_bone_count": 64,
+    "packs": [
+      {
+        "id": "sports_and_athletics_v1_0",
+        "archive_sha256": "c86fa8c709850efa66c372bf9eeb336127be49bcb9d0c6b198a57639a97bafc7",
+        "clips_imported": 40
+      },
+      {
+        "id": "martial_arts_v1_0",
+        "archive_sha256": "c3c41f2d5c7a0f06030a2e0f6ab08b617d5ab59960ef688ade843a81e00124be",
+        "clips_imported": 40
+      }
+    ],
+    "axis_conversion": "UNRESOLVED",
+    "unit_scale": "UNRESOLVED",
+    "rest_pose_correction": "UNRESOLVED",
+    "root_motion_policy": "UNRESOLVED"
+  },
+  "candidate_bone_map": {
+    "pelvis": "Spine1",
+    "spine": "Spine2",
+    "chest": "Chest",
+    "neck": "Neck1",
+    "head": "Head",
+    "thigh.L": "LeftLeg",
+    "shin.L": "LeftShin",
+    "foot.L": "LeftFoot",
+    "toe.L": "LeftToeBase",
+    "clavicle.L": "LeftShoulder",
+    "upper_arm.L": "LeftArm",
+    "forearm.L": "LeftForeArm",
+    "hand.L": "LeftHand",
+    "thigh.R": "RightLeg",
+    "shin.R": "RightShin",
+    "foot.R": "RightFoot",
+    "toe.R": "RightToeBase",
+    "clavicle.R": "RightShoulder",
+    "upper_arm.R": "RightArm",
+    "forearm.R": "RightForeArm",
+    "hand.R": "RightHand"
+  },
+  "known_skeleton_mismatch": [
+    "Source skeleton has no Hips bone; Spine1 is only a pelvis proxy and must not be assumed equivalent without pose inspection.",
+    "Source skeleton has no LeftUpLeg or RightUpLeg; LeftLeg and RightLeg are candidate thigh mappings.",
+    "Source hierarchy contains limbs that are independent roots; target parent relationships must be checked before retargeting.",
+    "The mapping is name-based and has not been validated against target rest orientations or rendered poses."
+  ],
+  "required_validation_before_render_release": [
+    "Inspect source and target rest poses in the same coordinate frame.",
+    "Determine FBX axis convention and unit scale from measured landmarks; do not infer from bone names.",
+    "Measure target/source bone direction vectors and define per-bone rest-pose correction.",
+    "Define root translation and root-motion policy explicitly.",
+    "Run a neutral-pose retarget and reject flipped, collapsed, or disconnected joints.",
+    "Render a contact sheet for start, midpoint, end, and high-motion frames.",
+    "For weightlifting_press_overhead, verify wrist/bar contact, symmetric grip, elbow path, shoulder range, bar clearance, and foot contact.",
+    "Run loop-seam and joint-continuity checks on the final rendered media.",
+    "Keep status non-production until visual technique review passes for each intended character presentation."
+  ],
+  "release_policy": {
+    "production_ready": false,
+    "reason": "This manifest records an audited candidate mapping only. It does not implement retargeting and must never be treated as a completed animation or as proof of biomechanical correctness."
+  }
+}

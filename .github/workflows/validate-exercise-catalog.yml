@@ -6,6 +6,7 @@ on:
     branches: [main]
     paths:
       - "animation-pipeline/catalog/**"
+      - "animation-pipeline/adapters/**"
       - "animation-pipeline/scripts/validate_exercise_catalog.py"
       - "animation-pipeline/scripts/audit_animation_reference_zip.py"
       - "animation-pipeline/tests/**"
@@ -18,6 +19,7 @@ on:
   pull_request:
     paths:
       - "animation-pipeline/catalog/**"
+      - "animation-pipeline/adapters/**"
       - "animation-pipeline/scripts/validate_exercise_catalog.py"
       - "animation-pipeline/scripts/audit_animation_reference_zip.py"
       - "animation-pipeline/tests/**"
