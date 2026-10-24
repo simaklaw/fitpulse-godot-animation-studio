@@ -39,7 +39,7 @@ jobs:
 
           spec = json.loads(Path("animation-pipeline/exercises/push_up.json").read_text())
           assert spec["id"] == "push_up"
-          assert spec.get("movement", {}).get("pattern") == "push_up"
+          assert spec.get("movement", {}).get("pattern") == "horizontal_push", "catalog movement pattern must remain horizontal_push"
           assert spec.get("keyframes"), "hand-authored keyframes are required"
           times = [f["t"] for f in spec["keyframes"]]
           assert times == sorted(times) and times[0] == 0.0 and times[-1] == 1.0
