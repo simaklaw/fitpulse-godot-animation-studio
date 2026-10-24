@@ -23,17 +23,15 @@ if "def assert_push_up_pose(rig, frame_end):" in source_text:
 
 qa = r'''
 def apply_push_up_contact_ik(rig):
-    """Pin palms/toes and calibrate each pole angle against the real retarget rig."""
+    """Pin palms/toes and keyframe pole angles from the intended elbow plane."""
     scene = bpy.context.scene
     view_layer = bpy.context.view_layer
     sides = (".L", ".R")
     hand_targets = {}
     toe_targets = {}
     pole_targets = {side: {} for side in sides}
-    reference_frames = {}
-    reference_scores = {side: float("inf") for side in sides}
-    arm_ik_constraints = {}
-    frame_range = range(scene.frame_start, scene.frame_end + 1)
+    pole_angles = {side: {} for side in sides}
+    frame_range = list(range(scene.frame_start, scene.frame_end + 1))
 
     def angle_degrees(a, b):
         if a.length < 1e-7 or b.length < 1e-7:
@@ -41,8 +39,31 @@ def apply_push_up_contact_ik(rig):
         cosine = max(-1.0, min(1.0, a.normalized().dot(b.normalized())))
         return math.degrees(math.acos(cosine))
 
-    # Precompute target points and the most useful flexed frame before adding IK,
-    # so the calibration reference reflects the original mocap pose.
+    def calculated_pole_angle(chain_start, middle_joint, chain_end, pole_pos):
+        """Compute the IK pole offset from the current bend plane (Blender roll aware)."""
+        chain = chain_end - chain_start
+        if chain.length < 1e-5:
+            return None
+        chain_dir = chain.normalized()
+        to_pole = pole_pos - middle_joint
+        to_pole = to_pole - chain_dir * to_pole.dot(chain_dir)
+        current_bend = middle_joint - chain_start
+        current_bend = current_bend - chain_dir * current_bend.dot(chain_dir)
+        if to_pole.length < 1e-5 or current_bend.length < 1e-5:
+            return None
+        to_pole.normalize()
+        current_bend.normalize()
+        dot = max(-1.0, min(1.0, current_bend.dot(to_pole)))
+        angle = math.acos(dot)
+        if current_bend.cross(to_pole).dot(chain_dir) < 0.0:
+            angle = -angle
+        # This offset accounts for Blender's IK reference plane; normalize it
+        # so the stored value remains inside the supported [-pi, pi] interval.
+        value = angle - math.pi * 0.5
+        return math.atan2(math.sin(value), math.cos(value))
+
+    # First pass: sample original mocap poses and construct per-frame pole positions
+    # and pole-angle offsets before adding constraints.
     for frame in frame_range:
         scene.frame_set(frame)
         view_layer.update()
@@ -70,17 +91,6 @@ def apply_push_up_contact_ik(rig):
                 hand_targets[side] = wrist_point.copy()
                 toe_targets[side] = Vector((toe_point.x, toe_point.y, 0.02))
 
-            # Choose a reference where the unmodified mocap elbow is bent near 90°.
-            source_joint = angle_degrees(
-                shoulder_point - elbow_point,
-                wrist_point - elbow_point,
-            )
-            score = abs(source_joint - 90.0)
-            if score < reference_scores[side]:
-                reference_scores[side] = score
-                reference_frames[side] = frame
-
-            # Torso axis is shoulder-to-hip projected onto the floor plane.
             trunk = Vector((
                 hip_point.x - shoulder_point.x,
                 hip_point.y - shoulder_point.y,
@@ -92,10 +102,9 @@ def apply_push_up_contact_ik(rig):
             lateral = Vector((trunk.y, -trunk.x, 0.0))
             sign = 1.0 if side == ".L" else -1.0
 
-            # Desired upper-arm projection follows a controlled ~45° path from
-            # the torso. The MakeHuman rig's bone roll differs by profile, so
-            # the actual pole_angle is calibrated empirically below rather than
-            # assuming Blender's default 0° matches the desired elbow plane.
+            # The intended upper-arm projection follows a controlled 45-degree
+            # path from the torso; the pole angle is derived independently for
+            # each frame because the shoulder axis and bone roll change in motion.
             flare = math.radians(45.0)
             desired_horizontal = (
                 -trunk * math.cos(flare) +
@@ -115,10 +124,6 @@ def apply_push_up_contact_ik(rig):
             )).normalized()
             desired_elbow = shoulder_point + desired_upper * upper_length
 
-            # Animate a pole position perpendicular to the shoulder-to-wrist
-            # chain. The per-profile pole angle is then tuned against the
-            # observed pose, since a pole location alone cannot compensate for
-            # non-standard MakeHuman bone rolls.
             arm_delta = hand_targets[side] - shoulder_point
             if arm_delta.length < 1e-5:
                 raise RuntimeError(f"push-up contact IK: degenerate shoulder-to-wrist axis on {side}")
@@ -129,10 +134,56 @@ def apply_push_up_contact_ik(rig):
                 pole_offset = lateral - arm_axis * lateral.dot(arm_axis)
             if pole_offset.length < 1e-5:
                 raise RuntimeError(f"push-up contact IK: degenerate elbow pole plane on {side}")
-            pole_targets[side][frame] = (
-                shoulder_point + arm_axis * 0.25 + pole_offset.normalized() * 0.35
+            pole_position = shoulder_point + arm_axis * 0.25 + pole_offset.normalized() * 0.35
+            pole_targets[side][frame] = pole_position
+
+            # Calculate the roll-aware pole angle from the actual source elbow
+            # position and the fixed hand target. Near-straight poses can make
+            # the bend plane undefined; those frames are filled from neighbours.
+            pole_angles[side][frame] = calculated_pole_angle(
+                shoulder_point, elbow_point, hand_targets[side], pole_position
             )
 
+    # Fill frames where the source limb was too straight to define a stable bend
+    # plane. Use circular-angle interpolation to avoid a discontinuity at +/-pi.
+    for side in sides:
+        valid = [(f, a) for f, a in sorted(pole_angles[side].items()) if a is not None]
+        if len(valid) < 5:
+            raise RuntimeError(
+                f"push-up pole-angle calculation failed for {side}: "
+                f"only {len(valid)} stable bend-plane samples"
+            )
+        unwrapped = {}
+        previous = None
+        for frame, value in valid:
+            if previous is not None:
+                while value - previous > math.pi:
+                    value -= 2.0 * math.pi
+                while value - previous < -math.pi:
+                    value += 2.0 * math.pi
+            unwrapped[frame] = value
+            previous = value
+        valid_frames = sorted(unwrapped)
+        for frame in frame_range:
+            if frame in unwrapped:
+                value = unwrapped[frame]
+            else:
+                left = [f for f in valid_frames if f < frame]
+                right = [f for f in valid_frames if f > frame]
+                if left and right:
+                    f0, f1 = left[-1], right[0]
+                    value = unwrapped[f0] + (unwrapped[f1] - unwrapped[f0]) * ((frame - f0) / (f1 - f0))
+                elif left:
+                    value = unwrapped[left[-1]]
+                else:
+                    value = unwrapped[right[0]]
+            pole_angles[side][frame] = math.atan2(math.sin(value), math.cos(value))
+
+    hand_objects = {}
+    pole_objects = {}
+    arm_ik_constraints = {}
+    # Second pass: add targets and IK constraints. Wrist-tail targeting pins the
+    # actual hand endpoint rather than the wrist bone head.
     for side in sides:
         hand_target = bpy.data.objects.new("FitPulsePushUpHandTarget" + side, None)
         scene.collection.objects.link(hand_target)
@@ -140,31 +191,34 @@ def apply_push_up_contact_ik(rig):
         hand_target.empty_display_type = "SPHERE"
         hand_target.empty_display_size = 0.02
         hand_target.hide_render = True
+        hand_objects[side] = hand_target
 
         pole = bpy.data.objects.new("FitPulsePushUpElbowPole" + side, None)
         scene.collection.objects.link(pole)
         pole.empty_display_type = "SPHERE"
         pole.empty_display_size = 0.02
         pole.hide_render = True
-        for frame, position in pole_targets[side].items():
+        for frame in frame_range:
             scene.frame_set(frame)
-            pole.location = position
+            pole.location = pole_targets[side][frame]
             pole.keyframe_insert(data_path="location", frame=frame, group="FitPulse elbow tracking")
         if pole.animation_data and pole.animation_data.action:
             for fcurve in pole.animation_data.action.fcurves:
                 for point in fcurve.keyframe_points:
                     point.interpolation = "LINEAR"
                 fcurve.update()
+        pole_objects[side] = pole
 
         wrist = rig.pose.bones["wrist" + side]
         arm_ik = wrist.constraints.new(type="IK")
         arm_ik.name = "FitPulsePushUpArmIK" + side
         arm_ik.target = hand_target
         arm_ik.pole_target = pole
-        arm_ik.pole_angle = 0.0
+        arm_ik.pole_angle = pole_angles[side][scene.frame_start]
         arm_ik.chain_count = 5
         arm_ik.iterations = 100
         arm_ik.use_stretch = False
+        arm_ik.use_tail = True
         arm_ik.influence = 1.0
         arm_ik_constraints[side] = arm_ik
 
@@ -184,82 +238,26 @@ def apply_push_up_contact_ik(rig):
         leg_ik.use_stretch = False
         leg_ik.influence = 1.0
 
-    def measure_elbow(side, frame):
-        scene.frame_set(frame)
-        view_layer.update()
-        shoulder = rig.matrix_world @ rig.pose.bones["upperarm01" + side].head
-        elbow = rig.matrix_world @ rig.pose.bones["lowerarm01" + side].head
-        wrist = rig.matrix_world @ rig.pose.bones["wrist" + side].tail
-        root = rig.pose.bones["root"]
-        hip = (rig.matrix_world @ root.head + rig.matrix_world @ root.tail) * 0.5
-        trunk = hip - shoulder
-        arm_horizontal = Vector((
-            elbow.x - shoulder.x,
-            elbow.y - shoulder.y,
-            0.0,
-        ))
-        trunk_horizontal = Vector((trunk.x, trunk.y, 0.0))
-        raw_flare = angle_degrees(arm_horizontal, trunk_horizontal)
-        flare_value = min(raw_flare, 180.0 - raw_flare)
-        internal_angle = angle_degrees(shoulder - elbow, wrist - elbow)
-        return flare_value, internal_angle
-
-    # Bone rolls on MakeHuman male/female profiles are not identical. Search the
-    # constraint's pole-angle offset at one clearly bent frame, score the actual
-    # solved elbow path, and keep that offset for the entire animated cycle.
+    # Keyframe the computed pole_angle for every pose. This changes the bend plane
+    # with the movement instead of forcing one static roll offset across the cycle.
     for side in sides:
         ik = arm_ik_constraints[side]
-        ref_frame = reference_frames.get(side, scene.frame_start)
-        best_angle = 0.0
-        best_flare = None
-        best_internal = None
-        best_score = float("inf")
-
-        def evaluate_candidate(radians):
-            ik.pole_angle = radians
-            flare_value, internal_angle = measure_elbow(side, ref_frame)
-            # Prefer the requested 45° path and avoid selecting a pole angle
-            # whose reference pose is almost locked or impossibly over-folded.
-            score = abs(flare_value - 45.0)
-            if internal_angle < 55.0:
-                score += (55.0 - internal_angle) * 1.5
-            if internal_angle > 165.0:
-                score += (internal_angle - 165.0) * 1.5
-            return score, flare_value, internal_angle
-
-        for degree in range(-180, 180, 10):
-            candidate = math.radians(degree)
-            score, flare_value, internal_angle = evaluate_candidate(candidate)
-            if score < best_score:
-                best_score = score
-                best_angle = candidate
-                best_flare = flare_value
-                best_internal = internal_angle
-
-        for degree in range(-10, 11):
-            candidate = best_angle + math.radians(degree)
-            score, flare_value, internal_angle = evaluate_candidate(candidate)
-            if score < best_score:
-                best_score = score
-                best_angle = candidate
-                best_flare = flare_value
-                best_internal = internal_angle
-
-        ik.pole_angle = best_angle
-        final_flare, final_internal = measure_elbow(side, ref_frame)
-        if final_flare < 25.0 or final_flare > 75.0:
-            raise RuntimeError(
-                f"push-up pole calibration failed on {side} at frame {ref_frame}: "
-                f"best actual flare={final_flare:.1f}deg, internal elbow="
-                f"{final_internal:.1f}deg, pole_angle={math.degrees(best_angle):.1f}deg; "
-                "expected 25–75 degrees"
+        data_path = ik.path_from_id("pole_angle")
+        for frame in frame_range:
+            scene.frame_set(frame)
+            ik.pole_angle = pole_angles[side][frame]
+            rig.keyframe_insert(
+                data_path=data_path,
+                frame=frame,
+                group="FitPulse elbow IK calibration",
             )
-        print(
-            f"PUSHUP_POLE_CALIBRATION side={side} frame={ref_frame} "
-            f"pole_angle={math.degrees(best_angle):.1f}deg "
-            f"measured_flare={final_flare:.1f}deg "
-            f"elbow_flexion={final_internal:.1f}deg target=45deg"
-        )
+        action = rig.animation_data.action if rig.animation_data else None
+        if action:
+            for fcurve in action.fcurves:
+                if fcurve.data_path == data_path:
+                    for point in fcurve.keyframe_points:
+                        point.interpolation = "LINEAR"
+                    fcurve.update()
 
     scene.frame_set(scene.frame_start)
     view_layer.update()
@@ -267,8 +265,8 @@ def apply_push_up_contact_ik(rig):
         "PUSHUP_CONTACT_IK PASS "
         f"hand_z=({hand_targets['.L'].z:.3f},{hand_targets['.R'].z:.3f})m "
         f"toe_targets_z=({toe_targets['.L'].z:.3f},{toe_targets['.R'].z:.3f})m "
-        f"elbow_pole=animated_calibrated frames={len(frame_range)} "
-        "target_flare=45deg chain_arm=5 chain_leg=3"
+        f"elbow_pole=animated_per_frame frames={len(frame_range)} "
+        "target_flare=45deg chain_arm=5 tail_contact=on chain_leg=3"
     )
 
 
