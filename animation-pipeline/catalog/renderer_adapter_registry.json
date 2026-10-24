@@ -45,8 +45,8 @@
     {
       "id": "floor_bodyweight_push",
       "name_ru": "Отжимание на полу",
-      "status": "planned",
-      "input_bridge": null,
+      "status": "prototype_in_progress",
+      "input_bridge": "animation-pipeline/exercises/push_up.json; dedicated pinned OpenGym3D motion-capture render job (not a pull-up rig/angle reuse)",
       "contact_model": "both palms and both feet or knees remain on floor; whole trunk moves as one supported chain",
       "constraints": [
         "hand_floor_contact",
@@ -57,7 +57,8 @@
         "loop_seam"
       ],
       "known_limits": [
-        "Bodyweight push must not reuse pull-up arm rotations."
+        "Bodyweight push must not reuse pull-up arm rotations.",
+        "Initial automated prototype only; await successful male/female output, transparent alpha QA, visual contact-sheet review, and human technique approval."
       ]
     },
     {

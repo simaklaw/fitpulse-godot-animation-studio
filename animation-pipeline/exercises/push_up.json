@@ -1,0 +1,403 @@
+{
+  "id": "push_up",
+  "name": "Push-Up — controlled bodyweight repetition",
+  "equipment": "None",
+  "difficulty": "Beginner",
+  "movement": {
+    "pattern": "horizontal_push"
+  },
+  "primary": [
+    "Chest"
+  ],
+  "secondary": [
+    "Triceps",
+    "Core",
+    "Shoulders"
+  ],
+  "steps": [
+    "Begin in a high plank with palms under or just outside the shoulders; fingers spread and elbows softly extended.",
+    "Lower the chest as one unit, keeping the pelvis from sagging and the neck neutral.",
+    "Track the elbows back and out at a controlled angle (roughly 30–60° from the torso rather than straight sideways).",
+    "Stop just above the floor without collapsing the shoulders, then press the floor away to return to a stable plank."
+  ],
+  "fps": 30,
+  "duration": 3.2,
+  "keyframes": [
+    {
+      "t": 0,
+      "bones": {
+        "pelvis": {
+          "rot": [
+            68,
+            0,
+            0
+          ],
+          "loc": [
+            0,
+            0,
+            -0.554
+          ]
+        },
+        "spine": {
+          "rot": [
+            0,
+            0,
+            0
+          ]
+        },
+        "chest": {
+          "rot": [
+            0,
+            0,
+            0
+          ]
+        },
+        "head": {
+          "rot": [
+            -15,
+            0,
+            0
+          ]
+        },
+        "thigh.*": {
+          "rot": [
+            0,
+            0,
+            0
+          ]
+        },
+        "shin.*": {
+          "rot": [
+            0,
+            0,
+            0
+          ]
+        },
+        "foot.*": {
+          "rot": [
+            0,
+            0,
+            0
+          ]
+        },
+        "upper_arm.*": {
+          "rot": [
+            0,
+            0,
+            -85
+          ]
+        },
+        "forearm.*": {
+          "rot": [
+            0,
+            0,
+            -3
+          ]
+        }
+      }
+    },
+    {
+      "t": 0.52,
+      "bones": {
+        "pelvis": {
+          "rot": [
+            79,
+            0,
+            0
+          ],
+          "loc": [
+            0,
+            0,
+            -0.707
+          ]
+        },
+        "spine": {
+          "rot": [
+            0,
+            0,
+            0
+          ]
+        },
+        "chest": {
+          "rot": [
+            0,
+            0,
+            0
+          ]
+        },
+        "head": {
+          "rot": [
+            -10,
+            0,
+            0
+          ]
+        },
+        "thigh.*": {
+          "rot": [
+            0,
+            0,
+            0
+          ]
+        },
+        "shin.*": {
+          "rot": [
+            0,
+            0,
+            0
+          ]
+        },
+        "foot.*": {
+          "rot": [
+            0,
+            0,
+            0
+          ]
+        },
+        "upper_arm.*": {
+          "rot": [
+            0,
+            0,
+            -45
+          ]
+        },
+        "forearm.*": {
+          "rot": [
+            0,
+            0,
+            -60
+          ]
+        }
+      }
+    },
+    {
+      "t": 0.62,
+      "bones": {
+        "pelvis": {
+          "rot": [
+            79,
+            0,
+            0
+          ],
+          "loc": [
+            0,
+            0,
+            -0.707
+          ]
+        },
+        "spine": {
+          "rot": [
+            0,
+            0,
+            0
+          ]
+        },
+        "chest": {
+          "rot": [
+            0,
+            0,
+            0
+          ]
+        },
+        "head": {
+          "rot": [
+            -10,
+            0,
+            0
+          ]
+        },
+        "thigh.*": {
+          "rot": [
+            0,
+            0,
+            0
+          ]
+        },
+        "shin.*": {
+          "rot": [
+            0,
+            0,
+            0
+          ]
+        },
+        "foot.*": {
+          "rot": [
+            0,
+            0,
+            0
+          ]
+        },
+        "upper_arm.*": {
+          "rot": [
+            0,
+            0,
+            -45
+          ]
+        },
+        "forearm.*": {
+          "rot": [
+            0,
+            0,
+            -60
+          ]
+        }
+      }
+    },
+    {
+      "t": 1,
+      "bones": {
+        "pelvis": {
+          "rot": [
+            68,
+            0,
+            0
+          ],
+          "loc": [
+            0,
+            0,
+            -0.554
+          ]
+        },
+        "spine": {
+          "rot": [
+            0,
+            0,
+            0
+          ]
+        },
+        "chest": {
+          "rot": [
+            0,
+            0,
+            0
+          ]
+        },
+        "head": {
+          "rot": [
+            -15,
+            0,
+            0
+          ]
+        },
+        "thigh.*": {
+          "rot": [
+            0,
+            0,
+            0
+          ]
+        },
+        "shin.*": {
+          "rot": [
+            0,
+            0,
+            0
+          ]
+        },
+        "foot.*": {
+          "rot": [
+            0,
+            0,
+            0
+          ]
+        },
+        "upper_arm.*": {
+          "rot": [
+            0,
+            0,
+            -85
+          ]
+        },
+        "forearm.*": {
+          "rot": [
+            0,
+            0,
+            -3
+          ]
+        }
+      }
+    }
+  ],
+  "mocap": "cc0/mesh2motion/human-addon-animations.glb#Pushup",
+  "camera": "side",
+  "mocap_prev": {
+    "mixamo": "mixamo/push_up.fbx"
+  },
+  "motion_source": {
+    "repository": "https://github.com/AssiamahS/opengym3d",
+    "revision": "ea3a60130fdcfb3c4771e44d09f84ebab4ee9bae",
+    "file": "motions/cc0/mesh2motion/human-addon-animations.glb",
+    "file_sha": "b314ab1a99c546882786b44745915d97f32b6a88",
+    "animation_clip": "Pushup",
+    "license": "CC0 1.0 Universal",
+    "interpretation": "Reference motion to be retargeted to FitPulse male/female characters; successful import does not itself certify form."
+  },
+  "technique": {
+    "setup": "High plank; palms are planted, hands approximately shoulder-width/just wider, shoulders over wrists, feet supported at the toes.",
+    "cues": [
+      "Head, thorax, pelvis and legs move as one controlled line.",
+      "Elbows track about 30–60 degrees away from the torso, not straight out at 90 degrees.",
+      "Wrists stay planted; the torso moves between stable hands and toes.",
+      "Shoulder blades move naturally; avoid shrugging or collapsing into the shoulders."
+    ],
+    "common_errors": [
+      "Pelvis drops or lifts independently of the chest.",
+      "Elbows flare straight sideways.",
+      "Head juts forward or drops independently.",
+      "Hands or feet slide between frames; chest penetrates the floor."
+    ],
+    "breathing": "Inhale while lowering; exhale while pressing up.",
+    "safety": "Use an incline or knee-supported version when a full push-up cannot be completed with a stable trunk. Range is limited by control, not by forcing the chest through the floor."
+  },
+  "phases": [
+    {
+      "id": "top_plank",
+      "time": 0,
+      "kind": "setup",
+      "name": "High plank",
+      "cue": "Stable hands and toes; head, trunk and legs form one line."
+    },
+    {
+      "id": "lowering",
+      "time": 0.27,
+      "kind": "eccentric",
+      "name": "Controlled lowering",
+      "cue": "Chest lowers while elbows track back-and-out; pelvis stays aligned."
+    },
+    {
+      "id": "bottom",
+      "time": 0.52,
+      "kind": "bottom",
+      "name": "Bottom position",
+      "cue": "Chest close to floor, no collapse or forced depth."
+    },
+    {
+      "id": "pressing",
+      "time": 0.82,
+      "kind": "concentric",
+      "name": "Press",
+      "cue": "Drive through palms; trunk rises as one unit."
+    },
+    {
+      "id": "top_return",
+      "time": 1,
+      "kind": "return",
+      "name": "Return to plank",
+      "cue": "Stable top position; loop seam returns to the same contacts."
+    }
+  ],
+  "quality_gates": [
+    "full_body_in_frame",
+    "mobile_readability",
+    "joint_continuity",
+    "loop_seam",
+    "human_technique_review",
+    "hand_floor_contact",
+    "foot_floor_contact",
+    "body_line",
+    "elbow_path",
+    "stable_trunk",
+    "transparency",
+    "male_female_distinction",
+    "prop_collision"
+  ],
+  "production_status": "rendering"
+}
