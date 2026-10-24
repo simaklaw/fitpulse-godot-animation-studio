@@ -62,5 +62,9 @@ jobs:
         run: |
           godot --version
           godot --headless --path . --editor --quit
-      - name: Instantiate the reusable exercise library scene
-        run: godot --headless --path . res://scenes/exercise_catalog_preview.tscn --quit-after 3
+      - name: Instantiate the workshop home, exercise catalog, and pull-up preview
+        run: |
+          grep -F 'run/main_scene="res://scenes/workshop_home.tscn"' project.godot
+          godot --headless --path . res://scenes/workshop_home.tscn --quit-after 3
+          godot --headless --path . res://scenes/exercise_catalog_preview.tscn --quit-after 3
+          godot --headless --path . res://scenes/pull_up_preview.tscn --quit-after 3
