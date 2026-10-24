@@ -344,8 +344,10 @@ jobs:
           set -euo pipefail
           gender="${{ matrix.gender }}"
           alpha_dir="output/$gender/frames_push_up_alpha"
+          expected_frames="${EXPECTED_FRAME_COUNT:-0}"
+          [[ "$expected_frames" =~ ^[0-9]+$ ]] && (( expected_frames >= 30 ))
           test -d "$alpha_dir"
-          test "$(find "$alpha_dir" -maxdepth 1 -type f -name '*.png' | wc -l)" -eq 72
+          test "$(find "$alpha_dir" -maxdepth 1 -type f -name '*.png' | wc -l)" -eq "$expected_frames"
           python3 -m venv /tmp/fitpulse-alpha-qa
           /tmp/fitpulse-alpha-qa/bin/python -m pip install --quiet --disable-pip-version-check pillow
           GENDER="$gender" /tmp/fitpulse-alpha-qa/bin/python - <<'PY'
