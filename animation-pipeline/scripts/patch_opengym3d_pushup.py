@@ -59,15 +59,41 @@ def apply_push_up_contact_ik(rig):
         # Keep the shoulder-to-wrist chain isolated so IK cannot rotate the trunk.
         lateral = Vector((trunk.y, -trunk.x, 0.0))
         sign = 1.0 if side == ".L" else -1.0
-        # Bias the pole more strongly along the body axis and less laterally.
-        # This encourages a 30–60 degree elbow track instead of the sideways
-        # branch observed with a 45-degree pole. The QA threshold remains strict.
-        pole_angle_degrees = 25.0
-        desired_dir = (trunk * math.cos(math.radians(pole_angle_degrees)) +
-                       lateral * sign * math.sin(math.radians(pole_angle_degrees))).normalized()
-        pole_targets[side] = shoulder_point + desired_dir * 0.32 + Vector(
-            (0.0, 0.0, elbow_point.z - shoulder_point.z)
-        )
+        # Build a reachable elbow direction in 3D: the desired floor-plane
+        # projection is 45 degrees back-and-out from the torso, while the
+        # vertical component preserves the measured upper-arm drop. Then project
+        # that desired elbow onto the plane perpendicular to shoulder->wrist;
+        # Blender's IK pole must specify this bend-plane direction, not an
+        # arbitrary point along the torso axis.
+        flare = math.radians(45.0)
+        desired_horizontal = (
+            -trunk * math.cos(flare) +
+            lateral * sign * math.sin(flare)
+        ).normalized()
+        upper_length = (elbow_point - shoulder_point).length
+        if upper_length < 1e-5:
+            raise RuntimeError(f"push-up contact IK: degenerate upper arm on {side}")
+        vertical_ratio = (elbow_point.z - shoulder_point.z) / upper_length
+        vertical_ratio = max(-0.98, min(-0.15, vertical_ratio))
+        horizontal_ratio = math.sqrt(max(1e-6, 1.0 - vertical_ratio * vertical_ratio))
+        desired_upper = Vector((
+            desired_horizontal.x * horizontal_ratio,
+            desired_horizontal.y * horizontal_ratio,
+            vertical_ratio,
+        )).normalized()
+        desired_elbow = shoulder_point + desired_upper * upper_length
+
+        arm_delta = hand_targets[side] - shoulder_point
+        if arm_delta.length < 1e-5:
+            raise RuntimeError(f"push-up contact IK: degenerate shoulder-to-wrist axis on {side}")
+        arm_axis = arm_delta.normalized()
+        desired_offset = desired_elbow - shoulder_point
+        pole_offset = desired_offset - arm_axis * desired_offset.dot(arm_axis)
+        if pole_offset.length < 1e-5:
+            pole_offset = lateral - arm_axis * lateral.dot(arm_axis)
+        if pole_offset.length < 1e-5:
+            raise RuntimeError(f"push-up contact IK: degenerate elbow pole plane on {side}")
+        pole_targets[side] = shoulder_point + arm_axis * 0.25 + pole_offset.normalized() * 0.35
 
     for side in (".L", ".R"):
         wrist = rig.pose.bones["wrist" + side]
@@ -117,7 +143,7 @@ def apply_push_up_contact_ik(rig):
         "PUSHUP_CONTACT_IK PASS "
         f"hand_z=({hand_targets['.L'].z:.3f},{hand_targets['.R'].z:.3f})m "
         f"toe_targets_z=({toe_targets['.L'].z:.3f},{toe_targets['.R'].z:.3f})m "
-        "elbow_pole=25deg chain_arm=3 chain_leg=3"
+        "elbow_pole=45deg_projected chain_arm=3 chain_leg=3"
     )
 
 
