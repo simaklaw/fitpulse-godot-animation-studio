@@ -59,11 +59,12 @@ def apply_push_up_contact_ik(rig):
         # Keep the shoulder-to-wrist chain isolated so IK cannot rotate the trunk.
         lateral = Vector((trunk.y, -trunk.x, 0.0))
         sign = 1.0 if side == ".L" else -1.0
-        # The elbow vector can point toward either end of the torso axis;
-        # use the front-and-out pole branch so the undirected top-down line
-        # resolves to ~45 degrees rather than a near-perpendicular flare.
-        desired_dir = (trunk * math.cos(math.radians(45.0)) +
-                       lateral * sign * math.sin(math.radians(45.0))).normalized()
+        # Bias the pole more strongly along the body axis and less laterally.
+        # This encourages a 30–60 degree elbow track instead of the sideways
+        # branch observed with a 45-degree pole. The QA threshold remains strict.
+        pole_angle_degrees = 25.0
+        desired_dir = (trunk * math.cos(math.radians(pole_angle_degrees)) +
+                       lateral * sign * math.sin(math.radians(pole_angle_degrees))).normalized()
         pole_targets[side] = shoulder_point + desired_dir * 0.32 + Vector(
             (0.0, 0.0, elbow_point.z - shoulder_point.z)
         )
@@ -116,7 +117,7 @@ def apply_push_up_contact_ik(rig):
         "PUSHUP_CONTACT_IK PASS "
         f"hand_z=({hand_targets['.L'].z:.3f},{hand_targets['.R'].z:.3f})m "
         f"toe_targets_z=({toe_targets['.L'].z:.3f},{toe_targets['.R'].z:.3f})m "
-        "elbow_pole=45deg chain_arm=3 chain_leg=3"
+        "elbow_pole=25deg chain_arm=3 chain_leg=3"
     )
 
 
@@ -276,6 +277,14 @@ def assert_push_up_pose(rig, frame_end):
                     f"{joint_angle:.1f} degrees outside 45–180 degrees"
                 )
             if arm_to_trunk < 25.0 or arm_to_trunk > 75.0:
+                print(
+                    "PUSHUP_ELBOW_DEBUG "
+                    f"frame={frame} side={side} angle={arm_to_trunk:.1f}deg "
+                    f"shoulder=({shoulder_point.x:.3f},{shoulder_point.y:.3f},{shoulder_point.z:.3f}) "
+                    f"elbow=({elbow_point.x:.3f},{elbow_point.y:.3f},{elbow_point.z:.3f}) "
+                    f"wrist=({wrist_point.x:.3f},{wrist_point.y:.3f},{wrist_point.z:.3f}) "
+                    f"trunk=({trunk.x:.3f},{trunk.y:.3f},{trunk.z:.3f})"
+                )
                 raise RuntimeError(
                     f"push-up elbow path failed at frame {frame} {side}: "
                     f"horizontal upper-arm/trunk angle={arm_to_trunk:.1f} degrees; "
