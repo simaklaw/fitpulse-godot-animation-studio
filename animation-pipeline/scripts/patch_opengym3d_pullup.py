@@ -543,6 +543,82 @@ if text.count(setter_old) != 1:
     raise SystemExit("Unexpected upstream MPFB phenotype verification point")
 text = text.replace(setter_old, setter_new, 1)
 
+grip_old = '''def grip_hands(rig, prop_objs, frame):
+    """Close the fingers around the held implement. Every competitor grips;
+    flat fingers through a barbell are the genre's biggest amateur tell."""
+    if not prop_objs:
+        return
+    axis = (prop_objs[0][0].matrix_world.to_3x3() @ Vector((1, 0, 0))).normalized()
+    for side in (".L", ".R"):
+        center = rig.matrix_world @ rig.pose.bones["wrist" + side].tail
+        finger_sign = _curl_sign(rig, "finger2-1" + side, axis, 50, center)
+        thumb_sign = _curl_sign(rig, "finger1-1" + side, axis, 30, center)
+        applied = 0
+        for f in range(1, 6):
+            curls = THUMB_CURL if f == 1 else FINGER_CURL
+            sign = thumb_sign if f == 1 else finger_sign
+            if sign is None:
+                continue
+            for seg in (1, 2, 3):                # proximal first: children inherit
+                pb = rig.pose.bones.get(f"finger{f}-{seg}{side}")
+                if pb is None:
+                    continue
+                q = Quaternion(axis, math.radians(sign * curls[seg]))
+                _rotate_bone_world(pb, q, frame)
+                applied += 1
+        print(f"GRIP {side}: {applied} finger bones, sign={finger_sign}/{thumb_sign}")
+'''
+grip_new = '''# FitPulse pull-up must not re-guess curl direction at every keyframe:
+# the wrist changes orientation during the rep and the heuristic can flip the
+# finger curl sign at the top, visibly opening the hand. Lock the sign from the
+# first dead-hang pose for the entire fixed-bar cycle. Other exercise grips keep
+# the upstream per-keyframe behavior.
+FITPULSE_PULLUP_GRIP_SIGNS = None
+
+
+def grip_hands(rig, prop_objs, frame):
+    """Close fingers around a held implement; stabilize signs for the pull-up."""
+    global FITPULSE_PULLUP_GRIP_SIGNS
+    if not prop_objs:
+        return
+    held_object = prop_objs[0][0]
+    is_fitpulse_pull_up = held_object.name == "PullUpBar"
+    axis = (held_object.matrix_world.to_3x3() @ Vector((1, 0, 0))).normalized()
+
+    if is_fitpulse_pull_up and (frame == 1 or FITPULSE_PULLUP_GRIP_SIGNS is None):
+        FITPULSE_PULLUP_GRIP_SIGNS = {}
+        for side in (".L", ".R"):
+            center = rig.matrix_world @ rig.pose.bones["wrist" + side].tail
+            FITPULSE_PULLUP_GRIP_SIGNS[side] = (
+                _curl_sign(rig, "finger2-1" + side, axis, 50, center),
+                _curl_sign(rig, "finger1-1" + side, axis, 30, center),
+            )
+        print("FITPULSE_PULLUP_GRIP_SIGNS locked from first dead-hang pose: "
+              + repr(FITPULSE_PULLUP_GRIP_SIGNS))
+
+    for side in (".L", ".R"):
+        center = rig.matrix_world @ rig.pose.bones["wrist" + side].tail
+        if is_fitpulse_pull_up:
+            finger_sign, thumb_sign = FITPULSE_PULLUP_GRIP_SIGNS[side]
+        else:
+            finger_sign = _curl_sign(rig, "finger2-1" + side, axis, 50, center)
+            thumb_sign = _curl_sign(rig, "finger1-1" + side, axis, 30, center)
+        applied = 0
+        for f in range(1, 6):
+            curls = THUMB_CURL if f == 1 else FINGER_CURL
+            sign = thumb_sign if f == 1 else finger_sign
+            if sign is None:
+                continue
+            for seg in (1, 2, 3):
+                pb = rig.pose.bones.get(f"finger{f}-{seg}{side}")
+                if pb is None:
+                    continue
+                q = Quaternion(axis, math.radians(sign * curls[seg]))
+                _rotate_bone_world(pb, q, frame)
+                applied += 1
+        print(f"GRIP {side}: {applied} finger bones, sign={finger_sign}/{thumb_sign}"
+              + (" (pull-up sign locked)" if is_fitpulse_pull_up else ""))
+'''
 # Bound MPFB asset downloads so a stalled extensions endpoint cannot hold CI forever.
 download_old = 'with urllib.request.urlopen(req) as resp, open(zpath, "wb") as f:'
 download_new = 'with urllib.request.urlopen(req, timeout=60) as resp, open(zpath, "wb") as f:'
@@ -550,5 +626,9 @@ if text.count(download_old) != 1:
     raise SystemExit("Unexpected upstream MPFB download block; refusing an unsafe timeout patch")
 text = text.replace(download_old, download_new, 1)
 
+if text.count(grip_old) != 1:
+    raise SystemExit("Unexpected upstream grip_hands block; refusing a risky sign-lock patch")
+text = text.replace(grip_old, grip_new, 1)
+
 source.write_text(text)
-print("Patched upstream renderer: male/female profile selection, render profile, and bounded MPFB download.")
+print("Patched upstream renderer: stable pull-up grip signs, male/female profile selection, render profile, and bounded MPFB download.")
