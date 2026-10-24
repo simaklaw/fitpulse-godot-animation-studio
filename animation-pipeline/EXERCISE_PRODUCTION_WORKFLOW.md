@@ -20,9 +20,10 @@
 - animation-pipeline/catalog/repdb-preview-coverage.json — 22 источника и связь с текущими briefs: `direct_reference` не означает, что можно использовать чужой клип вместо своей анимации; `related_pattern` специально не объявляет движения эквивалентными.
 - animation-pipeline/scripts/validate_exercise_catalog.py — схема и межполевые проверки, монотонность фаз, наличие adapter в реестре, обязательные quality gates, безопасность медиа-путей и защита от преждевременного human-approved.
 - animation-pipeline/scripts/audit_animation_reference_zip.py — нерушающий аудит ZIP анимированных WebP.
+- scenes/workshop_home.tscn и scripts/workshop_home.gd — стартовая панель с динамическим статусом каталога и переходами между разделами.
 - scenes/exercise_catalog_preview.tscn и scripts/exercise_catalog_preview.gd — браузер каталога в Godot: поиск, фильтр «дом/зал», мужской/женский профиль, фазы, подсказки техники, ошибки, альтернативы и gates качества.
 
-Открой scenes/exercise_catalog_preview.tscn в Godot 4.x и запусти сцену. Медиа показывается только при наличии валидного ресурса в media_profiles. Когда клип не создан, UI прямо пишет об этом и не рисует фальшивую анатомию.
+Запусти проект в Godot 4.x: стартовый экран открывается в scenes/workshop_home.tscn, где есть переходы в каталог и 2D-прототип подтягивания. В каталоге есть кнопка возврата на главную; из прототипа подтягивания Escape возвращает в каталог. Каждая сцена отдельно проверяется в headless CI. Медиа показывается только при наличии валидного ресурса в media_profiles. Когда клип не создан, UI прямо пишет об этом и не рисует фальшивую анатомию.
 
 ## Renderer adapter и соответствие источникам
 
