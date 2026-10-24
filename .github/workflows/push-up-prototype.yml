@@ -307,19 +307,20 @@ jobs:
           print('Generated dark forest/mint background for transparent-frame compositing.')
           PY
           frame_dir="output/$gender/frames_push_up"
-          alpha_dir="output/$gender/frames_pull_up_alpha"
-          test "$(find "$frame_dir" -maxdepth 1 -type f -name '*.png' | wc -l)" -eq 72
-          expected_frames="${EXPECTED_FRAME_COUNT:-0}"
-          [[ "$expected_frames" =~ ^[0-9]+$ ]] && (( expected_frames >= 30 ))
-          test "$(find "$alpha_dir" -maxdepth 1 -type f -name '*.png' | wc -l)" -eq "$expected_frames"
-          ffmpeg -y -v error -framerate 30 -pattern_type glob -i "$frame_dir/*.png" -c:v libx264 -pix_fmt yuv420p -movflags +faststart "output/$gender/pull_up_studio.mp4"
-          ffmpeg -y -v error -loop 1 -framerate 30 -i /tmp/fitpulse-pull-up-bg.ppm -framerate 30 -pattern_type glob -i "$alpha_dir/*.png" -filter_complex "[0:v][1:v]overlay=shortest=1:format=auto,format=yuv420p[v]" -map "[v]" -frames:v "$frame_count" -c:v libx264 -crf 19 -preset medium -movflags +faststart "output/$gender/pull_up.mp4"
-          ffprobe -v error -select_streams v:0 -show_entries stream=width,height,r_frame_rate,nb_frames -of default=noprint_wrappers=1 "output/$gender/pull_up.mp4" | tee "output/$gender/video-qa.txt"
+          alpha_dir="output/$gender/frames_push_up_alpha"
+          frame_count="$(sed -nE 's/.*OK push_up: ([0-9]+) frames.*/\1/p' "output/$gender/build.log" | tail -n 1)"
+          [[ "$frame_count" =~ ^[0-9]+$ ]] && (( frame_count >= 30 ))
+          echo "EXPECTED_FRAME_COUNT=$frame_count" >> "$GITHUB_ENV"
+          test "$(find "$frame_dir" -maxdepth 1 -type f -name '*.png' | wc -l)" -eq "$frame_count"
+          test "$(find "$alpha_dir" -maxdepth 1 -type f -name '*.png' | wc -l)" -eq "$frame_count"
+          ffmpeg -y -v error -framerate 30 -pattern_type glob -i "$frame_dir/*.png" -c:v libx264 -pix_fmt yuv420p -movflags +faststart "output/$gender/push_up_studio.mp4"
+          ffmpeg -y -v error -loop 1 -framerate 30 -i /tmp/fitpulse-push-up-bg.ppm -framerate 30 -pattern_type glob -i "$alpha_dir/*.png" -filter_complex "[0:v][1:v]overlay=shortest=1:format=auto,format=yuv420p[v]" -map "[v]" -frames:v "$frame_count" -c:v libx264 -crf 19 -preset medium -movflags +faststart "output/$gender/push_up.mp4"
+          ffprobe -v error -select_streams v:0 -show_entries stream=width,height,r_frame_rate,nb_frames -of default=noprint_wrappers=1 "output/$gender/push_up.mp4" | tee "output/$gender/video-qa.txt"
           grep -qx 'width=720' "output/$gender/video-qa.txt"
           grep -qx 'height=720' "output/$gender/video-qa.txt"
           grep -qx 'r_frame_rate=30/1' "output/$gender/video-qa.txt"
           grep -qx "nb_frames=$frame_count" "output/$gender/video-qa.txt"
-          ffmpeg -y -v error -i "output/$gender/pull_up.mp4" -vf "select='eq(n,40)'" -vsync 0 -frames:v 1 "output/$gender/poster.png"
+          ffmpeg -y -v error -i "output/$gender/push_up.mp4" -vf "select='eq(n,$((frame_count / 2)))'" -vsync 0 -frames:v 1 "output/$gender/poster.png"
           test -s "output/$gender/poster.png"
 
       - name: Generate visual QA contact sheet
@@ -328,13 +329,13 @@ jobs:
         run: |
           set -euo pipefail
           gender="${{ matrix.gender }}"
-          video="output/$gender/pull_up.mp4"
+          video="output/$gender/push_up.mp4"
           if [ ! -s "$video" ]; then
             echo "Missing MP4 for $gender; cannot create its contact sheet" >&2
             exit 1
           fi
-          ffmpeg -y -v error -i "$video" -vf "fps=10/3,scale=360:360,tile=4x2" -frames:v 1 "output/$gender/pull_up_contact_sheet.png"
-          test -s "output/$gender/pull_up_contact_sheet.png"
+          ffmpeg -y -v error -i "$video" -vf "fps=10/3,scale=360:360,tile=4x2" -frames:v 1 "output/$gender/push_up_contact_sheet.png"
+          test -s "output/$gender/push_up_contact_sheet.png"
 
       - name: Verify transparent PNG sequence
         if: always()
@@ -342,7 +343,7 @@ jobs:
         run: |
           set -euo pipefail
           gender="${{ matrix.gender }}"
-          alpha_dir="output/$gender/frames_pull_up_alpha"
+          alpha_dir="output/$gender/frames_push_up_alpha"
           test -d "$alpha_dir"
           test "$(find "$alpha_dir" -maxdepth 1 -type f -name '*.png' | wc -l)" -eq 72
           python3 -m venv /tmp/fitpulse-alpha-qa
@@ -354,7 +355,7 @@ jobs:
           import os
 
           gender = os.environ["GENDER"]
-          folder = Path("output") / gender / "frames_pull_up_alpha"
+          folder = Path("output") / gender / "frames_push_up_alpha"
           frames = sorted(folder.glob("*.png"))
           expected = int(os.environ["EXPECTED_FRAME_COUNT"])
           assert len(frames) == expected, f"{gender}: expected {expected} transparent frames, got {len(frames)}"
@@ -389,7 +390,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: fitpulse-pull-up-${{ matrix.gender }}
+          name: fitpulse-push-up-${{ matrix.gender }}
           path: output/${{ matrix.gender }}/**
           if-no-files-found: warn
           retention-days: 14
@@ -402,13 +403,13 @@ jobs:
       - name: Download male render artifact
         uses: actions/download-artifact@v4
         with:
-          name: fitpulse-pull-up-male
+          name: fitpulse-push-up-male
           path: bundle/male
 
       - name: Download female render artifact
         uses: actions/download-artifact@v4
         with:
-          name: fitpulse-pull-up-female
+          name: fitpulse-push-up-female
           path: bundle/female
 
       - name: Verify distinct male and female render outputs
@@ -416,9 +417,9 @@ jobs:
         run: |
           set -euo pipefail
           for gender in male female; do
-            test -s "bundle/$gender/pull_up.glb"
-            test -s "bundle/$gender/pull_up.png"
-            test -s "bundle/$gender/pull_up.mp4"
+            test -s "bundle/$gender/push_up.glb"
+            test -s "bundle/$gender/push_up.png"
+            test -s "bundle/$gender/push_up.mp4"
             test -s "bundle/$gender/poster.png"
             grep -q "CHARACTER_PROFILE_VERIFIED gender=$gender" "bundle/$gender/build.log"
             if [ "$gender" = "male" ]; then
@@ -431,7 +432,7 @@ jobs:
             grep -q "APPAREL_LOADED gender=$gender item=hair" "bundle/$gender/build.log"
             grep -q "APPAREL_LOADED gender=$gender item=shoes" "bundle/$gender/build.log"
           done
-          if cmp -s bundle/male/pull_up.glb bundle/female/pull_up.glb; then
+          if cmp -s bundle/male/push_up.glb bundle/female/push_up.glb; then
             echo "Male/female GLB files are byte-identical." >&2
             exit 1
           fi
@@ -442,7 +443,7 @@ jobs:
           from PIL import Image
           import hashlib
 
-          with Image.open("bundle/male/pull_up.png") as male_thumb, Image.open("bundle/female/pull_up.png") as female_thumb:
+          with Image.open("bundle/male/push_up.png") as male_thumb, Image.open("bundle/female/push_up.png") as female_thumb:
               assert male_thumb.size == female_thumb.size == (512, 512)
               assert hashlib.sha256(male_thumb.tobytes()).digest() != hashlib.sha256(female_thumb.tobytes()).digest(), "male/female thumbnails are pixel-identical"
           with Image.open("bundle/male/poster.png") as male_poster, Image.open("bundle/female/poster.png") as female_poster:
@@ -454,7 +455,7 @@ jobs:
       - name: Publish combined verified artifact
         uses: actions/upload-artifact@v4
         with:
-          name: fitpulse-pull-up-prototype
+          name: fitpulse-push-up-prototype
           path: bundle/**
           if-no-files-found: error
           retention-days: 14
