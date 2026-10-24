@@ -270,29 +270,41 @@ def assert_push_up_pose(rig, frame_end):
             # to an 80-degree flare, not a negative/forward-facing angle.
             arm_to_trunk = min(arm_to_trunk, 180.0 - arm_to_trunk)
             elbow_angles.append(joint_angle)
-            elbow_to_trunk_angles.append(arm_to_trunk)
             if joint_angle < 45.0 or joint_angle > 180.0:
                 raise RuntimeError(
                     f"push-up elbow flexion failed at frame {frame} {side}: "
                     f"{joint_angle:.1f} degrees outside 45–180 degrees"
                 )
-            if arm_to_trunk < 25.0 or arm_to_trunk > 75.0:
-                print(
-                    "PUSHUP_ELBOW_DEBUG "
-                    f"frame={frame} side={side} angle={arm_to_trunk:.1f}deg "
-                    f"shoulder=({shoulder_point.x:.3f},{shoulder_point.y:.3f},{shoulder_point.z:.3f}) "
-                    f"elbow=({elbow_point.x:.3f},{elbow_point.y:.3f},{elbow_point.z:.3f}) "
-                    f"wrist=({wrist_point.x:.3f},{wrist_point.y:.3f},{wrist_point.z:.3f}) "
-                    f"trunk=({trunk.x:.3f},{trunk.y:.3f},{trunk.z:.3f})"
-                )
-                raise RuntimeError(
-                    f"push-up elbow path failed at frame {frame} {side}: "
-                    f"horizontal upper-arm/trunk angle={arm_to_trunk:.1f} degrees; "
-                    "expected a controlled back-and-out path (25–75 degrees)"
-                )
+            # In a near-locked top-plank position the upper arm's floor-plane
+            # projection becomes ill-conditioned: tiny bone-roll changes dominate
+            # its apparent flare. Assess the 25–75 degree tracking angle only
+            # while the elbow is meaningfully flexed, without widening that range.
+            if joint_angle <= 165.0:
+                elbow_to_trunk_angles.append(arm_to_trunk)
+                if arm_to_trunk < 25.0 or arm_to_trunk > 75.0:
+                    print(
+                        "PUSHUP_ELBOW_DEBUG "
+                        f"frame={frame} side={side} angle={arm_to_trunk:.1f}deg "
+                        f"joint={joint_angle:.1f}deg "
+                        f"shoulder=({shoulder_point.x:.3f},{shoulder_point.y:.3f},{shoulder_point.z:.3f}) "
+                        f"elbow=({elbow_point.x:.3f},{elbow_point.y:.3f},{elbow_point.z:.3f}) "
+                        f"wrist=({wrist_point.x:.3f},{wrist_point.y:.3f},{wrist_point.z:.3f}) "
+                        f"trunk=({trunk.x:.3f},{trunk.y:.3f},{trunk.z:.3f})"
+                    )
+                    raise RuntimeError(
+                        f"push-up elbow path failed at frame {frame} {side}: "
+                        f"horizontal upper-arm/trunk angle={arm_to_trunk:.1f} degrees "
+                        f"with elbow flexion={joint_angle:.1f} degrees; "
+                        "expected a controlled back-and-out path (25–75 degrees)"
+                    )
 
     if first is None or last is None:
         raise RuntimeError("push-up QA: no frames were sampled")
+    if len(elbow_to_trunk_angles) < 5:
+        raise RuntimeError(
+            "push-up elbow-path QA needs at least 5 flexed-arm samples "
+            f"(elbow angle <=165 degrees); observed {len(elbow_to_trunk_angles)}"
+        )
 
     seam_distances = {}
     seam_points = {
