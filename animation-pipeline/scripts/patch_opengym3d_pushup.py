@@ -140,7 +140,7 @@ def apply_push_up_contact_ik(rig):
         arm_ik.target = hand_target
         arm_ik.pole_target = pole
         arm_ik.pole_angle = 0.0
-        arm_ik.chain_count = 3
+        arm_ik.chain_count = 5
         arm_ik.iterations = 100
         arm_ik.use_stretch = False
         arm_ik.influence = 1.0
@@ -168,7 +168,7 @@ def apply_push_up_contact_ik(rig):
         f"hand_z=({hand_targets['.L'].z:.3f},{hand_targets['.R'].z:.3f})m "
         f"toe_targets_z=({toe_targets['.L'].z:.3f},{toe_targets['.R'].z:.3f})m "
         f"elbow_pole=animated_projected frames={len(frame_range)} "
-        "target_flare=45deg chain_arm=3 chain_leg=3"
+        "target_flare=45deg chain_arm=5 chain_leg=3"
     )
 
 
