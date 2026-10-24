@@ -10,7 +10,10 @@ on:
       - "animation-pipeline/scripts/audit_animation_reference_zip.py"
       - "animation-pipeline/tests/**"
       - "scripts/exercise_catalog_preview.gd"
+      - "scripts/workshop_home.gd"
       - "scenes/exercise_catalog_preview.tscn"
+      - "scenes/workshop_home.tscn"
+      - "project.godot"
       - ".github/workflows/validate-exercise-catalog.yml"
   pull_request:
     paths:
@@ -19,7 +22,10 @@ on:
       - "animation-pipeline/scripts/audit_animation_reference_zip.py"
       - "animation-pipeline/tests/**"
       - "scripts/exercise_catalog_preview.gd"
+      - "scripts/workshop_home.gd"
       - "scenes/exercise_catalog_preview.tscn"
+      - "scenes/workshop_home.tscn"
+      - "project.godot"
       - ".github/workflows/validate-exercise-catalog.yml"
 
 permissions:
