@@ -1,0 +1,1516 @@
+{
+  "schema_version": 1,
+  "catalog_name": "FitPulse Exercise Production Catalog",
+  "description_ru": "Единый реестр упражнений для домашней и заловой тренировок. Это производственные задания и критерии техники, а не заявление, что для каждого упражнения уже создана готовая анимация.",
+  "exercises": [
+    {
+      "id": "pull_up",
+      "name_ru": "Подтягивание прямым хватом",
+      "name_en": "Overhand Pull-Up",
+      "category": "strength",
+      "environments": [
+        "home",
+        "gym"
+      ],
+      "equipment": [
+        "pull_up_bar"
+      ],
+      "equipment_alternatives": [
+        {
+          "name_ru": "Подтягивание с резиновой поддержкой",
+          "equipment": [
+            "pull_up_bar",
+            "resistance_band"
+          ],
+          "environment": "both",
+          "note_ru": "Снизить требуемую помощь резинки постепенно; не раскачивать ноги."
+        },
+        {
+          "name_ru": "Тяга верхнего блока",
+          "equipment": [
+            "lat_pulldown"
+          ],
+          "environment": "gym",
+          "note_ru": "Альтернатива для развития вертикальной тяги, но не идентичная механика."
+        }
+      ],
+      "difficulty": "intermediate",
+      "unilateral": false,
+      "movement": {
+        "pattern": "vertical_pull",
+        "mode": "repetition",
+        "fps": 30,
+        "duration_s": 3.2,
+        "loop": true,
+        "phases": [
+          {
+            "id": "dead_hang",
+            "name_ru": "Вис",
+            "time": 0,
+            "kind": "setup",
+            "cue_ru": "Перекладина и кисти неподвижны; локти почти выпрямлены."
+          },
+          {
+            "id": "scapular_set",
+            "name_ru": "Подготовка лопаток",
+            "time": 0.17,
+            "kind": "transition",
+            "cue_ru": "Плечевой пояс включается без раскачки тела."
+          },
+          {
+            "id": "concentric_pull",
+            "name_ru": "Подъём",
+            "time": 0.4,
+            "kind": "concentric",
+            "cue_ru": "Локти идут к рёбрам, корпус движется вверх."
+          },
+          {
+            "id": "top_position",
+            "name_ru": "Верхняя точка",
+            "time": 0.58,
+            "kind": "top",
+            "cue_ru": "Подбородок выше перекладины; шея остаётся нейтральной."
+          },
+          {
+            "id": "eccentric_lowering",
+            "name_ru": "Контролируемое опускание",
+            "time": 0.81,
+            "kind": "eccentric",
+            "cue_ru": "Корпус плавно опускается, кисти остаются на месте."
+          },
+          {
+            "id": "return_to_hang",
+            "name_ru": "Возврат в вис",
+            "time": 1,
+            "kind": "return",
+            "cue_ru": "Первый и последний кадры совпадают по контактам и силуэту."
+          }
+        ]
+      },
+      "primary_muscles": [
+        "latissimus_dorsi"
+      ],
+      "secondary_muscles": [
+        "biceps",
+        "forearms",
+        "trapezius"
+      ],
+      "technique": {
+        "setup_ru": "Повисни на неподвижной перекладине хватом сверху примерно на ширине плеч. Большой палец замыкает хват. Корпус собран, ноги спокойно свисают.",
+        "instructions_ru": [
+          "Начни повтор с контролируемого положения плечевого пояса, не дёргайся из расслабленных связок.",
+          "Веди локти вниз к рёбрам, поднимая грудную клетку к перекладине.",
+          "В верхней точке подбородок проходит выше перекладины без запрокидывания головы.",
+          "Опускайся медленно до почти полного разгибания локтей и повторяй без раскачки."
+        ],
+        "cues_ru": [
+          "Кисти закрыты вокруг перекладины; хват и ширина рук не меняются в цикле.",
+          "Лопатки начинают движение раньше выраженного сгибания локтей.",
+          "Таз, колени и стопы остаются спокойными; рёбра не выпячиваются.",
+          "На подъёме локти движутся вниз и немного назад, а не резко в стороны."
+        ],
+        "common_errors_ru": [
+          "Пальцы раскрываются или скользят по перекладине.",
+          "Рывок коленями, киппинг или раскачивание для завершения повтора.",
+          "Подбородок тянется к перекладине при почти неподвижном корпусе.",
+          "Плечи резко уходят вперёд, а поясница чрезмерно прогибается."
+        ],
+        "breathing_ru": "Выдох на подъёме, спокойный вдох на контролируемом опускании.",
+        "safety_ru": "Используй только надёжно закреплённую перекладину. При боли в плечах или локтях прекрати движение; не показывай экстремальную амплитуду, недоступную модели."
+      },
+      "quality_gates": [
+        "full_body_in_frame",
+        "mobile_readability",
+        "joint_continuity",
+        "loop_seam",
+        "human_technique_review",
+        "fixed_equipment",
+        "hand_contact",
+        "grip_flexion",
+        "top_position",
+        "foot_clearance",
+        "transparency",
+        "male_female_distinction"
+      ],
+      "media_profiles": {
+        "male": {
+          "status": "prototype_unreviewed",
+          "sprite_frames": null,
+          "poster": null,
+          "video": null,
+          "source_commit": null,
+          "sha256": null
+        },
+        "female": {
+          "status": "prototype_unreviewed",
+          "sprite_frames": null,
+          "poster": null,
+          "video": null,
+          "source_commit": null,
+          "sha256": null
+        }
+      },
+      "production_status": "prototype_unreviewed",
+      "human_review_evidence": null
+    },
+    {
+      "id": "push_up",
+      "name_ru": "Отжимание от пола",
+      "name_en": "Push-Up",
+      "category": "strength",
+      "environments": [
+        "home",
+        "gym"
+      ],
+      "equipment": [],
+      "equipment_alternatives": [
+        {
+          "name_ru": "Отжимание от опоры",
+          "equipment": [
+            "bench"
+          ],
+          "environment": "both",
+          "note_ru": "Повысить положение ладоней для облегчённого варианта."
+        },
+        {
+          "name_ru": "Отжимание с колен",
+          "equipment": [],
+          "environment": "both",
+          "note_ru": "Сохранять прямую линию от головы до колен."
+        }
+      ],
+      "difficulty": "beginner",
+      "unilateral": false,
+      "movement": {
+        "pattern": "horizontal_push",
+        "mode": "repetition",
+        "fps": 30,
+        "duration_s": 3.2,
+        "loop": true,
+        "phases": [
+          {
+            "id": "top_plank",
+            "name_ru": "Верхняя планка",
+            "time": 0,
+            "kind": "setup",
+            "cue_ru": "Тело выстроено, ладони устойчивы."
+          },
+          {
+            "id": "lowering",
+            "name_ru": "Опускание",
+            "time": 0.27,
+            "kind": "eccentric",
+            "cue_ru": "Грудная клетка приближается к полу, локти сохраняют траекторию."
+          },
+          {
+            "id": "bottom",
+            "name_ru": "Нижняя точка",
+            "time": 0.5,
+            "kind": "bottom",
+            "cue_ru": "Поясница нейтральна, грудь близко к полу."
+          },
+          {
+            "id": "press",
+            "name_ru": "Отталкивание",
+            "time": 0.82,
+            "kind": "concentric",
+            "cue_ru": "Ладони давят в пол, корпус поднимается единым блоком."
+          },
+          {
+            "id": "top_return",
+            "name_ru": "Возврат наверх",
+            "time": 1,
+            "kind": "return",
+            "cue_ru": "Контролируемое разгибание без провала плеч."
+          }
+        ]
+      },
+      "primary_muscles": [
+        "pectoralis_major"
+      ],
+      "secondary_muscles": [
+        "triceps",
+        "anterior_deltoid",
+        "serratus_anterior"
+      ],
+      "technique": {
+        "setup_ru": "Ладони чуть шире плеч, пальцы раскрыты и упираются в пол. Голова, грудная клетка, таз и ноги образуют одну линию.",
+        "instructions_ru": [
+          "Напряги пресс и ягодицы до начала повторения.",
+          "Опускай грудную клетку между ладонями, направляя локти примерно под 30–60 градусов от корпуса.",
+          "Остановись до потери положения корпуса; не проваливай поясницу.",
+          "Оттолкнись от пола до контролируемого разгибания локтей."
+        ],
+        "cues_ru": [
+          "Корпус движется как единый блок.",
+          "Локти направлены назад-в стороны, а не раскрываются строго поперёк плеч.",
+          "Ладони остаются прижаты к полу, плечи не поднимаются к ушам."
+        ],
+        "common_errors_ru": [
+          "Провисание таза или чрезмерный прогиб поясницы.",
+          "Локти раскрываются почти на 90 градусов.",
+          "Голова опускается отдельно от грудной клетки.",
+          "Короткая амплитуда без контролируемого опускания."
+        ],
+        "breathing_ru": "Вдох при опускании, выдох при отталкивании.",
+        "safety_ru": "Выбирай наклонную или облегчённую версию, если не удаётся сохранить линию корпуса."
+      },
+      "quality_gates": [
+        "full_body_in_frame",
+        "mobile_readability",
+        "joint_continuity",
+        "loop_seam",
+        "human_technique_review",
+        "hand_floor_contact",
+        "body_line",
+        "elbow_path",
+        "stable_trunk",
+        "transparency",
+        "male_female_distinction"
+      ],
+      "media_profiles": {
+        "male": {
+          "status": "brief_only",
+          "sprite_frames": null,
+          "poster": null,
+          "video": null,
+          "source_commit": null,
+          "sha256": null
+        },
+        "female": {
+          "status": "brief_only",
+          "sprite_frames": null,
+          "poster": null,
+          "video": null,
+          "source_commit": null,
+          "sha256": null
+        }
+      },
+      "production_status": "brief_only",
+      "human_review_evidence": null
+    },
+    {
+      "id": "bodyweight_squat",
+      "name_ru": "Приседание с собственным весом",
+      "name_en": "Bodyweight Squat",
+      "category": "strength",
+      "environments": [
+        "home",
+        "gym"
+      ],
+      "equipment": [],
+      "equipment_alternatives": [
+        {
+          "name_ru": "Приседание с опорой",
+          "equipment": [
+            "chair"
+          ],
+          "environment": "home",
+          "note_ru": "Опора помогает отработать контролируемую глубину; не падать на сиденье."
+        },
+        {
+          "name_ru": "Гоблет-присед",
+          "equipment": [
+            "dumbbell"
+          ],
+          "environment": "both",
+          "note_ru": "Дополнительный вес держится перед грудью, не меняя контроля корпуса."
+        }
+      ],
+      "difficulty": "beginner",
+      "unilateral": false,
+      "movement": {
+        "pattern": "squat",
+        "mode": "repetition",
+        "fps": 30,
+        "duration_s": 3.2,
+        "loop": true,
+        "phases": [
+          {
+            "id": "standing",
+            "name_ru": "Исходное положение",
+            "time": 0,
+            "kind": "setup",
+            "cue_ru": "Стопы устойчивы, корпус собран."
+          },
+          {
+            "id": "descent",
+            "name_ru": "Опускание",
+            "time": 0.3,
+            "kind": "eccentric",
+            "cue_ru": "Таз и колени сгибаются согласованно."
+          },
+          {
+            "id": "bottom",
+            "name_ru": "Нижняя точка",
+            "time": 0.52,
+            "kind": "bottom",
+            "cue_ru": "Пятки на полу, колени следуют носкам."
+          },
+          {
+            "id": "ascent",
+            "name_ru": "Подъём",
+            "time": 0.84,
+            "kind": "concentric",
+            "cue_ru": "Полная стопа давит в пол; таз и грудная клетка поднимаются согласованно."
+          },
+          {
+            "id": "standing_return",
+            "name_ru": "Возврат стоя",
+            "time": 1,
+            "kind": "return",
+            "cue_ru": "Баланс и положение стоп совпадают с началом."
+          }
+        ]
+      },
+      "primary_muscles": [
+        "quadriceps",
+        "gluteus_maximus"
+      ],
+      "secondary_muscles": [
+        "hamstrings",
+        "adductors",
+        "erector_spinae"
+      ],
+      "technique": {
+        "setup_ru": "Стопы примерно на ширине плеч, носки слегка наружу. Давление распределено по всей стопе, корпус собран.",
+        "instructions_ru": [
+          "Отведи таз назад и согни колени, сохраняя опору на пятке и передней части стопы.",
+          "Опускайся настолько глубоко, насколько позволяет подвижность без потери контроля таза и стоп.",
+          "Колени следуют направлению носков и не схлопываются внутрь.",
+          "Оттолкнись всей стопой и вернись в устойчивое положение стоя."
+        ],
+        "cues_ru": [
+          "Колени направлены примерно по линии носков.",
+          "Пятки не отрываются от пола.",
+          "Таз и грудная клетка движутся согласованно, без резкого округления поясницы.",
+          "Глубина индивидуальна; не форсируй крайний диапазон ради картинки."
+        ],
+        "common_errors_ru": [
+          "Пятки отрываются, стопы заваливаются внутрь.",
+          "Колени схлопываются внутрь в нижней точке.",
+          "Поясница резко округляется или корпус падает вперёд.",
+          "Пружинистый неконтролируемый выход из нижней точки."
+        ],
+        "breathing_ru": "Вдох при опускании, выдох при подъёме.",
+        "safety_ru": "Не задавай одну универсальную глубину для всех телосложений; адаптируй амплитуду под комфорт и мобильность."
+      },
+      "quality_gates": [
+        "full_body_in_frame",
+        "mobile_readability",
+        "joint_continuity",
+        "loop_seam",
+        "human_technique_review",
+        "foot_floor_contact",
+        "knee_tracking",
+        "depth_range",
+        "stable_trunk",
+        "transparency",
+        "male_female_distinction"
+      ],
+      "media_profiles": {
+        "male": {
+          "status": "brief_only",
+          "sprite_frames": null,
+          "poster": null,
+          "video": null,
+          "source_commit": null,
+          "sha256": null
+        },
+        "female": {
+          "status": "brief_only",
+          "sprite_frames": null,
+          "poster": null,
+          "video": null,
+          "source_commit": null,
+          "sha256": null
+        }
+      },
+      "production_status": "brief_only",
+      "human_review_evidence": null
+    },
+    {
+      "id": "mountain_climbers",
+      "name_ru": "Скалолаз",
+      "name_en": "Mountain Climbers",
+      "category": "cardio",
+      "environments": [
+        "home",
+        "gym"
+      ],
+      "equipment": [],
+      "equipment_alternatives": [
+        {
+          "name_ru": "Медленный скалолаз",
+          "equipment": [],
+          "environment": "both",
+          "note_ru": "Замедлить темп, если таз раскачивается или плечи теряют опору."
+        },
+        {
+          "name_ru": "Скалолаз с руками на опоре",
+          "equipment": [
+            "bench"
+          ],
+          "environment": "both",
+          "note_ru": "Уменьшить нагрузку на запястья и облегчить контроль корпуса."
+        }
+      ],
+      "difficulty": "beginner",
+      "unilateral": false,
+      "movement": {
+        "pattern": "alternating_knee_drive",
+        "mode": "cycle",
+        "fps": 30,
+        "duration_s": 3.5,
+        "loop": true,
+        "phases": [
+          {
+            "id": "high_plank",
+            "name_ru": "Высокая планка",
+            "time": 0,
+            "kind": "setup",
+            "cue_ru": "Плечи над ладонями, корпус устойчив."
+          },
+          {
+            "id": "knee_drive_right",
+            "name_ru": "Подтягивание правого колена",
+            "time": 0.25,
+            "kind": "concentric",
+            "cue_ru": "Колено движется вперёд, таз контролируется."
+          },
+          {
+            "id": "plank_transition",
+            "name_ru": "Смена ног",
+            "time": 0.5,
+            "kind": "transition",
+            "cue_ru": "Ноги меняются без раскачки корпуса."
+          },
+          {
+            "id": "knee_drive_left",
+            "name_ru": "Подтягивание левого колена",
+            "time": 0.75,
+            "kind": "concentric",
+            "cue_ru": "Вторая сторона повторяет ту же механику."
+          },
+          {
+            "id": "cycle_return",
+            "name_ru": "Возврат в планку",
+            "time": 1,
+            "kind": "return",
+            "cue_ru": "Цикл заканчивается симметрично и без рывка."
+          }
+        ]
+      },
+      "primary_muscles": [
+        "rectus_abdominis",
+        "hip_flexors"
+      ],
+      "secondary_muscles": [
+        "anterior_deltoid",
+        "quadriceps",
+        "obliques"
+      ],
+      "technique": {
+        "setup_ru": "Высокая планка, ладони под плечами, пальцы широко раскрыты, тело вытянуто.",
+        "instructions_ru": [
+          "Зафиксируй плечи над запястьями и напряги корпус.",
+          "Поочерёдно подтягивай колено вперёд к корпусу без сильного разворота таза.",
+          "Возвращай стопу под контроль и меняй сторону в заданном темпе.",
+          "Сохраняй давление в ладонях и одинаковую высоту таза."
+        ],
+        "cues_ru": [
+          "Плечи остаются над ладонями.",
+          "Таз не подпрыгивает и не проваливается при смене ног.",
+          "Колено движется вперёд, а позвоночник остаётся контролируемым."
+        ],
+        "common_errors_ru": [
+          "Сильная раскачка бёдер вверх-вниз.",
+          "Ладони уходят далеко перед плечами.",
+          "Поясница провисает при ускорении.",
+          "Стопы хаотично ударяются о пол."
+        ],
+        "breathing_ru": "Дыши ритмично; не задерживай дыхание на длинные серии.",
+        "safety_ru": "Сначала отработай медленную версию; прекращай при боли в запястьях, плечах или пояснице."
+      },
+      "quality_gates": [
+        "full_body_in_frame",
+        "mobile_readability",
+        "joint_continuity",
+        "loop_seam",
+        "human_technique_review",
+        "hand_floor_contact",
+        "body_line",
+        "stable_trunk",
+        "side_symmetry",
+        "transparency",
+        "male_female_distinction"
+      ],
+      "media_profiles": {
+        "male": {
+          "status": "brief_only",
+          "sprite_frames": null,
+          "poster": null,
+          "video": null,
+          "source_commit": null,
+          "sha256": null
+        },
+        "female": {
+          "status": "brief_only",
+          "sprite_frames": null,
+          "poster": null,
+          "video": null,
+          "source_commit": null,
+          "sha256": null
+        }
+      },
+      "production_status": "brief_only",
+      "human_review_evidence": null
+    },
+    {
+      "id": "dumbbell_row",
+      "name_ru": "Тяга гантели в наклоне",
+      "name_en": "Dumbbell Row",
+      "category": "strength",
+      "environments": [
+        "home",
+        "gym"
+      ],
+      "equipment": [
+        "dumbbell"
+      ],
+      "equipment_alternatives": [
+        {
+          "name_ru": "Тяга резинки",
+          "equipment": [
+            "resistance_band"
+          ],
+          "environment": "both",
+          "note_ru": "Резинка должна иметь надёжную точку крепления и достаточное натяжение."
+        },
+        {
+          "name_ru": "Тяга блока сидя",
+          "equipment": [
+            "cable_machine"
+          ],
+          "environment": "gym",
+          "note_ru": "Траектория и положение корпуса отличаются от тяги одной гантели."
+        },
+        {
+          "name_ru": "Тяга рюкзака одной рукой",
+          "equipment": [
+            "backpack"
+          ],
+          "environment": "home",
+          "note_ru": "Только при надёжно закрытом рюкзаке и безопасно закреплённом грузе."
+        }
+      ],
+      "difficulty": "beginner",
+      "unilateral": true,
+      "movement": {
+        "pattern": "horizontal_pull",
+        "mode": "repetition",
+        "fps": 30,
+        "duration_s": 3.2,
+        "loop": true,
+        "phases": [
+          {
+            "id": "hang",
+            "name_ru": "Нижнее положение",
+            "time": 0,
+            "kind": "setup",
+            "cue_ru": "Рука вытянута под плечом, спина нейтральна."
+          },
+          {
+            "id": "pull",
+            "name_ru": "Тяга",
+            "time": 0.42,
+            "kind": "concentric",
+            "cue_ru": "Локоть движется к тазу, корпус неподвижен."
+          },
+          {
+            "id": "squeeze",
+            "name_ru": "Верхняя точка",
+            "time": 0.55,
+            "kind": "top",
+            "cue_ru": "Лопатка движется естественно, плечо не пожимается."
+          },
+          {
+            "id": "lower",
+            "name_ru": "Опускание",
+            "time": 0.86,
+            "kind": "eccentric",
+            "cue_ru": "Гантель опускается медленно по той же траектории."
+          },
+          {
+            "id": "hang_return",
+            "name_ru": "Возврат вниз",
+            "time": 1,
+            "kind": "return",
+            "cue_ru": "Без раскачки и смены угла корпуса."
+          }
+        ]
+      },
+      "primary_muscles": [
+        "latissimus_dorsi",
+        "rhomboids"
+      ],
+      "secondary_muscles": [
+        "biceps",
+        "posterior_deltoid",
+        "trapezius"
+      ],
+      "technique": {
+        "setup_ru": "Стой устойчиво, наклонись в тазобедренных суставах, спина нейтральна. При одноручном варианте свободной рукой можно опереться на устойчивую скамью.",
+        "instructions_ru": [
+          "Сохраняй угол корпуса и положение таза на протяжении повтора.",
+          "Веди локоть назад к нижним рёбрам, не поднимая плечо к уху.",
+          "Коротко зафиксируй верхнюю точку без поворота корпуса.",
+          "Опускай гантель до контролируемого вытяжения руки."
+        ],
+        "cues_ru": [
+          "Наклон задаётся тазобедренным шарниром, а не круглой поясницей.",
+          "Локоть проходит вдоль корпуса к рёбрам.",
+          "Плечо не пожимается; корпус не разворачивается вслед за весом."
+        ],
+        "common_errors_ru": [
+          "Раскачивание туловища для подъёма гантели.",
+          "Поворот таза и плеч в каждом повторе.",
+          "Плечо уходит к уху.",
+          "Гантель тянется к груди вместо нижних рёбер."
+        ],
+        "breathing_ru": "Выдох при тяге, вдох при опускании.",
+        "safety_ru": "Вес должен позволять контролировать корпус и опускание; используйте устойчивую опору."
+      },
+      "quality_gates": [
+        "full_body_in_frame",
+        "mobile_readability",
+        "joint_continuity",
+        "loop_seam",
+        "human_technique_review",
+        "stable_trunk",
+        "side_symmetry",
+        "prop_collision",
+        "transparency",
+        "male_female_distinction"
+      ],
+      "media_profiles": {
+        "male": {
+          "status": "brief_only",
+          "sprite_frames": null,
+          "poster": null,
+          "video": null,
+          "source_commit": null,
+          "sha256": null
+        },
+        "female": {
+          "status": "brief_only",
+          "sprite_frames": null,
+          "poster": null,
+          "video": null,
+          "source_commit": null,
+          "sha256": null
+        }
+      },
+      "production_status": "brief_only",
+      "human_review_evidence": null
+    },
+    {
+      "id": "front_squat",
+      "name_ru": "Фронтальный присед со штангой",
+      "name_en": "Barbell Front Squat",
+      "category": "strength",
+      "environments": [
+        "gym"
+      ],
+      "equipment": [
+        "barbell",
+        "rack"
+      ],
+      "equipment_alternatives": [
+        {
+          "name_ru": "Гоблет-присед",
+          "equipment": [
+            "dumbbell"
+          ],
+          "environment": "both",
+          "note_ru": "Домашняя замена с меньшей нагрузкой; вес удерживается у груди."
+        },
+        {
+          "name_ru": "Присед без веса",
+          "equipment": [],
+          "environment": "home",
+          "note_ru": "Вариант для отработки баланса и диапазона без внешней нагрузки."
+        }
+      ],
+      "difficulty": "advanced",
+      "unilateral": false,
+      "movement": {
+        "pattern": "front_squat",
+        "mode": "repetition",
+        "fps": 30,
+        "duration_s": 3.2,
+        "loop": true,
+        "phases": [
+          {
+            "id": "rack_stand",
+            "name_ru": "Стойка с грифом",
+            "time": 0,
+            "kind": "setup",
+            "cue_ru": "Локти высоко, гриф устойчиво лежит на плечах."
+          },
+          {
+            "id": "descent",
+            "name_ru": "Опускание",
+            "time": 0.3,
+            "kind": "eccentric",
+            "cue_ru": "Колени идут по линии стоп, гриф над средней стопой."
+          },
+          {
+            "id": "bottom",
+            "name_ru": "Нижняя точка",
+            "time": 0.52,
+            "kind": "bottom",
+            "cue_ru": "Стопа полностью на полу, позвоночник контролируется."
+          },
+          {
+            "id": "drive",
+            "name_ru": "Подъём",
+            "time": 0.84,
+            "kind": "concentric",
+            "cue_ru": "Локти остаются высоко, таз и грудная клетка поднимаются согласованно."
+          },
+          {
+            "id": "rack_stand_return",
+            "name_ru": "Возврат в стойку",
+            "time": 1,
+            "kind": "return",
+            "cue_ru": "Баланс и положение грифа совпадают с началом."
+          }
+        ]
+      },
+      "primary_muscles": [
+        "quadriceps",
+        "gluteus_maximus"
+      ],
+      "secondary_muscles": [
+        "core",
+        "erector_spinae",
+        "upper_back"
+      ],
+      "technique": {
+        "setup_ru": "Штанга расположена на передней части плеч, локти направлены вперёд. Стойка устойчивая; гриф и стойки должны быть отрегулированы под рост.",
+        "instructions_ru": [
+          "Сохраняй высокое положение локтей и собранный корпус.",
+          "Опускайся между стопами, позволяя коленям двигаться вперёд по линии носков.",
+          "Поддерживай весь контакт стоп с полом и нейтральное положение позвоночника.",
+          "Встань, давя всей стопой, не позволяя локтям и груди резко падать."
+        ],
+        "cues_ru": [
+          "Гриф остаётся над средней частью стопы; не уходит далеко вперёд.",
+          "Локти не опускаются на нижнем участке.",
+          "Колени отслеживают направление носков.",
+          "Глубина соответствует контролируемой мобильности голеностопа и тазобедренных суставов."
+        ],
+        "common_errors_ru": [
+          "Локти падают, гриф скатывается вперёд.",
+          "Колени схлопываются внутрь.",
+          "Пятки отрываются или стопа теряет опору.",
+          "Спина округляется из-за попытки присесть глубже доступного."
+        ],
+        "breathing_ru": "Вдох и фиксация корпуса перед опусканием; выдох после прохождения трудного участка подъёма.",
+        "safety_ru": "Показывай стойки безопасности и безопасный выход; не добавляй максимальную нагрузку и не обещай одну подходящую глубину всем."
+      },
+      "quality_gates": [
+        "full_body_in_frame",
+        "mobile_readability",
+        "joint_continuity",
+        "loop_seam",
+        "human_technique_review",
+        "fixed_equipment",
+        "foot_floor_contact",
+        "knee_tracking",
+        "depth_range",
+        "bar_path",
+        "prop_collision",
+        "transparency",
+        "male_female_distinction"
+      ],
+      "media_profiles": {
+        "male": {
+          "status": "brief_only",
+          "sprite_frames": null,
+          "poster": null,
+          "video": null,
+          "source_commit": null,
+          "sha256": null
+        },
+        "female": {
+          "status": "brief_only",
+          "sprite_frames": null,
+          "poster": null,
+          "video": null,
+          "source_commit": null,
+          "sha256": null
+        }
+      },
+      "production_status": "brief_only",
+      "human_review_evidence": null
+    },
+    {
+      "id": "cat_cow",
+      "name_ru": "Кошка — корова",
+      "name_en": "Cat-Cow",
+      "category": "mobility",
+      "environments": [
+        "home",
+        "gym"
+      ],
+      "equipment": [],
+      "equipment_alternatives": [
+        {
+          "name_ru": "Сидячая мобилизация позвоночника",
+          "equipment": [
+            "chair"
+          ],
+          "environment": "both",
+          "note_ru": "Используй при дискомфорте в положении на четвереньках; диапазон остаётся мягким."
+        }
+      ],
+      "difficulty": "beginner",
+      "unilateral": false,
+      "movement": {
+        "pattern": "spinal_flexion_extension",
+        "mode": "cycle",
+        "fps": 30,
+        "duration_s": 4,
+        "loop": true,
+        "phases": [
+          {
+            "id": "neutral",
+            "name_ru": "Нейтральное положение",
+            "time": 0,
+            "kind": "setup",
+            "cue_ru": "Позвоночник нейтрален, опора стабильна."
+          },
+          {
+            "id": "flexion",
+            "name_ru": "Округление",
+            "time": 0.33,
+            "kind": "concentric",
+            "cue_ru": "Позвоночник плавно сгибается, голова следует движению."
+          },
+          {
+            "id": "extension",
+            "name_ru": "Разгибание",
+            "time": 0.66,
+            "kind": "transition",
+            "cue_ru": "Мягкое разгибание без чрезмерного прогиба поясницы."
+          },
+          {
+            "id": "neutral_return",
+            "name_ru": "Возврат в нейтраль",
+            "time": 1,
+            "kind": "return",
+            "cue_ru": "Переход плавный, опора не смещается."
+          }
+        ]
+      },
+      "primary_muscles": [
+        "erector_spinae"
+      ],
+      "secondary_muscles": [
+        "rectus_abdominis",
+        "transverse_abdominis"
+      ],
+      "technique": {
+        "setup_ru": "Встань на четвереньки: ладони под плечами, колени под тазом. Движение медленное и комфортное.",
+        "instructions_ru": [
+          "На выдохе мягко округли спину и направь взгляд вниз.",
+          "На вдохе перейди к мягкому разгибанию грудного отдела без резкого залома в пояснице.",
+          "Двигайся плавно через нейтральное положение и повторяй в комфортном диапазоне."
+        ],
+        "cues_ru": [
+          "Движение распределено по позвоночнику, а не только в пояснице.",
+          "Шея следует положению грудной клетки и не запрокидывается резко.",
+          "Ладони и колени остаются в стабильных точках опоры."
+        ],
+        "common_errors_ru": [
+          "Рывковое движение в крайнюю амплитуду.",
+          "Голова запрокидывается независимо от грудной клетки.",
+          "Вес уходит с ладоней или колени скользят."
+        ],
+        "breathing_ru": "Выдох при округлении, вдох при мягком разгибании.",
+        "safety_ru": "Это упражнение на мобильность, а не соревнование по амплитуде; избегай движения через боль или онемение."
+      },
+      "quality_gates": [
+        "full_body_in_frame",
+        "mobile_readability",
+        "joint_continuity",
+        "loop_seam",
+        "human_technique_review",
+        "hand_floor_contact",
+        "stable_trunk",
+        "transparency",
+        "male_female_distinction"
+      ],
+      "media_profiles": {
+        "male": {
+          "status": "brief_only",
+          "sprite_frames": null,
+          "poster": null,
+          "video": null,
+          "source_commit": null,
+          "sha256": null
+        },
+        "female": {
+          "status": "brief_only",
+          "sprite_frames": null,
+          "poster": null,
+          "video": null,
+          "source_commit": null,
+          "sha256": null
+        }
+      },
+      "production_status": "brief_only",
+      "human_review_evidence": null
+    },
+    {
+      "id": "rowing_machine",
+      "name_ru": "Гребля на тренажёре",
+      "name_en": "Rowing Machine",
+      "category": "cardio",
+      "environments": [
+        "gym"
+      ],
+      "equipment": [
+        "rower"
+      ],
+      "equipment_alternatives": [
+        {
+          "name_ru": "Тяга резинки сидя",
+          "equipment": [
+            "resistance_band"
+          ],
+          "environment": "home",
+          "note_ru": "Домашняя замена для тяги; не воспроизводит нагрузку ног и скольжение сиденья."
+        },
+        {
+          "name_ru": "Тяга гантели в наклоне",
+          "equipment": [
+            "dumbbell"
+          ],
+          "environment": "both",
+          "note_ru": "Альтернатива для мышц спины, но не полное кардио-движение гребли."
+        }
+      ],
+      "difficulty": "intermediate",
+      "unilateral": false,
+      "movement": {
+        "pattern": "rowing_stroke",
+        "mode": "cycle",
+        "fps": 30,
+        "duration_s": 3,
+        "loop": true,
+        "phases": [
+          {
+            "id": "catch",
+            "name_ru": "Передний захват",
+            "time": 0,
+            "kind": "setup",
+            "cue_ru": "Руки длинные, корпус наклонён от таза, колени согнуты."
+          },
+          {
+            "id": "drive",
+            "name_ru": "Толчок ногами",
+            "time": 0.25,
+            "kind": "concentric",
+            "cue_ru": "Ноги начинают усилие, рукоять движется вместе с телом."
+          },
+          {
+            "id": "finish",
+            "name_ru": "Завершение тяги",
+            "time": 0.5,
+            "kind": "top",
+            "cue_ru": "Рукоять у нижних рёбер, плечи опущены."
+          },
+          {
+            "id": "recovery",
+            "name_ru": "Возврат",
+            "time": 0.78,
+            "kind": "eccentric",
+            "cue_ru": "Руки вперёд, корпус к носкам, затем колени сгибаются."
+          },
+          {
+            "id": "catch_return",
+            "name_ru": "Возврат к захвату",
+            "time": 1,
+            "kind": "return",
+            "cue_ru": "Сиденье и рукоять возвращаются к исходному положению без рывка."
+          }
+        ]
+      },
+      "primary_muscles": [
+        "quadriceps",
+        "latissimus_dorsi"
+      ],
+      "secondary_muscles": [
+        "gluteus_maximus",
+        "rhomboids",
+        "biceps",
+        "core"
+      ],
+      "technique": {
+        "setup_ru": "Сядь на сиденье, стопы зафиксированы ремнями, держи рукоять. Спина длинная, плечи не подняты.",
+        "instructions_ru": [
+          "Начни с согнутых коленей, длинных рук и наклона корпуса вперёд от таза.",
+          "Сначала разогни ноги, затем отклони корпус назад и заверши движение руками.",
+          "В конце тяги рукоять приходит к нижней части рёбер, локти идут назад.",
+          "Возвращайся в обратном порядке: руки вперёд, корпус наклоняется, колени сгибаются."
+        ],
+        "cues_ru": [
+          "Последовательность: ноги → корпус → руки; возврат в обратной последовательности.",
+          "Сиденье движется по рельсу, стопы не выходят из опоры.",
+          "Поясница остаётся нейтральной, не округляйся при захвате."
+        ],
+        "common_errors_ru": [
+          "Руки тянут раньше ног.",
+          "Корпус чрезмерно отклоняется назад.",
+          "Колени поднимаются к рукояти и мешают траектории рук.",
+          "Сгибание поясницы в передней позиции."
+        ],
+        "breathing_ru": "Выдох при завершении тяги; вдох при спокойном возврате.",
+        "safety_ru": "Согласуй амплитуду с длиной рельса и настройкой тренажёра; не допускай столкновения коленей с локтями/рукоятью."
+      },
+      "quality_gates": [
+        "full_body_in_frame",
+        "mobile_readability",
+        "joint_continuity",
+        "loop_seam",
+        "human_technique_review",
+        "fixed_equipment",
+        "seat_rail_alignment",
+        "handle_path",
+        "stable_trunk",
+        "prop_collision",
+        "transparency",
+        "male_female_distinction"
+      ],
+      "media_profiles": {
+        "male": {
+          "status": "brief_only",
+          "sprite_frames": null,
+          "poster": null,
+          "video": null,
+          "source_commit": null,
+          "sha256": null
+        },
+        "female": {
+          "status": "brief_only",
+          "sprite_frames": null,
+          "poster": null,
+          "video": null,
+          "source_commit": null,
+          "sha256": null
+        }
+      },
+      "production_status": "brief_only",
+      "human_review_evidence": null
+    },
+    {
+      "id": "bicep_curl",
+      "name_ru": "Сгибание рук с гантелями",
+      "name_en": "Dumbbell Biceps Curl",
+      "category": "strength",
+      "environments": [
+        "home",
+        "gym"
+      ],
+      "equipment": [
+        "dumbbell"
+      ],
+      "equipment_alternatives": [
+        {
+          "name_ru": "Сгибание с резинкой",
+          "equipment": [
+            "resistance_band"
+          ],
+          "environment": "both",
+          "note_ru": "Проверь крепление и сохраняй одинаковое натяжение по диапазону."
+        },
+        {
+          "name_ru": "Сгибание рук с EZ-грифом",
+          "equipment": [
+            "ez_bar"
+          ],
+          "environment": "gym",
+          "note_ru": "Обе руки работают с общей штангой; положение кистей отличается."
+        }
+      ],
+      "difficulty": "beginner",
+      "unilateral": false,
+      "movement": {
+        "pattern": "elbow_flexion",
+        "mode": "repetition",
+        "fps": 30,
+        "duration_s": 3.2,
+        "loop": true,
+        "phases": [
+          {
+            "id": "bottom",
+            "name_ru": "Нижнее положение",
+            "time": 0,
+            "kind": "setup",
+            "cue_ru": "Локти близко к корпусу, плечи нейтральны."
+          },
+          {
+            "id": "curl",
+            "name_ru": "Сгибание",
+            "time": 0.4,
+            "kind": "concentric",
+            "cue_ru": "Предплечья поднимаются, плечи не раскачиваются."
+          },
+          {
+            "id": "top",
+            "name_ru": "Верхняя точка",
+            "time": 0.55,
+            "kind": "top",
+            "cue_ru": "Кисти и локти под контролем, без лишнего подъёма плеч."
+          },
+          {
+            "id": "lower",
+            "name_ru": "Опускание",
+            "time": 0.85,
+            "kind": "eccentric",
+            "cue_ru": "Вес опускается плавно."
+          },
+          {
+            "id": "bottom_return",
+            "name_ru": "Возврат вниз",
+            "time": 1,
+            "kind": "return",
+            "cue_ru": "Исходная стойка совпадает с началом."
+          }
+        ]
+      },
+      "primary_muscles": [
+        "biceps_brachii"
+      ],
+      "secondary_muscles": [
+        "brachialis",
+        "forearm_flexors"
+      ],
+      "technique": {
+        "setup_ru": "Стой устойчиво, гантели возле бёдер, ладони смотрят вперёд или слегка внутрь. Локти возле корпуса.",
+        "instructions_ru": [
+          "Согни локти и подними гантели без раскачивания плеч и корпуса.",
+          "Не выводи локти далеко вперёд; удерживай плечо относительно спокойным.",
+          "Опускай гантели медленно до контролируемого разгибания рук."
+        ],
+        "cues_ru": [
+          "Локти остаются возле корпуса.",
+          "Кисти сохраняют нейтральное положение без залома назад.",
+          "Туловище не подбрасывает вес."
+        ],
+        "common_errors_ru": [
+          "Раскачка корпуса для подъёма гантелей.",
+          "Плечи уходят вперёд при каждом повторе.",
+          "Запястья чрезмерно разгибаются."
+        ],
+        "breathing_ru": "Выдох при сгибании, вдох при опускании.",
+        "safety_ru": "Используй вес, при котором опускание остаётся контролируемым."
+      },
+      "quality_gates": [
+        "full_body_in_frame",
+        "mobile_readability",
+        "joint_continuity",
+        "loop_seam",
+        "human_technique_review",
+        "stable_trunk",
+        "prop_collision",
+        "transparency",
+        "male_female_distinction"
+      ],
+      "media_profiles": {
+        "male": {
+          "status": "brief_only",
+          "sprite_frames": null,
+          "poster": null,
+          "video": null,
+          "source_commit": null,
+          "sha256": null
+        },
+        "female": {
+          "status": "brief_only",
+          "sprite_frames": null,
+          "poster": null,
+          "video": null,
+          "source_commit": null,
+          "sha256": null
+        }
+      },
+      "production_status": "brief_only",
+      "human_review_evidence": null
+    },
+    {
+      "id": "ab_wheel_rollout",
+      "name_ru": "Выкат с роликом",
+      "name_en": "Ab Wheel Rollout",
+      "category": "strength",
+      "environments": [
+        "home",
+        "gym"
+      ],
+      "equipment": [
+        "ab_wheel"
+      ],
+      "equipment_alternatives": [
+        {
+          "name_ru": "Выкат руками по полотенцам",
+          "equipment": [],
+          "environment": "home",
+          "note_ru": "Только на безопасной гладкой поверхности и с ограниченной амплитудой; не использовать при потере контроля поясницы."
+        },
+        {
+          "name_ru": "Планка",
+          "equipment": [],
+          "environment": "both",
+          "note_ru": "Регрессия для освоения антиразгибания без движения ролика."
+        }
+      ],
+      "difficulty": "advanced",
+      "unilateral": false,
+      "movement": {
+        "pattern": "anti_extension_rollout",
+        "mode": "repetition",
+        "fps": 30,
+        "duration_s": 3.2,
+        "loop": true,
+        "phases": [
+          {
+            "id": "kneeling_start",
+            "name_ru": "Старт на коленях",
+            "time": 0,
+            "kind": "setup",
+            "cue_ru": "Корпус собран, ролик под плечами."
+          },
+          {
+            "id": "roll_out",
+            "name_ru": "Выкат",
+            "time": 0.35,
+            "kind": "eccentric",
+            "cue_ru": "Руки уходят вперёд без прогиба поясницы."
+          },
+          {
+            "id": "controlled_end",
+            "name_ru": "Предельная контролируемая точка",
+            "time": 0.52,
+            "kind": "bottom",
+            "cue_ru": "Остановись до потери положения таза и рёбер."
+          },
+          {
+            "id": "return",
+            "name_ru": "Возврат",
+            "time": 0.84,
+            "kind": "concentric",
+            "cue_ru": "Ролик возвращается плавно, корпус остаётся жёстким."
+          },
+          {
+            "id": "kneeling_return",
+            "name_ru": "Возврат на колени",
+            "time": 1,
+            "kind": "return",
+            "cue_ru": "Позиция совпадает со стартом без броска."
+          }
+        ]
+      },
+      "primary_muscles": [
+        "rectus_abdominis",
+        "transverse_abdominis"
+      ],
+      "secondary_muscles": [
+        "anterior_deltoid",
+        "latissimus_dorsi",
+        "obliques",
+        "serratus_anterior"
+      ],
+      "technique": {
+        "setup_ru": "Встань на колени, возьми ролик двумя руками и напряги корпус. Таз слегка подкручен, поясница нейтральна.",
+        "instructions_ru": [
+          "Медленно прокати ролик вперёд, вытягивая тело только до предела, который можешь удержать.",
+          "Не позволяй рёбрам раскрыться, пояснице прогнуться или тазу провалиться.",
+          "Остановись до потери позиции и верни ролик к коленям за счёт корпуса и плечевого пояса."
+        ],
+        "cues_ru": [
+          "Амплитуда ограничивается контролем корпуса, а не тем, насколько далеко можно уехать.",
+          "Таз и рёбра остаются собранными.",
+          "Ролик и кисти движутся по устойчивой линии."
+        ],
+        "common_errors_ru": [
+          "Провисание таза и чрезмерный прогиб поясницы.",
+          "Резкий рывок ролика обратно.",
+          "Амплитуда больше, чем позволяет сохранить напряжение."
+        ],
+        "breathing_ru": "Выдох при возврате, вдох на подготовленном контролируемом выкате.",
+        "safety_ru": "Это продвинутое упражнение; начинай с короткой амплитуды или планки, если сложно сохранять положение поясницы."
+      },
+      "quality_gates": [
+        "full_body_in_frame",
+        "mobile_readability",
+        "joint_continuity",
+        "loop_seam",
+        "human_technique_review",
+        "hand_floor_contact",
+        "stable_trunk",
+        "prop_collision",
+        "transparency",
+        "male_female_distinction"
+      ],
+      "media_profiles": {
+        "male": {
+          "status": "brief_only",
+          "sprite_frames": null,
+          "poster": null,
+          "video": null,
+          "source_commit": null,
+          "sha256": null
+        },
+        "female": {
+          "status": "brief_only",
+          "sprite_frames": null,
+          "poster": null,
+          "video": null,
+          "source_commit": null,
+          "sha256": null
+        }
+      },
+      "production_status": "brief_only",
+      "human_review_evidence": null
+    },
+    {
+      "id": "plank",
+      "name_ru": "Планка на предплечьях",
+      "name_en": "Forearm Plank",
+      "category": "strength",
+      "environments": [
+        "home",
+        "gym"
+      ],
+      "equipment": [],
+      "equipment_alternatives": [
+        {
+          "name_ru": "Планка с колен",
+          "equipment": [],
+          "environment": "both",
+          "note_ru": "Облегчённый вариант для удержания ровной линии корпуса."
+        },
+        {
+          "name_ru": "Планка с руками на опоре",
+          "equipment": [
+            "bench"
+          ],
+          "environment": "both",
+          "note_ru": "Повышенная опора облегчает нагрузку, но требует контроля таза."
+        }
+      ],
+      "difficulty": "beginner",
+      "unilateral": false,
+      "movement": {
+        "pattern": "anti_extension_hold",
+        "mode": "hold",
+        "fps": 30,
+        "duration_s": 4,
+        "loop": true,
+        "phases": [
+          {
+            "id": "setup",
+            "name_ru": "Установка",
+            "time": 0,
+            "kind": "setup",
+            "cue_ru": "Локти под плечами, корпус выстроен."
+          },
+          {
+            "id": "hold_start",
+            "name_ru": "Удержание",
+            "time": 0.15,
+            "kind": "hold",
+            "cue_ru": "Дыхание и высота таза стабильны."
+          },
+          {
+            "id": "hold_mid",
+            "name_ru": "Середина удержания",
+            "time": 0.6,
+            "kind": "hold",
+            "cue_ru": "Нет провисания поясницы или подъёма таза."
+          },
+          {
+            "id": "hold_end",
+            "name_ru": "Завершение удержания",
+            "time": 1,
+            "kind": "return",
+            "cue_ru": "Выход из позиции контролируемый."
+          }
+        ]
+      },
+      "primary_muscles": [
+        "transverse_abdominis",
+        "rectus_abdominis"
+      ],
+      "secondary_muscles": [
+        "gluteus_maximus",
+        "obliques",
+        "anterior_deltoid"
+      ],
+      "technique": {
+        "setup_ru": "Локти под плечами, предплечья опираются на пол. Тело образует линию от головы до пяток, ягодицы и пресс напряжены.",
+        "instructions_ru": [
+          "Установи положение таза и рёбер до начала отсчёта.",
+          "Дыши спокойно, сохраняя плечи над локтями.",
+          "Заверши подход, как только таз проваливается или положение перестаёт контролироваться."
+        ],
+        "cues_ru": [
+          "Рёбра и таз остаются собранными.",
+          "Не задерживай дыхание.",
+          "Шея продолжает линию позвоночника, взгляд в пол."
+        ],
+        "common_errors_ru": [
+          "Таз провисает или поднимается слишком высоко.",
+          "Плечи проваливаются между лопатками.",
+          "Задержка дыхания и дрожь с потерей позиции."
+        ],
+        "breathing_ru": "Непрерывное спокойное дыхание.",
+        "safety_ru": "Время удержания не важнее качества; прекращай подход до потери нейтрального положения."
+      },
+      "quality_gates": [
+        "full_body_in_frame",
+        "mobile_readability",
+        "joint_continuity",
+        "human_technique_review",
+        "hand_floor_contact",
+        "body_line",
+        "stable_trunk",
+        "transparency",
+        "male_female_distinction"
+      ],
+      "media_profiles": {
+        "male": {
+          "status": "brief_only",
+          "sprite_frames": null,
+          "poster": null,
+          "video": null,
+          "source_commit": null,
+          "sha256": null
+        },
+        "female": {
+          "status": "brief_only",
+          "sprite_frames": null,
+          "poster": null,
+          "video": null,
+          "source_commit": null,
+          "sha256": null
+        }
+      },
+      "production_status": "brief_only",
+      "human_review_evidence": null
+    }
+  ]
+}
