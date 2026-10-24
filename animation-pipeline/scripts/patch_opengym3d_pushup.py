@@ -23,80 +23,95 @@ if "def assert_push_up_pose(rig, frame_end):" in source_text:
 
 qa = r'''
 def apply_push_up_contact_ik(rig):
-    """Pin palms and toes, with a pole target that guides elbows back-and-out."""
+    """Pin palms/toes and animate IK pole targets to guide elbows throughout the cycle."""
     scene = bpy.context.scene
     view_layer = bpy.context.view_layer
-    scene.frame_set(1)
-    view_layer.update()
-
-    # Capture reachable floor contacts before adding any new constraints.
+    sides = (".L", ".R")
     hand_targets = {}
     toe_targets = {}
-    pole_targets = {}
-    for side in (".L", ".R"):
-        wrist = rig.pose.bones.get("wrist" + side)
-        foot = rig.pose.bones.get("foot" + side)
-        upper = rig.pose.bones.get("upperarm01" + side)
-        elbow = rig.pose.bones.get("lowerarm01" + side)
-        if any(pb is None for pb in (wrist, foot, upper, elbow)):
-            raise RuntimeError(f"push-up contact IK: incomplete rig on side {side}")
+    pole_targets = {side: {} for side in sides}
+    frame_range = range(scene.frame_start, scene.frame_end + 1)
 
-        wrist_point = rig.matrix_world @ wrist.tail
-        toe_point = rig.matrix_world @ foot.tail
-        shoulder_point = rig.matrix_world @ upper.head
-        elbow_point = rig.matrix_world @ elbow.head
-        hand_targets[side] = wrist_point.copy()
-        toe_targets[side] = Vector((toe_point.x, toe_point.y, 0.02))
+    # Precompute target points for every source pose before adding IK constraints,
+    # so the measurements are not affected by the constraints being installed.
+    for frame in frame_range:
+        scene.frame_set(frame)
+        view_layer.update()
+        root = rig.pose.bones.get("root")
+        if root is None:
+            raise RuntimeError("push-up contact IK: missing root bone")
+        hip_point = (
+            rig.matrix_world @ root.head +
+            rig.matrix_world @ root.tail
+        ) * 0.5
 
-        hip_point = (rig.matrix_world @ rig.pose.bones["root"].head +
-                     rig.matrix_world @ rig.pose.bones["root"].tail) * 0.5
-        trunk = Vector((hip_point.x - shoulder_point.x,
-                        hip_point.y - shoulder_point.y, 0.0))
-        if trunk.length < 1e-5:
-            raise RuntimeError(f"push-up contact IK: degenerate trunk axis on {side}")
-        trunk.normalize()
-        # The pole target biases the elbow toward the feet and slightly outward.
-        # Keep the shoulder-to-wrist chain isolated so IK cannot rotate the trunk.
-        lateral = Vector((trunk.y, -trunk.x, 0.0))
-        sign = 1.0 if side == ".L" else -1.0
-        # Build a reachable elbow direction in 3D: the desired floor-plane
-        # projection is 45 degrees back-and-out from the torso, while the
-        # vertical component preserves the measured upper-arm drop. Then project
-        # that desired elbow onto the plane perpendicular to shoulder->wrist;
-        # Blender's IK pole must specify this bend-plane direction, not an
-        # arbitrary point along the torso axis.
-        flare = math.radians(45.0)
-        desired_horizontal = (
-            -trunk * math.cos(flare) +
-            lateral * sign * math.sin(flare)
-        ).normalized()
-        upper_length = (elbow_point - shoulder_point).length
-        if upper_length < 1e-5:
-            raise RuntimeError(f"push-up contact IK: degenerate upper arm on {side}")
-        vertical_ratio = (elbow_point.z - shoulder_point.z) / upper_length
-        vertical_ratio = max(-0.98, min(-0.15, vertical_ratio))
-        horizontal_ratio = math.sqrt(max(1e-6, 1.0 - vertical_ratio * vertical_ratio))
-        desired_upper = Vector((
-            desired_horizontal.x * horizontal_ratio,
-            desired_horizontal.y * horizontal_ratio,
-            vertical_ratio,
-        )).normalized()
-        desired_elbow = shoulder_point + desired_upper * upper_length
+        for side in sides:
+            wrist = rig.pose.bones.get("wrist" + side)
+            foot = rig.pose.bones.get("foot" + side)
+            upper = rig.pose.bones.get("upperarm01" + side)
+            elbow = rig.pose.bones.get("lowerarm01" + side)
+            if any(pb is None for pb in (wrist, foot, upper, elbow)):
+                raise RuntimeError(f"push-up contact IK: incomplete rig on side {side}")
 
-        arm_delta = hand_targets[side] - shoulder_point
-        if arm_delta.length < 1e-5:
-            raise RuntimeError(f"push-up contact IK: degenerate shoulder-to-wrist axis on {side}")
-        arm_axis = arm_delta.normalized()
-        desired_offset = desired_elbow - shoulder_point
-        pole_offset = desired_offset - arm_axis * desired_offset.dot(arm_axis)
-        if pole_offset.length < 1e-5:
-            pole_offset = lateral - arm_axis * lateral.dot(arm_axis)
-        if pole_offset.length < 1e-5:
-            raise RuntimeError(f"push-up contact IK: degenerate elbow pole plane on {side}")
-        pole_targets[side] = shoulder_point + arm_axis * 0.25 + pole_offset.normalized() * 0.35
+            wrist_point = rig.matrix_world @ wrist.tail
+            toe_point = rig.matrix_world @ foot.tail
+            shoulder_point = rig.matrix_world @ upper.head
+            elbow_point = rig.matrix_world @ elbow.head
+            if frame == scene.frame_start:
+                hand_targets[side] = wrist_point.copy()
+                toe_targets[side] = Vector((toe_point.x, toe_point.y, 0.02))
 
-    for side in (".L", ".R"):
-        wrist = rig.pose.bones["wrist" + side]
+            # Torso axis is shoulder-to-hip projected onto the floor plane.
+            trunk = Vector((
+                hip_point.x - shoulder_point.x,
+                hip_point.y - shoulder_point.y,
+                0.0,
+            ))
+            if trunk.length < 1e-5:
+                raise RuntimeError(f"push-up contact IK: degenerate trunk axis on {side}")
+            trunk.normalize()
+            lateral = Vector((trunk.y, -trunk.x, 0.0))
+            sign = 1.0 if side == ".L" else -1.0
+
+            # Target a 45-degree back-and-out upper-arm projection while
+            # preserving the current vertical reach and upper-arm length.
+            flare = math.radians(45.0)
+            desired_horizontal = (
+                -trunk * math.cos(flare) +
+                lateral * sign * math.sin(flare)
+            ).normalized()
+            upper_delta = elbow_point - shoulder_point
+            upper_length = upper_delta.length
+            if upper_length < 1e-5:
+                raise RuntimeError(f"push-up contact IK: degenerate upper arm on {side}")
+            vertical_ratio = upper_delta.z / upper_length
+            vertical_ratio = max(-0.98, min(-0.15, vertical_ratio))
+            horizontal_ratio = math.sqrt(max(1e-6, 1.0 - vertical_ratio * vertical_ratio))
+            desired_upper = Vector((
+                desired_horizontal.x * horizontal_ratio,
+                desired_horizontal.y * horizontal_ratio,
+                vertical_ratio,
+            )).normalized()
+            desired_elbow = shoulder_point + desired_upper * upper_length
+
+            # An IK pole must describe the desired bend direction perpendicular
+            # to shoulder->wrist. Recompute it from the current shoulder/trunk
+            # each frame; a static world-space pole drifts as the torso moves.
+            arm_delta = hand_targets[side] - shoulder_point
+            if arm_delta.length < 1e-5:
+                raise RuntimeError(f"push-up contact IK: degenerate shoulder-to-wrist axis on {side}")
+            arm_axis = arm_delta.normalized()
+            desired_offset = desired_elbow - shoulder_point
+            pole_offset = desired_offset - arm_axis * desired_offset.dot(arm_axis)
+            if pole_offset.length < 1e-5:
+                pole_offset = lateral - arm_axis * lateral.dot(arm_axis)
+            if pole_offset.length < 1e-5:
+                raise RuntimeError(f"push-up contact IK: degenerate elbow pole plane on {side}")
+            pole_targets[side][frame] = (
+                shoulder_point + arm_axis * 0.25 + pole_offset.normalized() * 0.35
+            )
+
+    for side in sides:
         hand_target = bpy.data.objects.new("FitPulsePushUpHandTarget" + side, None)
         scene.collection.objects.link(hand_target)
         hand_target.location = hand_targets[side]
@@ -106,11 +121,20 @@ def apply_push_up_contact_ik(rig):
 
         pole = bpy.data.objects.new("FitPulsePushUpElbowPole" + side, None)
         scene.collection.objects.link(pole)
-        pole.location = pole_targets[side]
         pole.empty_display_type = "SPHERE"
         pole.empty_display_size = 0.02
         pole.hide_render = True
+        for frame, position in pole_targets[side].items():
+            scene.frame_set(frame)
+            pole.location = position
+            pole.keyframe_insert(data_path="location", frame=frame, group="FitPulse elbow tracking")
+        if pole.animation_data and pole.animation_data.action:
+            for fcurve in pole.animation_data.action.fcurves:
+                for point in fcurve.keyframe_points:
+                    point.interpolation = "LINEAR"
+                fcurve.update()
 
+        wrist = rig.pose.bones["wrist" + side]
         arm_ik = wrist.constraints.new(type="IK")
         arm_ik.name = "FitPulsePushUpArmIK" + side
         arm_ik.target = hand_target
@@ -121,7 +145,6 @@ def apply_push_up_contact_ik(rig):
         arm_ik.use_stretch = False
         arm_ik.influence = 1.0
 
-        foot = rig.pose.bones["foot" + side]
         toe_target = bpy.data.objects.new("FitPulsePushUpToeTarget" + side, None)
         scene.collection.objects.link(toe_target)
         toe_target.location = toe_targets[side]
@@ -129,6 +152,7 @@ def apply_push_up_contact_ik(rig):
         toe_target.empty_display_size = 0.02
         toe_target.hide_render = True
 
+        foot = rig.pose.bones["foot" + side]
         leg_ik = foot.constraints.new(type="IK")
         leg_ik.name = "FitPulsePushUpToeIK" + side
         leg_ik.target = toe_target
@@ -137,13 +161,14 @@ def apply_push_up_contact_ik(rig):
         leg_ik.use_stretch = False
         leg_ik.influence = 1.0
 
-    scene.frame_set(1)
+    scene.frame_set(scene.frame_start)
     view_layer.update()
     print(
         "PUSHUP_CONTACT_IK PASS "
         f"hand_z=({hand_targets['.L'].z:.3f},{hand_targets['.R'].z:.3f})m "
         f"toe_targets_z=({toe_targets['.L'].z:.3f},{toe_targets['.R'].z:.3f})m "
-        "elbow_pole=45deg_projected chain_arm=3 chain_leg=3"
+        f"elbow_pole=animated_projected frames={len(frame_range)} "
+        "target_flare=45deg chain_arm=3 chain_leg=3"
     )
 
 
