@@ -4,7 +4,10 @@ Separate workshop for authoring, previewing, validating and exporting FitPulse e
 
 ## Open the workshop
 
-- Current pull-up motion prototype: `scenes/pull_up_preview.tscn` with `scripts/pull_up_preview.gd`.
+Run the Godot project to open the workshop home. It reads the catalog to show the current exercise/production counts and exposes the main navigation; you no longer need to change the main-scene path by hand.
+
+- The project opens at `scenes/workshop_home.tscn` / `scripts/workshop_home.gd`, with navigation to the catalog and the current pull-up prototype.
+- Current pull-up motion prototype: `scenes/pull_up_preview.tscn` with `scripts/pull_up_preview.gd` (Escape returns to the catalog).
 - **Exercise production catalog**: open `scenes/exercise_catalog_preview.tscn` in Godot 4.x to browse exercise briefs, filter home/gym exercises, switch male/female presentation, and inspect movement phases, equipment alternatives, technique cues, common errors and mandatory QA gates.
 - Catalog JSON and schema: `animation-pipeline/catalog/exercise_catalog.json` and `animation-pipeline/catalog/exercise-catalog.schema.json`.
 - Renderer contracts/coverage: `animation-pipeline/catalog/renderer_adapter_registry.json` and `animation-pipeline/catalog/repdb-preview-coverage.json`.
