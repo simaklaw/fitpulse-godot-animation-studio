@@ -7,10 +7,11 @@ Separate workshop for authoring, previewing, validating and exporting FitPulse e
 - Current pull-up motion prototype: `scenes/pull_up_preview.tscn` with `scripts/pull_up_preview.gd`.
 - **Exercise production catalog**: open `scenes/exercise_catalog_preview.tscn` in Godot 4.x to browse exercise briefs, filter home/gym exercises, switch male/female presentation, and inspect movement phases, equipment alternatives, technique cues, common errors and mandatory QA gates.
 - Catalog JSON and schema: `animation-pipeline/catalog/exercise_catalog.json` and `animation-pipeline/catalog/exercise-catalog.schema.json`.
+- Renderer contracts/coverage: `animation-pipeline/catalog/renderer_adapter_registry.json` and `animation-pipeline/catalog/repdb-preview-coverage.json`.
 - Production workflow and authoring rules: `animation-pipeline/EXERCISE_PRODUCTION_WORKFLOW.md`.
 - Pull-up motion/technical acceptance brief: `animation-pipeline/PULL_UP_MOTION_BRIEF.md`.
 
-The catalog is a reusable production registry, not a claim that every listed exercise already has a finished animation. A card displays a real poster/video/SpriteFrames resource only when its declared media path exists. Otherwise it explicitly shows that the clip has not been generated; there is no fake character placeholder.
+The catalog currently contains 11 reusable exercise briefs. It is a production registry, not a claim that every listed exercise already has a finished animation. A card displays a real poster/video/SpriteFrames resource only when its declared media path exists. Otherwise it explicitly shows that the clip has not been generated; there is no fake character placeholder.
 
 ## Standard exercise workflow
 
