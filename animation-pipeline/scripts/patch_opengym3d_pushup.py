@@ -22,48 +22,98 @@ if "def assert_push_up_pose(rig, frame_end):" in source_text:
     raise SystemExit("Push-up QA patch appears to be applied already; refusing duplicate patch")
 
 qa = r'''
-def apply_push_up_toe_ik(rig):
-    """Pin both toe endpoints to the floor by solving the lower-leg chain."""
+def apply_push_up_contact_ik(rig):
+    """Pin palms and toes, with a pole target that guides elbows back-and-out."""
     scene = bpy.context.scene
     view_layer = bpy.context.view_layer
     scene.frame_set(1)
     view_layer.update()
 
-    target_positions = {}
+    # Capture reachable floor contacts before adding any new constraints.
+    hand_targets = {}
+    toe_targets = {}
+    pole_targets = {}
     for side in (".L", ".R"):
+        wrist = rig.pose.bones.get("wrist" + side)
         foot = rig.pose.bones.get("foot" + side)
-        if foot is None:
-            raise RuntimeError(f"push-up toe IK: missing foot bone {side}")
-        original_toe = rig.matrix_world @ foot.tail
-        target_positions[side] = Vector((original_toe.x, original_toe.y, 0.02))
+        upper = rig.pose.bones.get("upperarm01" + side)
+        elbow = rig.pose.bones.get("lowerarm01" + side)
+        if any(pb is None for pb in (wrist, foot, upper, elbow)):
+            raise RuntimeError(f"push-up contact IK: incomplete rig on side {side}")
+
+        wrist_point = rig.matrix_world @ wrist.tail
+        toe_point = rig.matrix_world @ foot.tail
+        shoulder_point = rig.matrix_world @ upper.head
+        elbow_point = rig.matrix_world @ elbow.head
+        hand_targets[side] = wrist_point.copy()
+        toe_targets[side] = Vector((toe_point.x, toe_point.y, 0.02))
+
+        hip_point = (rig.matrix_world @ rig.pose.bones["root"].head +
+                     rig.matrix_world @ rig.pose.bones["root"].tail) * 0.5
+        trunk = Vector((hip_point.x - shoulder_point.x,
+                        hip_point.y - shoulder_point.y, 0.0))
+        if trunk.length < 1e-5:
+            raise RuntimeError(f"push-up contact IK: degenerate trunk axis on {side}")
+        trunk.normalize()
+        # The line from shoulder to elbow is aimed diagonally toward the feet
+        # and outward from the torso. A pole target guides the IK bend plane.
+        lateral = Vector((trunk.y, -trunk.x, 0.0))
+        sign = 1.0 if side == ".L" else -1.0
+        desired_dir = (trunk * math.cos(math.radians(45.0)) +
+                       lateral * sign * math.sin(math.radians(45.0))).normalized()
+        pole_targets[side] = shoulder_point + desired_dir * 0.32 + Vector(
+            (0.0, 0.0, elbow_point.z - shoulder_point.z)
+        )
 
     for side in (".L", ".R"):
-        foot = rig.pose.bones["foot" + side]
-        target = bpy.data.objects.new("FitPulsePushUpToeTarget" + side, None)
-        scene.collection.objects.link(target)
-        target.location = target_positions[side]
-        target.empty_display_type = "SPHERE"
-        target.empty_display_size = 0.02
-        target.hide_render = True
+        wrist = rig.pose.bones["wrist" + side]
+        hand_target = bpy.data.objects.new("FitPulsePushUpHandTarget" + side, None)
+        scene.collection.objects.link(hand_target)
+        hand_target.location = hand_targets[side]
+        hand_target.empty_display_type = "SPHERE"
+        hand_target.empty_display_size = 0.02
+        hand_target.hide_render = True
 
-        constraint = foot.constraints.new(type="IK")
-        constraint.name = "FitPulsePushUpToeIK" + side
-        constraint.target = target
-        constraint.chain_count = 3
-        constraint.iterations = 100
-        constraint.use_stretch = False
-        constraint.influence = 1.0
+        pole = bpy.data.objects.new("FitPulsePushUpElbowPole" + side, None)
+        scene.collection.objects.link(pole)
+        pole.location = pole_targets[side]
+        pole.empty_display_type = "SPHERE"
+        pole.empty_display_size = 0.02
+        pole.hide_render = True
+
+        arm_ik = wrist.constraints.new(type="IK")
+        arm_ik.name = "FitPulsePushUpArmIK" + side
+        arm_ik.target = hand_target
+        arm_ik.pole_target = pole
+        arm_ik.pole_angle = 0.0
+        arm_ik.chain_count = 5
+        arm_ik.iterations = 100
+        arm_ik.use_stretch = False
+        arm_ik.influence = 1.0
+
+        foot = rig.pose.bones["foot" + side]
+        toe_target = bpy.data.objects.new("FitPulsePushUpToeTarget" + side, None)
+        scene.collection.objects.link(toe_target)
+        toe_target.location = toe_targets[side]
+        toe_target.empty_display_type = "SPHERE"
+        toe_target.empty_display_size = 0.02
+        toe_target.hide_render = True
+
+        leg_ik = foot.constraints.new(type="IK")
+        leg_ik.name = "FitPulsePushUpToeIK" + side
+        leg_ik.target = toe_target
+        leg_ik.chain_count = 3
+        leg_ik.iterations = 100
+        leg_ik.use_stretch = False
+        leg_ik.influence = 1.0
 
     scene.frame_set(1)
     view_layer.update()
     print(
-        "PUSHUP_TOE_IK targets="
-        + ", ".join(
-            f"{side}({target_positions[side].x:.3f},"
-            f"{target_positions[side].y:.3f},0.020)"
-            for side in (".L", ".R")
-        )
-        + " chain=3"
+        "PUSHUP_CONTACT_IK PASS "
+        f"hand_z=({hand_targets['.L'].z:.3f},{hand_targets['.R'].z:.3f})m "
+        f"toe_targets_z=({toe_targets['.L'].z:.3f},{toe_targets['.R'].z:.3f})m "
+        "elbow_pole=45deg chain_arm=5 chain_leg=3"
     )
 
 
@@ -212,6 +262,9 @@ def assert_push_up_pose(rig, frame_end):
             ))
             trunk_horizontal = Vector((trunk.x, trunk.y, 0.0))
             arm_to_trunk = angle_degrees(arm_horizontal, trunk_horizontal)
+            # Elbow-line orientation is undirected: 100 degrees is equivalent
+            # to an 80-degree flare, not a negative/forward-facing angle.
+            arm_to_trunk = min(arm_to_trunk, 180.0 - arm_to_trunk)
             elbow_angles.append(joint_angle)
             elbow_to_trunk_angles.append(arm_to_trunk)
             if joint_angle < 45.0 or joint_angle > 180.0:
@@ -219,11 +272,11 @@ def assert_push_up_pose(rig, frame_end):
                     f"push-up elbow flexion failed at frame {frame} {side}: "
                     f"{joint_angle:.1f} degrees outside 45–180 degrees"
                 )
-            if arm_to_trunk < 20.0 or arm_to_trunk > 80.0:
+            if arm_to_trunk < 25.0 or arm_to_trunk > 75.0:
                 raise RuntimeError(
                     f"push-up elbow path failed at frame {frame} {side}: "
                     f"horizontal upper-arm/trunk angle={arm_to_trunk:.1f} degrees; "
-                    "expected a controlled back-and-out path (20–80 degrees)"
+                    "expected a controlled back-and-out path (25–75 degrees)"
                 )
 
     if first is None or last is None:
@@ -334,7 +387,7 @@ retime_push_up = '''    if spec.get("id") == "push_up":
             f"PUSHUP_RETIME PASS source_frames={source_frame_end} "
             f"output_frames={frame_end} duration={actual_duration:.3f}s fps={fps:g}"
         )
-        apply_push_up_toe_ik(rig)
+        apply_push_up_contact_ik(rig)
         assert_push_up_pose(rig, frame_end)
 
 '''
