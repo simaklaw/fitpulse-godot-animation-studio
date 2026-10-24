@@ -64,6 +64,15 @@ func _build_ui() -> void:
     intro.add_theme_color_override("font_color", Color("#aebbb6"))
     page.add_child(intro)
 
+    var nav := HBoxContainer.new()
+    nav.add_theme_constant_override("separation", 8)
+    page.add_child(nav)
+    var home_button := Button.new()
+    home_button.text = "← Главная мастерской"
+    home_button.custom_minimum_size = Vector2(190, 38)
+    home_button.pressed.connect(_open_workshop_home)
+    nav.add_child(home_button)
+
     var filters := HBoxContainer.new()
     filters.add_theme_constant_override("separation", 8)
     page.add_child(filters)
@@ -411,6 +420,12 @@ func _render_detail() -> void:
     _append_bullets("Вспомогательные мышцы", exercise.get("secondary_muscles", []))
     _append_bullets("Альтернативы оборудования", _alternative_lines(exercise.get("equipment_alternatives", [])))
     _append_bullets("Обязательные ворота качества", exercise.get("quality_gates", []))
+
+
+func _open_workshop_home() -> void:
+    var error := get_tree().change_scene_to_file("res://scenes/workshop_home.tscn")
+    if error != OK:
+        push_error("Could not open workshop home; error code: %d" % error)
 
 
 func _open_pull_up_preview() -> void:
