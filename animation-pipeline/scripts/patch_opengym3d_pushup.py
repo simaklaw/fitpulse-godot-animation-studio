@@ -55,14 +55,14 @@ def apply_push_up_contact_ik(rig):
         if trunk.length < 1e-5:
             raise RuntimeError(f"push-up contact IK: degenerate trunk axis on {side}")
         trunk.normalize()
-        # The line from shoulder to elbow is aimed diagonally toward the feet
-        # and outward from the torso. A pole target guides the IK bend plane.
+        # The pole target biases the elbow toward the feet and slightly outward.
+        # Keep the shoulder-to-wrist chain isolated so IK cannot rotate the trunk.
         lateral = Vector((trunk.y, -trunk.x, 0.0))
         sign = 1.0 if side == ".L" else -1.0
         # The elbow vector can point toward either end of the torso axis;
         # use the front-and-out pole branch so the undirected top-down line
         # resolves to ~45 degrees rather than a near-perpendicular flare.
-        desired_dir = (-trunk * math.cos(math.radians(45.0)) +
+        desired_dir = (trunk * math.cos(math.radians(45.0)) +
                        lateral * sign * math.sin(math.radians(45.0))).normalized()
         pole_targets[side] = shoulder_point + desired_dir * 0.32 + Vector(
             (0.0, 0.0, elbow_point.z - shoulder_point.z)
@@ -89,7 +89,7 @@ def apply_push_up_contact_ik(rig):
         arm_ik.target = hand_target
         arm_ik.pole_target = pole
         arm_ik.pole_angle = 0.0
-        arm_ik.chain_count = 5
+        arm_ik.chain_count = 3
         arm_ik.iterations = 100
         arm_ik.use_stretch = False
         arm_ik.influence = 1.0
@@ -116,7 +116,7 @@ def apply_push_up_contact_ik(rig):
         "PUSHUP_CONTACT_IK PASS "
         f"hand_z=({hand_targets['.L'].z:.3f},{hand_targets['.R'].z:.3f})m "
         f"toe_targets_z=({toe_targets['.L'].z:.3f},{toe_targets['.R'].z:.3f})m "
-        "elbow_pole=45deg chain_arm=5 chain_leg=3"
+        "elbow_pole=45deg chain_arm=3 chain_leg=3"
     )
 
 
