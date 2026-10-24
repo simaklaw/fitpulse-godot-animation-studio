@@ -4,125 +4,418 @@
   "title": "FitPulse Exercise Production Catalog",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "catalog_name", "exercises"],
+  "required": [
+    "schema_version",
+    "catalog_name",
+    "exercises"
+  ],
   "properties": {
-    "schema_version": { "const": 1 },
-    "catalog_name": { "type": "string", "minLength": 1 },
-    "description_ru": { "type": "string" },
+    "schema_version": {
+      "const": 1
+    },
+    "catalog_name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "description_ru": {
+      "type": "string"
+    },
     "exercises": {
       "type": "array",
       "minItems": 1,
-      "items": { "$ref": "#/$defs/exercise" }
+      "items": {
+        "$ref": "#/$defs/exercise"
+      }
     }
   },
   "$defs": {
-    "slug": { "type": "string", "pattern": "^[a-z0-9]+(?:_[a-z0-9]+)*$" },
+    "slug": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:_[a-z0-9]+)*$"
+    },
     "phase": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "name_ru", "time", "kind", "cue_ru"],
+      "required": [
+        "id",
+        "name_ru",
+        "time",
+        "kind",
+        "cue_ru"
+      ],
       "properties": {
-        "id": { "$ref": "#/$defs/slug" },
-        "name_ru": { "type": "string", "minLength": 1 },
-        "time": { "type": "number", "minimum": 0, "maximum": 1 },
-        "kind": { "enum": ["setup", "eccentric", "concentric", "top", "bottom", "transition", "hold", "return"] },
-        "cue_ru": { "type": "string", "minLength": 1 }
+        "id": {
+          "$ref": "#/$defs/slug"
+        },
+        "name_ru": {
+          "type": "string",
+          "minLength": 1
+        },
+        "time": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "kind": {
+          "enum": [
+            "setup",
+            "eccentric",
+            "concentric",
+            "top",
+            "bottom",
+            "transition",
+            "hold",
+            "return"
+          ]
+        },
+        "cue_ru": {
+          "type": "string",
+          "minLength": 1
+        }
       }
     },
     "media_profile": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["status", "sprite_frames", "poster", "video"],
+      "required": [
+        "status",
+        "sprite_frames",
+        "poster",
+        "video"
+      ],
       "properties": {
-        "status": { "enum": ["brief_only", "rendering", "prototype_unreviewed", "automated_qa_passed", "human_approved", "rejected"] },
-        "sprite_frames": { "type": ["string", "null"] },
-        "poster": { "type": ["string", "null"] },
-        "video": { "type": ["string", "null"] },
-        "source_commit": { "type": ["string", "null"] },
-        "sha256": { "type": ["string", "null"], "pattern": "^[0-9a-f]{64}$" }
+        "status": {
+          "enum": [
+            "brief_only",
+            "rendering",
+            "prototype_unreviewed",
+            "automated_qa_passed",
+            "human_approved",
+            "rejected"
+          ]
+        },
+        "sprite_frames": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "poster": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "video": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "source_commit": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sha256": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[0-9a-f]{64}$"
+        }
       }
     },
     "alternative": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["name_ru", "equipment", "environment", "note_ru"],
+      "required": [
+        "name_ru",
+        "equipment",
+        "environment",
+        "note_ru"
+      ],
       "properties": {
-        "name_ru": { "type": "string", "minLength": 1 },
-        "equipment": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/slug" } },
-        "environment": { "enum": ["home", "gym", "both"] },
-        "note_ru": { "type": "string", "minLength": 1 }
+        "name_ru": {
+          "type": "string",
+          "minLength": 1
+        },
+        "equipment": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/slug"
+          }
+        },
+        "environment": {
+          "enum": [
+            "home",
+            "gym",
+            "both"
+          ]
+        },
+        "note_ru": {
+          "type": "string",
+          "minLength": 1
+        }
       }
     },
     "exercise": {
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "id", "name_ru", "name_en", "category", "environments", "equipment",
-        "equipment_alternatives", "difficulty", "movement", "primary_muscles",
-        "secondary_muscles", "technique", "quality_gates", "media_profiles", "production_status"
+        "id",
+        "name_ru",
+        "name_en",
+        "category",
+        "environments",
+        "equipment",
+        "equipment_alternatives",
+        "difficulty",
+        "movement",
+        "primary_muscles",
+        "secondary_muscles",
+        "technique",
+        "quality_gates",
+        "media_profiles",
+        "production_status"
       ],
       "properties": {
-        "id": { "$ref": "#/$defs/slug" },
-        "name_ru": { "type": "string", "minLength": 1 },
-        "name_en": { "type": "string", "minLength": 1 },
-        "category": { "enum": ["strength", "cardio", "mobility", "stretching", "rehabilitation"] },
-        "environments": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "enum": ["home", "gym"] } },
-        "equipment": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/slug" } },
-        "equipment_alternatives": { "type": "array", "items": { "$ref": "#/$defs/alternative" } },
-        "difficulty": { "enum": ["beginner", "intermediate", "advanced"] },
-        "unilateral": { "type": "boolean" },
+        "id": {
+          "$ref": "#/$defs/slug"
+        },
+        "name_ru": {
+          "type": "string",
+          "minLength": 1
+        },
+        "name_en": {
+          "type": "string",
+          "minLength": 1
+        },
+        "category": {
+          "enum": [
+            "strength",
+            "cardio",
+            "mobility",
+            "stretching",
+            "rehabilitation"
+          ]
+        },
+        "environments": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "home",
+              "gym"
+            ]
+          }
+        },
+        "equipment": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/slug"
+          }
+        },
+        "equipment_alternatives": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/alternative"
+          }
+        },
+        "difficulty": {
+          "enum": [
+            "beginner",
+            "intermediate",
+            "advanced"
+          ]
+        },
+        "unilateral": {
+          "type": "boolean"
+        },
         "movement": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["pattern", "mode", "fps", "duration_s", "loop", "phases"],
+          "required": [
+            "pattern",
+            "renderer_adapter",
+            "mode",
+            "fps",
+            "duration_s",
+            "loop",
+            "phases"
+          ],
           "properties": {
-            "pattern": { "$ref": "#/$defs/slug" },
-            "mode": { "enum": ["repetition", "hold", "cycle"] },
-            "fps": { "type": "integer", "minimum": 12, "maximum": 60 },
-            "duration_s": { "type": "number", "minimum": 0.5, "maximum": 30 },
-            "loop": { "type": "boolean" },
-            "phases": { "type": "array", "minItems": 3, "items": { "$ref": "#/$defs/phase" } }
+            "pattern": {
+              "$ref": "#/$defs/slug"
+            },
+            "mode": {
+              "enum": [
+                "repetition",
+                "hold",
+                "cycle"
+              ]
+            },
+            "fps": {
+              "type": "integer",
+              "minimum": 12,
+              "maximum": 60
+            },
+            "duration_s": {
+              "type": "number",
+              "minimum": 0.5,
+              "maximum": 30
+            },
+            "loop": {
+              "type": "boolean"
+            },
+            "phases": {
+              "type": "array",
+              "minItems": 3,
+              "items": {
+                "$ref": "#/$defs/phase"
+              }
+            },
+            "renderer_adapter": {
+              "$ref": "#/$defs/slug",
+              "description": "Stable renderer adapter key. A registered key does not imply the renderer has been implemented or approved."
+            }
           }
         },
-        "primary_muscles": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/slug" } },
-        "secondary_muscles": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/slug" } },
+        "primary_muscles": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/slug"
+          }
+        },
+        "secondary_muscles": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/slug"
+          }
+        },
         "technique": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["setup_ru", "instructions_ru", "cues_ru", "common_errors_ru", "breathing_ru", "safety_ru"],
+          "required": [
+            "setup_ru",
+            "instructions_ru",
+            "cues_ru",
+            "common_errors_ru",
+            "breathing_ru",
+            "safety_ru"
+          ],
           "properties": {
-            "setup_ru": { "type": "string", "minLength": 1 },
-            "instructions_ru": { "type": "array", "minItems": 2, "items": { "type": "string", "minLength": 1 } },
-            "cues_ru": { "type": "array", "minItems": 2, "items": { "type": "string", "minLength": 1 } },
-            "common_errors_ru": { "type": "array", "minItems": 2, "items": { "type": "string", "minLength": 1 } },
-            "breathing_ru": { "type": "string", "minLength": 1 },
-            "safety_ru": { "type": "string", "minLength": 1 }
+            "setup_ru": {
+              "type": "string",
+              "minLength": 1
+            },
+            "instructions_ru": {
+              "type": "array",
+              "minItems": 2,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "cues_ru": {
+              "type": "array",
+              "minItems": 2,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "common_errors_ru": {
+              "type": "array",
+              "minItems": 2,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "breathing_ru": {
+              "type": "string",
+              "minLength": 1
+            },
+            "safety_ru": {
+              "type": "string",
+              "minLength": 1
+            }
           }
         },
         "quality_gates": {
           "type": "array",
           "minItems": 4,
           "uniqueItems": true,
-          "items": { "enum": [
-            "full_body_in_frame", "mobile_readability", "joint_continuity", "loop_seam",
-            "human_technique_review", "fixed_equipment", "hand_contact", "grip_flexion",
-            "top_position", "foot_clearance", "foot_floor_contact", "knee_tracking",
-            "depth_range", "bar_path", "hand_floor_contact", "body_line", "elbow_path",
-            "stable_trunk", "seat_rail_alignment", "handle_path", "muscle_highlight_check",
-            "transparency", "male_female_distinction", "prop_collision", "side_symmetry"
-          ] }
+          "items": {
+            "enum": [
+              "full_body_in_frame",
+              "mobile_readability",
+              "joint_continuity",
+              "loop_seam",
+              "human_technique_review",
+              "fixed_equipment",
+              "hand_contact",
+              "grip_flexion",
+              "top_position",
+              "foot_clearance",
+              "foot_floor_contact",
+              "knee_tracking",
+              "depth_range",
+              "bar_path",
+              "hand_floor_contact",
+              "body_line",
+              "elbow_path",
+              "stable_trunk",
+              "seat_rail_alignment",
+              "handle_path",
+              "muscle_highlight_check",
+              "transparency",
+              "male_female_distinction",
+              "prop_collision",
+              "side_symmetry"
+            ]
+          }
         },
         "media_profiles": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["male", "female"],
+          "required": [
+            "male",
+            "female"
+          ],
           "properties": {
-            "male": { "$ref": "#/$defs/media_profile" },
-            "female": { "$ref": "#/$defs/media_profile" }
+            "male": {
+              "$ref": "#/$defs/media_profile"
+            },
+            "female": {
+              "$ref": "#/$defs/media_profile"
+            }
           }
         },
-        "production_status": { "enum": ["brief_only", "rendering", "prototype_unreviewed", "automated_qa_passed", "human_approved", "rejected"] },
-        "human_review_evidence": { "type": ["string", "null"] }
+        "production_status": {
+          "enum": [
+            "brief_only",
+            "rendering",
+            "prototype_unreviewed",
+            "automated_qa_passed",
+            "human_approved",
+            "rejected"
+          ]
+        },
+        "human_review_evidence": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
       }
     }
   }
