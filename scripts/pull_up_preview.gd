@@ -48,6 +48,8 @@ func _unhandled_key_input(event: InputEvent) -> void:
                 cycle_seconds = 3.2
             KEY_3:
                 cycle_seconds = 2.5
+            KEY_ESCAPE:
+                get_tree().change_scene_to_file("res://scenes/exercise_catalog_preview.tscn")
 
 func _draw() -> void:
     draw_rect(Rect2(Vector2.ZERO, CANVAS), BG)
