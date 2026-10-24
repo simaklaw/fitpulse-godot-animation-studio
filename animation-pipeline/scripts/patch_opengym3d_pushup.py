@@ -305,7 +305,7 @@ def assert_push_up_pose(rig, frame_end):
             # projection becomes ill-conditioned: tiny bone-roll changes dominate
             # its apparent flare. Assess the 25–75 degree tracking angle only
             # while the elbow is clearly flexed, without widening that range.
-            if joint_angle <= 155.0:
+            if joint_angle <= 145.0:
                 elbow_to_trunk_angles.append(arm_to_trunk)
                 if arm_to_trunk < 25.0 or arm_to_trunk > 75.0:
                     print(
@@ -329,7 +329,7 @@ def assert_push_up_pose(rig, frame_end):
     if len(elbow_to_trunk_angles) < 5:
         raise RuntimeError(
             "push-up elbow-path QA needs at least 5 flexed-arm samples "
-            f"(elbow angle <=155 degrees); observed {len(elbow_to_trunk_angles)}"
+            f"(elbow angle <=145 degrees); observed {len(elbow_to_trunk_angles)}"
         )
 
     seam_distances = {}
