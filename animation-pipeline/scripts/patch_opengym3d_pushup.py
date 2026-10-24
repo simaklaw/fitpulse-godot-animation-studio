@@ -244,10 +244,53 @@ source_text = source_text.replace(main_marker, qa + main_marker, 1)
 main_insert = '    side = camera_side(primary, spec)\n'
 if source_text.count(main_insert) != 1:
     raise SystemExit("Unexpected camera setup marker; refusing unsafe push-up QA insertion")
+retime_push_up = '''    if spec.get("id") == "push_up":
+        # The reference clip is 46 source frames (~1.53 s at 30 fps), too fast
+        # for the catalog's controlled 3.2 s teaching cycle. Stretch the baked
+        # retarget action in frame time; do not skip source poses or alter joint
+        # angles. Keep fps at 30 so GLB, video, and transparent frames agree.
+        source_frame_end = frame_end
+        fps = float(spec.get("fps", 30))
+        target_duration = float(spec.get("duration", 3.2))
+        target_frame_end = 1 + int(round(target_duration * fps))
+        if source_frame_end < 2 or target_frame_end < source_frame_end:
+            raise RuntimeError(
+                f"push-up retime invalid: source frames={source_frame_end}, "
+                f"target frames={target_frame_end}"
+            )
+        scale = (target_frame_end - 1) / (source_frame_end - 1)
+        for owner in [rig] + [obj for obj, _ in prop_objs]:
+            action = owner.animation_data.action if owner.animation_data else None
+            if action is None:
+                continue
+            for fcurve in action.fcurves:
+                for point in fcurve.keyframe_points:
+                    point.co.x = 1.0 + (point.co.x - 1.0) * scale
+                    point.handle_left.x = 1.0 + (point.handle_left.x - 1.0) * scale
+                    point.handle_right.x = 1.0 + (point.handle_right.x - 1.0) * scale
+                fcurve.update()
+        frame_end = target_frame_end
+        scene.frame_start, scene.frame_end = 1, frame_end
+        scene.frame_step = 1
+        scene.frame_set(1)
+        actual_duration = (frame_end - 1) / fps
+        if abs(actual_duration - target_duration) > 0.02:
+            raise RuntimeError(
+                f"push-up retime duration mismatch: {actual_duration:.3f}s "
+                f"vs target {target_duration:.3f}s"
+            )
+        print(
+            f"PUSHUP_RETIME PASS source_frames={source_frame_end} "
+            f"output_frames={frame_end} duration={actual_duration:.3f}s fps={fps:g}"
+        )
+        assert_push_up_pose(rig, frame_end)
+
+'''
+if source_text.count(main_insert) != 1:
+    raise SystemExit("Unexpected camera setup marker; refusing unsafe push-up retime")
 source_text = source_text.replace(
     main_insert,
-    '    if spec.get("id") == "push_up":\n'
-    '        assert_push_up_pose(rig, frame_end)\n\n' + main_insert,
+    retime_push_up + main_insert,
     1,
 )
 
