@@ -502,67 +502,92 @@ setter_new = '''    TargetService.reapply_macro_details(basemesh)
     )
 
     def normalize_female_hair_texture(hair_object):
-        """Recolor the female hair albedo while preserving strand alpha and UV detail."""
+        """Recolor the female hair diffuse texture in-place, preserving alpha and image links."""
         import numpy as np
 
-        changed = 0
+        image_nodes = []
+        seen_images = set()
+
+        # Prefer image names that identify an albedo/diffuse map, not normal maps.
+        # This still finds the visible diffuse image even if an intermediary node
+        # means it is not wired directly to the Principled Base Color socket.
         for material in hair_object.data.materials:
             if material is None or not material.use_nodes or material.node_tree is None:
                 continue
-            shader = next(
-                (node for node in material.node_tree.nodes if node.type == "BSDF_PRINCIPLED"),
-                None,
-            )
-            if shader is None:
-                continue
-            base_color = shader.inputs.get("Base Color")
-            if base_color is None:
-                continue
+            for node in material.node_tree.nodes:
+                if node.type != "TEX_IMAGE" or node.image is None:
+                    continue
+                image_name = f"{node.image.name} {node.label}".lower()
+                if not any(token in image_name for token in ("diffuse", "albedo", "basecolor", "base_color", "grapewash")):
+                    continue
+                image_key = node.image.as_pointer()
+                if image_key not in seen_images:
+                    seen_images.add(image_key)
+                    image_nodes.append(node)
 
-            texture_nodes = [
-                link.from_node
-                for link in material.node_tree.links
-                if link.to_node == shader
-                and link.to_socket == base_color
-                and link.from_node.type == "TEX_IMAGE"
-                and link.from_node.image is not None
-            ]
-            for texture_node in texture_nodes:
-                # Work on a copy: never recolor a shared or upstream source image.
-                source_image = texture_node.image
-                natural_image = source_image.copy()
-                natural_image.name = f"FitPulse Female Hair Chestnut {source_image.name}"
-
-                pixels = np.empty(len(natural_image.pixels), dtype=np.float32)
-                natural_image.pixels.foreach_get(pixels)
-                rgba = pixels.reshape((-1, 4))
-                luminance = (
-                    rgba[:, 0] * 0.2126
-                    + rgba[:, 1] * 0.7152
-                    + rgba[:, 2] * 0.0722
+        if not image_nodes:
+            # Fallback to image nodes connected directly to a Principled Base Color.
+            for material in hair_object.data.materials:
+                if material is None or not material.use_nodes or material.node_tree is None:
+                    continue
+                shader = next(
+                    (node for node in material.node_tree.nodes if node.type == "BSDF_PRINCIPLED"),
+                    None,
                 )
-                luminance = np.clip(luminance, 0.0, 1.0)
+                if shader is None:
+                    continue
+                base_color = shader.inputs.get("Base Color")
+                if base_color is None:
+                    continue
+                for link in material.node_tree.links:
+                    node = link.from_node
+                    if (
+                        link.to_node == shader
+                        and link.to_socket == base_color
+                        and node.type == "TEX_IMAGE"
+                        and node.image is not None
+                    ):
+                        image_key = node.image.as_pointer()
+                        if image_key not in seen_images:
+                            seen_images.add(image_key)
+                            image_nodes.append(node)
 
-                # Replace purple chroma with natural chestnut while retaining
-                # nearly all source luminance, so strand highlights do not vanish.
-                # The coefficients are a linear-RGB chestnut tint (weighted output
-                # luminance ~= source luminance); only RGB changes, never alpha.
-                rgba[:, 0] = np.clip(2.40 * luminance, 0.0, 1.0)
-                rgba[:, 1] = np.clip(0.70 * luminance, 0.0, 1.0)
-                rgba[:, 2] = np.clip(0.20 * luminance, 0.0, 1.0)
-                natural_image.pixels.foreach_set(pixels)
-                natural_image.update()
-                texture_node.image = natural_image
-                changed += 1
-
-        if changed < 1:
+        if not image_nodes:
             raise RuntimeError(
-                "Female hair recolor failed: no base-color image texture was found; "
+                "Female hair recolor failed: no diffuse image texture was found; "
                 "refusing to export purple source hair."
             )
+
+        changed = 0
+        for texture_node in image_nodes:
+            # Update the actual image datablock so every node/material that
+            # references this texture sees the recolored pixels during render/export.
+            source_image = texture_node.image
+            pixels = np.empty(len(source_image.pixels), dtype=np.float32)
+            source_image.pixels.foreach_get(pixels)
+            rgba = pixels.reshape((-1, 4))
+            luminance = (
+                rgba[:, 0] * 0.2126
+                + rgba[:, 1] * 0.7152
+                + rgba[:, 2] * 0.0722
+            )
+            luminance = np.clip(luminance, 0.0, 1.0)
+
+            # Replace purple chroma with natural chestnut while retaining
+            # nearly all source luminance, so strand highlights do not vanish.
+            # The coefficients are a linear-RGB chestnut tint (weighted output
+            # luminance ~= source luminance); only RGB changes, never alpha.
+            rgba[:, 0] = np.clip(2.40 * luminance, 0.0, 1.0)
+            rgba[:, 1] = np.clip(0.70 * luminance, 0.0, 1.0)
+            rgba[:, 2] = np.clip(0.20 * luminance, 0.0, 1.0)
+            source_image.pixels.foreach_set(pixels)
+            source_image.update()
+            changed += 1
+
         print(
             f"HAIR_COLOR_GRADED gender=female palette=natural_chestnut "
-            f"textures={changed} alpha=preserved"
+            f"textures={changed} alpha=preserved in_place=true",
+            flush=True,
         )
 
     if gender_name == "female":
