@@ -72,6 +72,7 @@ class PushUpRendererPatchTests(unittest.TestCase):
         self.assertIn("bpy.data.images.load(output_path, check_existing=False)", self.shared_source)
         self.assertIn("saved_reloaded=true", self.shared_source)
         self.assertIn("HAIR_COLOR_VISUAL_QA PASS", self.workflow_source)
+        self.assertIn("fitpulse_female_hair_chestnut", self.workflow_source)
         self.assertIn("HAIR_GLTF_TEXTURE_QA PASS", self.workflow_source)
         self.assertIn("Female GLB embedded hair texture failed", self.workflow_source)
         self.assertIn('chunk_type == b"BIN\\x00"', self.workflow_source)
