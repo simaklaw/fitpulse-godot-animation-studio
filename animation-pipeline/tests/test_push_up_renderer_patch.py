@@ -49,7 +49,9 @@ class PushUpRendererPatchTests(unittest.TestCase):
         # result so the emitted GLB can be audited from its build log.
         self.assertIn("def normalize_female_hair_texture(hair_object):", self.shared_source)
         self.assertIn("palette=natural_chestnut", self.shared_source)
-        self.assertIn("rgba[:, 2]", self.shared_source)
+        self.assertIn("rgba[:, 0] = np.clip(2.40 * luminance", self.shared_source)
+        self.assertIn("rgba[:, 1] = np.clip(0.70 * luminance", self.shared_source)
+        self.assertIn("rgba[:, 2] = np.clip(0.20 * luminance", self.shared_source)
         self.assertIn("original alpha channel is preserved", self.shared_source)
         self.assertIn("HAIR_COLOR_GRADED gender=female palette=natural_chestnut", self.shared_source)
 
