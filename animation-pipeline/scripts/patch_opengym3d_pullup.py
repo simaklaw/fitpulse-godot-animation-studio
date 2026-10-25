@@ -274,7 +274,8 @@ ik_helper = r'''def add_pull_up_ik(rig):
     """Solve both hand endpoints against fixed targets on the pull-up bar."""
     scene = bpy.context.scene
     targets = []
-    for x, side in ((-0.235, ".L"), (0.235, ".R")):
+    # Shoulder-width overhand grip: 60 cm between wrist targets, not a narrow 47 cm grip.
+    for x, side in ((-0.300, ".L"), (0.300, ".R")):
         target = bpy.data.objects.new("PullUpIKTarget" + side, None)
         scene.collection.objects.link(target)
         target.location = (x, -0.025, 2.453)

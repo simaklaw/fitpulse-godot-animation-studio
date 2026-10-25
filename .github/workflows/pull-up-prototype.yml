@@ -12,6 +12,7 @@ on:
       - feat/pull-up-compact-rack-framing
       - feat/pull-up-premium-hair
       - feat/pull-up-premium-shoes
+      - feat/pull-up-shoulder-width-grip
       - fix/pull-up-render-quality
       - fix/pull-up-prototype-clean-main
       - feat/pull-up-transparent-export
