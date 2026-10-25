@@ -94,6 +94,10 @@ class PushUpRendererPatchTests(unittest.TestCase):
         self.assertIn("HAIR_GLTF_TEXTURE_QA PASS", self.pullup_workflow_source)
         self.assertIn("Female GLB embedded hair texture failed", self.pullup_workflow_source)
         self.assertIn('chunk_type == b"BIN\\x00"', self.pullup_workflow_source)
+        # The workflow runs in upstream/, so generated outputs must resolve one
+        # directory above rather than in upstream/output/.
+        self.assertIn('thumbnail_path = Path("../output/female/pull_up.png")', self.pullup_workflow_source)
+        self.assertIn('glb_path = Path("../output/female/pull_up.glb")', self.pullup_workflow_source)
 
     def test_hand_and_toe_contact_gates_remain_present(self):
         self.assertIn("push-up hand-floor contact failed", self.source)
