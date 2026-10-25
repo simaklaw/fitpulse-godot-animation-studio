@@ -41,6 +41,16 @@ class PushUpRendererPatchTests(unittest.TestCase):
             self.source,
         )
 
+    def test_female_hair_texture_is_recolored_without_changing_alpha(self):
+        # The female hairstyle's source albedo contains bright purple streaks.
+        # The renderer should color-grade a copied image, retain alpha, and log the
+        # result so the emitted GLB can be audited from its build log.
+        self.assertIn("def normalize_female_hair_texture(hair_object):", self.source)
+        self.assertIn("natural chestnut", self.source.lower())
+        self.assertIn("rgba[:, 2]", self.source)
+        self.assertIn("original alpha channel is preserved", self.source)
+        self.assertIn("HAIR_COLOR_GRADED gender=female palette=natural_chestnut", self.source)
+
     def test_hand_and_toe_contact_gates_remain_present(self):
         self.assertIn("push-up hand-floor contact failed", self.source)
         self.assertIn("push-up toe-floor contact failed", self.source)
