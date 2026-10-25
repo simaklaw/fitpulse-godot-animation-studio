@@ -388,6 +388,98 @@ jobs:
           print(f"Alpha QA PASS: {gender}, {len(frames)} frames, 720x720 RGBA; transparent corners, 80–98% transparent pixels, opaque subject, {len(unique_frames)} unique frames, min transparent fraction {min(transparent_fractions):.1%}.")
           PY
 
+      - name: Verify female hair color in preview and embedded GLB texture
+        if: matrix.gender == 'female'
+        shell: bash
+        run: |
+          set -euo pipefail
+          /tmp/fitpulse-alpha-qa/bin/python - <<'PY'
+          import io
+          import json
+          import struct
+          from pathlib import Path
+          from PIL import Image
+
+          thumbnail_path = Path("output/female/pull_up.png")
+          thumbnail = Image.open(thumbnail_path).convert("RGB")
+          width, height = thumbnail.size
+          purple_pixels = sum(
+              1 for red, green, blue in thumbnail.getdata()
+              if red > 60 and blue > 70
+              and blue > red * 1.25
+              and blue > green * 1.6
+              and red > green * 1.2
+          )
+          visual_limit = max(40, int(width * height * 0.0002))
+          if purple_pixels > visual_limit:
+              raise SystemExit(
+                  f"Female hair visual QA failed: {purple_pixels} purple-dominant "
+                  f"pixels in {width}x{height} render (limit {visual_limit})."
+              )
+          print(
+              f"HAIR_COLOR_VISUAL_QA PASS pixels={purple_pixels} limit={visual_limit} "
+              f"image={thumbnail_path}"
+          )
+
+          glb_path = Path("output/female/pull_up.glb")
+          data = glb_path.read_bytes()
+          if data[:4] != b"glTF":
+              raise SystemExit("Female GLB texture QA failed: file is not GLB 2.0.")
+          offset = 12
+          document = None
+          binary = None
+          while offset < len(data):
+              length, chunk_type = struct.unpack_from("<I4s", data, offset)
+              offset += 8
+              chunk = data[offset:offset + length]
+              offset += length
+              if chunk_type == b"JSON":
+                  document = json.loads(chunk.decode("utf-8"))
+              elif chunk_type == b"BIN\\x00":
+                  binary = chunk
+          if document is None or binary is None:
+              raise SystemExit("Female GLB texture QA failed: missing JSON/BIN chunk.")
+
+          hair_images = [
+              item for item in document.get("images", [])
+              if any(token in item.get("name", "").lower()
+                     for token in ("braid01", "grapewash", "female hair chestnut", "fitpulse_female_hair_chestnut"))
+          ]
+          if not hair_images:
+              raise SystemExit("Female GLB texture QA failed: embedded braid diffuse image not found.")
+
+          for item in hair_images:
+              if "bufferView" not in item:
+                  raise SystemExit(
+                      f"Female GLB hair texture is not embedded: {item.get('name')!r}"
+                  )
+              view = document["bufferViews"][item["bufferView"]]
+              begin = view.get("byteOffset", 0)
+              image_bytes = binary[begin:begin + view["byteLength"]]
+              image = Image.open(io.BytesIO(image_bytes)).convert("RGBA")
+              tex_width, tex_height = image.size
+              texture_purple_pixels = sum(
+                  1 for red, green, blue, alpha in image.getdata()
+                  if alpha > 20 and red > 60 and blue > 70
+                  and blue > red * 1.25
+                  and blue > green * 1.6
+                  and red > green * 1.2
+              )
+              texture_limit = max(40, int(tex_width * tex_height * 0.0002))
+              if texture_purple_pixels > texture_limit:
+                  raise SystemExit(
+                      f"Female GLB embedded hair texture failed: {texture_purple_pixels} "
+                      f"purple-dominant pixels in {tex_width}x{tex_height} "
+                      f"(limit {texture_limit})."
+                  )
+              print(
+                  f"HAIR_GLTF_TEXTURE_QA PASS name={item.get('name')} "
+                  f"pixels={texture_purple_pixels} limit={texture_limit} "
+                  f"size={tex_width}x{tex_height}"
+              )
+          PY
+        working-directory: upstream
+
       - name: Upload per-profile animation and QA artifacts
         if: always()
         uses: actions/upload-artifact@v4
