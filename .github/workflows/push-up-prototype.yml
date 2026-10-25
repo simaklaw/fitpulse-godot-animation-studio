@@ -86,7 +86,7 @@ jobs:
           missing=()
           command -v ffmpeg >/dev/null 2>&1 || missing+=(ffmpeg)
           command -v unzip >/dev/null 2>&1 || missing+=(unzip)
-          for package in libxi6 libxxf86vm1 libxfixes3 libxrender1 libgl1 libxkbcommon0 libsm6; do
+          for package in libxi6 libxxf86vm1 libxfixes3 libxrender1 libgl1 libxkbcommon0 libsm6 python3-pil; do
             dpkg-query -W -f='\u0024{Status}' "$package" 2>/dev/null | grep -q 'install ok installed' || missing+=("$package")
           done
           if (("${#missing[@]}" > 0)); then
@@ -235,6 +235,36 @@ jobs:
           grep -q "APPAREL_LOADED gender=$gender item=shorts" "../output/$gender/build.log"
           grep -q "APPAREL_LOADED gender=$gender item=hair" "../output/$gender/build.log"
           grep -q "APPAREL_LOADED gender=$gender item=shoes" "../output/$gender/build.log"
+          if [ "$gender" = "female" ]; then
+            # Require the exact in-place recolor path, then visually guard the
+            # rendered thumbnail against the purple source-hair failure mode.
+            grep -q "HAIR_COLOR_GRADED gender=female palette=natural_chestnut.*in_place=true" "../output/$gender/build.log"
+            python3 - "../output/$gender/push_up.png" <<'PY'
+          from PIL import Image
+          import sys
+
+          path = sys.argv[1]
+          image = Image.open(path).convert("RGB")
+          width, height = image.size
+          purple_pixels = sum(
+              1 for red, green, blue in image.getdata()
+              if red > 60 and blue > 70
+              and blue > red * 1.25
+              and blue > green * 1.6
+              and red > green * 1.2
+          )
+          limit = max(40, int(width * height * 0.0002))
+          if purple_pixels > limit:
+              raise SystemExit(
+                  f"Female hair visual QA failed: {purple_pixels} purple-dominant "
+                  f"pixels in {width}x{height} render (limit {limit})."
+              )
+          print(
+              f"HAIR_COLOR_VISUAL_QA PASS pixels={purple_pixels} limit={limit} "
+              f"image={path}"
+          )
+          PY
+          fi
         working-directory: upstream
 
       - name: Run upstream joint-integrity QA
