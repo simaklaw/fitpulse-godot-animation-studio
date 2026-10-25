@@ -348,7 +348,7 @@ jobs:
             echo "Missing MP4 for $gender; cannot create its contact sheet" >&2
             exit 1
           fi
-          ffmpeg -y -v error -i "$video" -vf "fps=10/3,scale=360:360,tile=4x2" -frames:v 1 "output/$gender/push_up_contact_sheet.png"
+          ffmpeg -y -v error -i "$video" -vf "fps=10/3,scale=360:360,tile=4x3" -frames:v 1 "output/$gender/push_up_contact_sheet.png"
           test -s "output/$gender/push_up_contact_sheet.png"
 
       - name: Verify transparent PNG sequence
