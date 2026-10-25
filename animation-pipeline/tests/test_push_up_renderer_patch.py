@@ -9,6 +9,7 @@ ROOT = Path(__file__).resolve().parents[2]
 PATCH = ROOT / "animation-pipeline" / "scripts" / "patch_opengym3d_pushup.py"
 SHARED_PATCH = ROOT / "animation-pipeline" / "scripts" / "patch_opengym3d_pullup.py"
 WORKFLOW = ROOT / ".github" / "workflows" / "push-up-prototype.yml"
+PULLUP_WORKFLOW = ROOT / ".github" / "workflows" / "pull-up-prototype.yml"
 
 
 class PushUpRendererPatchTests(unittest.TestCase):
@@ -17,6 +18,7 @@ class PushUpRendererPatchTests(unittest.TestCase):
         cls.source = PATCH.read_text(encoding="utf-8")
         cls.shared_source = SHARED_PATCH.read_text(encoding="utf-8")
         cls.workflow_source = WORKFLOW.read_text(encoding="utf-8")
+        cls.pullup_workflow_source = PULLUP_WORKFLOW.read_text(encoding="utf-8")
 
     def test_pole_angle_is_explicit_and_pole_target_remains_animated(self):
         # The MakeHuman rig uses a fixed calibrated roll offset. The pole target's
@@ -85,6 +87,13 @@ class PushUpRendererPatchTests(unittest.TestCase):
     def test_workflow_disables_checkout_credential_persistence(self):
         self.assertEqual(self.workflow_source.count("uses: actions/checkout@v4"), 3)
         self.assertEqual(self.workflow_source.count("persist-credentials: false"), 3)
+
+    def test_pull_up_workflow_gates_female_hair_color_in_render_and_embedded_gltf(self):
+        self.assertIn("HAIR_COLOR_VISUAL_QA PASS", self.pullup_workflow_source)
+        self.assertIn("fitpulse_female_hair_chestnut", self.pullup_workflow_source)
+        self.assertIn("HAIR_GLTF_TEXTURE_QA PASS", self.pullup_workflow_source)
+        self.assertIn("Female GLB embedded hair texture failed", self.pullup_workflow_source)
+        self.assertIn('chunk_type == b"BIN\\x00"', self.pullup_workflow_source)
 
     def test_hand_and_toe_contact_gates_remain_present(self):
         self.assertIn("push-up hand-floor contact failed", self.source)
