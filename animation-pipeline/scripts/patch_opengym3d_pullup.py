@@ -559,13 +559,24 @@ setter_new = '''    TargetService.reapply_macro_details(basemesh)
             )
 
         changed = 0
+        processed_images = {}
         for texture_node in image_nodes:
-            # Update the actual image datablock so every node/material that
-            # references this texture sees the recolored pixels during render/export.
             source_image = texture_node.image
-            pixels = np.empty(len(source_image.pixels), dtype=np.float32)
-            source_image.pixels.foreach_get(pixels)
+            source_key = source_image.as_pointer()
+            if source_key in processed_images:
+                texture_node.image = processed_images[source_key]
+                continue
+
+            # Render/export may resolve the source image from its original file
+            # path, even after in-memory pixels were changed. Work on a copy,
+            # write a dedicated PNG, reload that exact file, then rebind every
+            # hair material node that referenced the source datablock.
+            natural_image = source_image.copy()
+            natural_image.name = f"FitPulse Female Hair Chestnut {source_image.name}"
+            pixels = np.empty(len(natural_image.pixels), dtype=np.float32)
+            natural_image.pixels.foreach_get(pixels)
             rgba = pixels.reshape((-1, 4))
+            original_alpha = rgba[:, 3].copy()
             luminance = (
                 rgba[:, 0] * 0.2126
                 + rgba[:, 1] * 0.7152
@@ -574,19 +585,45 @@ setter_new = '''    TargetService.reapply_macro_details(basemesh)
             luminance = np.clip(luminance, 0.0, 1.0)
 
             # Replace purple chroma with natural chestnut while retaining
-            # nearly all source luminance, so strand highlights do not vanish.
-            # The coefficients are a linear-RGB chestnut tint (weighted output
-            # luminance ~= source luminance); only RGB changes, never alpha.
+            # strand luminance and alpha.
             rgba[:, 0] = np.clip(2.40 * luminance, 0.0, 1.0)
             rgba[:, 1] = np.clip(0.70 * luminance, 0.0, 1.0)
             rgba[:, 2] = np.clip(0.20 * luminance, 0.0, 1.0)
-            source_image.pixels.foreach_set(pixels)
-            source_image.update()
+            rgba[:, 3] = original_alpha
+            natural_image.pixels.foreach_set(pixels)
+            natural_image.update()
+
+            import os
+            import tempfile
+            output_path = os.path.join(
+                tempfile.gettempdir(),
+                f"fitpulse_female_hair_chestnut_{source_key}.png",
+            )
+            natural_image.filepath_raw = output_path
+            natural_image.file_format = "PNG"
+            natural_image.save()
+            natural_image.pack()
+
+            # Reload the written PNG so both Blender render and glTF export consume
+            # the serialized recolor rather than the original source file bytes.
+            exported_image = bpy.data.images.load(output_path, check_existing=False)
+            exported_image.name = f"FitPulse Female Hair Chestnut Export {source_image.name}"
+            try:
+                exported_image.colorspace_settings.name = source_image.colorspace_settings.name
+            except Exception:
+                pass
+            for material in bpy.data.materials:
+                if material is None or not material.use_nodes or material.node_tree is None:
+                    continue
+                for node in material.node_tree.nodes:
+                    if node.type == "TEX_IMAGE" and node.image == source_image:
+                        node.image = exported_image
+            processed_images[source_key] = exported_image
             changed += 1
 
         print(
             f"HAIR_COLOR_GRADED gender=female palette=natural_chestnut "
-            f"textures={changed} alpha=preserved in_place=true",
+            f"textures={changed} alpha=preserved in_place=true saved_reloaded=true",
             flush=True,
         )
 
