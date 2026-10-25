@@ -6,12 +6,14 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 PATCH = ROOT / "animation-pipeline" / "scripts" / "patch_opengym3d_pushup.py"
+SHARED_PATCH = ROOT / "animation-pipeline" / "scripts" / "patch_opengym3d_pullup.py"
 
 
 class PushUpRendererPatchTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.source = PATCH.read_text(encoding="utf-8")
+        cls.shared_source = SHARED_PATCH.read_text(encoding="utf-8")
 
     def test_pole_angle_uses_intended_elbow_not_original_mocap_elbow(self):
         # The generated Blender patch must calibrate the pole from the target bend
@@ -45,11 +47,11 @@ class PushUpRendererPatchTests(unittest.TestCase):
         # The female hairstyle's source albedo contains bright purple streaks.
         # The renderer should color-grade a copied image, retain alpha, and log the
         # result so the emitted GLB can be audited from its build log.
-        self.assertIn("def normalize_female_hair_texture(hair_object):", self.source)
-        self.assertIn("palette=natural_chestnut", self.source)
-        self.assertIn("rgba[:, 2]", self.source)
-        self.assertIn("original alpha channel is preserved", self.source)
-        self.assertIn("HAIR_COLOR_GRADED gender=female palette=natural_chestnut", self.source)
+        self.assertIn("def normalize_female_hair_texture(hair_object):", self.shared_source)
+        self.assertIn("palette=natural_chestnut", self.shared_source)
+        self.assertIn("rgba[:, 2]", self.shared_source)
+        self.assertIn("original alpha channel is preserved", self.shared_source)
+        self.assertIn("HAIR_COLOR_GRADED gender=female palette=natural_chestnut", self.shared_source)
 
     def test_hand_and_toe_contact_gates_remain_present(self):
         self.assertIn("push-up hand-floor contact failed", self.source)
