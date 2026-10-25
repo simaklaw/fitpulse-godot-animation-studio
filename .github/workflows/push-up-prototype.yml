@@ -296,7 +296,7 @@ jobs:
           hair_images = [
               item for item in document.get("images", [])
               if any(token in item.get("name", "").lower()
-                     for token in ("braid01", "grapewash", "female hair chestnut"))
+                     for token in ("braid01", "grapewash", "female hair chestnut", "fitpulse_female_hair_chestnut"))
           ]
           if not hair_images:
               raise SystemExit(
