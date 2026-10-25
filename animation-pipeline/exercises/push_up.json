@@ -97,7 +97,7 @@
       }
     },
     {
-      "t": 0.52,
+      "t": 0.5,
       "bones": {
         "pelvis": {
           "rot": [
@@ -364,7 +364,7 @@
     },
     {
       "id": "bottom",
-      "time": 0.52,
+      "time": 0.5,
       "kind": "bottom",
       "name": "Bottom position",
       "cue": "Chest close to floor, no collapse or forced depth."
