@@ -40,6 +40,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - name: Validate motion spec
         run: |
           python3 -m json.tool animation-pipeline/exercises/pull_up.json > /dev/null
@@ -75,10 +77,13 @@ jobs:
     steps:
       - name: Checkout FitPulse prototype spec
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Checkout pinned OpenGym3D render pipeline
         uses: actions/checkout@v4
         with:
+          persist-credentials: false
           repository: AssiamahS/opengym3d
           ref: ea3a60130fdcfb3c4771e44d09f84ebab4ee9bae
           path: upstream
