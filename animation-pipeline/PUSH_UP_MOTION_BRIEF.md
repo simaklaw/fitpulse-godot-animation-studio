@@ -9,7 +9,7 @@
 - Сборщик: OpenGym3D, revision `ea3a60130fdcfb3c4771e44d09f84ebab4ee9bae`.
 - Спецификация: `exercises/push_up.json`.
 - Движение: `motions/cc0/mesh2motion/human-addon-animations.glb#Pushup`.
-- SHA-256 source blob: `b314ab1a99c546882786b44745915d97f32b6a88`.
+- Git blob SHA-1 of the source file: `b314ab1a99c546882786b44745915d97f32b6a88`.
 - Для источника указана лицензия CC0 1.0 Universal (см. `motions/cc0/mesh2motion/LICENSE-CC0.md`).
 - Мы импортируем этот клип как reference motion и ретаргетим на текущую MakeHuman-основу FitPulse. Успешный импорт не подтверждает технику сам по себе.
 
