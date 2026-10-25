@@ -543,11 +543,13 @@ setter_new = '''    TargetService.reapply_macro_details(basemesh)
                 )
                 luminance = np.clip(luminance, 0.0, 1.0)
 
-                # Convert the source's purple highlights into a restrained chestnut
-                # palette. Only RGB is changed; the original alpha channel is preserved.
-                rgba[:, 0] = np.clip(0.004 + 0.30 * luminance, 0.0, 1.0)
-                rgba[:, 1] = np.clip(0.003 + 0.13 * luminance, 0.0, 1.0)
-                rgba[:, 2] = np.clip(0.002 + 0.055 * luminance, 0.0, 1.0)
+                # Replace purple chroma with natural chestnut while retaining
+                # nearly all source luminance, so strand highlights do not vanish.
+                # The coefficients are a linear-RGB chestnut tint (weighted output
+                # luminance ~= source luminance); only RGB changes, never alpha.
+                rgba[:, 0] = np.clip(2.40 * luminance, 0.0, 1.0)
+                rgba[:, 1] = np.clip(0.70 * luminance, 0.0, 1.0)
+                rgba[:, 2] = np.clip(0.20 * luminance, 0.0, 1.0)
                 natural_image.pixels.foreach_set(pixels)
                 natural_image.update()
                 texture_node.image = natural_image
