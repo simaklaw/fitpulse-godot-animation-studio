@@ -30,37 +30,12 @@ def apply_push_up_contact_ik(rig):
     hand_targets = {}
     toe_targets = {}
     pole_targets = {side: {} for side in sides}
-    pole_angles = {side: {} for side in sides}
     frame_range = list(range(scene.frame_start, scene.frame_end + 1))
-
-    def angle_degrees(a, b):
-        if a.length < 1e-7 or b.length < 1e-7:
-            return 180.0
-        cosine = max(-1.0, min(1.0, a.normalized().dot(b.normalized())))
-        return math.degrees(math.acos(cosine))
-
-    def calculated_pole_angle(chain_start, middle_joint, chain_end, pole_pos):
-        """Compute the IK pole offset from the current bend plane (Blender roll aware)."""
-        chain = chain_end - chain_start
-        if chain.length < 1e-5:
-            return None
-        chain_dir = chain.normalized()
-        to_pole = pole_pos - middle_joint
-        to_pole = to_pole - chain_dir * to_pole.dot(chain_dir)
-        current_bend = middle_joint - chain_start
-        current_bend = current_bend - chain_dir * current_bend.dot(chain_dir)
-        if to_pole.length < 1e-5 or current_bend.length < 1e-5:
-            return None
-        to_pole.normalize()
-        current_bend.normalize()
-        dot = max(-1.0, min(1.0, current_bend.dot(to_pole)))
-        angle = math.acos(dot)
-        if current_bend.cross(to_pole).dot(chain_dir) < 0.0:
-            angle = -angle
-        # This offset accounts for Blender's IK reference plane; normalize it
-        # so the stored value remains inside the supported [-pi, pi] interval.
-        value = angle - math.pi * 0.5
-        return math.atan2(math.sin(value), math.cos(value))
+    # The pole target itself follows the desired elbow plane on every frame.
+    # For this MakeHuman default rig, a fixed -90-degree IK pole offset is
+    # the calibrated roll convention; deriving it from the same constructed
+    # elbow and pole vectors is self-referential and can sign-flip at a threshold.
+    pole_angle = -math.pi * 0.5
 
     # First pass: sample original mocap poses and construct per-frame pole positions
     # and pole-angle offsets before adding constraints.
@@ -137,53 +112,14 @@ def apply_push_up_contact_ik(rig):
             pole_position = shoulder_point + arm_axis * 0.25 + pole_offset.normalized() * 0.35
             pole_targets[side][frame] = pole_position
 
-            # Calculate the roll-aware pole angle from the intended elbow point,
-            # not the original mocap elbow. Using elbow_point here recalibrates the
-            # pole to the old bend plane and can cancel the desired elbow tracking.
-            # Near-straight source poses can make the intended bend plane undefined;
-            # those frames are filled from neighbouring stable samples.
-            pole_angles[side][frame] = calculated_pole_angle(
-                shoulder_point, desired_elbow, hand_targets[side], pole_position
-            )
+            # The animated pole target tracks this desired elbow plane directly.
+            # Keep the IK roll offset fixed; elbow-path QA validates the resulting pose.
 
-    # Fill frames where the source limb was too straight to define a stable bend
-    # plane. Use circular-angle interpolation to avoid a discontinuity at +/-pi.
-    for side in sides:
-        valid = [(f, a) for f, a in sorted(pole_angles[side].items()) if a is not None]
-        if len(valid) < 5:
-            raise RuntimeError(
-                f"push-up pole-angle calculation failed for {side}: "
-                f"only {len(valid)} stable bend-plane samples"
-            )
-        unwrapped = {}
-        previous = None
-        for frame, value in valid:
-            if previous is not None:
-                while value - previous > math.pi:
-                    value -= 2.0 * math.pi
-                while value - previous < -math.pi:
-                    value += 2.0 * math.pi
-            unwrapped[frame] = value
-            previous = value
-        valid_frames = sorted(unwrapped)
-        for frame in frame_range:
-            if frame in unwrapped:
-                value = unwrapped[frame]
-            else:
-                left = [f for f in valid_frames if f < frame]
-                right = [f for f in valid_frames if f > frame]
-                if left and right:
-                    f0, f1 = left[-1], right[0]
-                    value = unwrapped[f0] + (unwrapped[f1] - unwrapped[f0]) * ((frame - f0) / (f1 - f0))
-                elif left:
-                    value = unwrapped[left[-1]]
-                else:
-                    value = unwrapped[right[0]]
-            pole_angles[side][frame] = math.atan2(math.sin(value), math.cos(value))
+    # Pole angle stays fixed at the calibrated MakeHuman rig offset;
+    # the target object's animated position carries the desired elbow path.
 
     hand_objects = {}
     pole_objects = {}
-    arm_ik_constraints = {}
     # Second pass: add targets and IK constraints. Wrist-tail targeting pins the
     # actual hand endpoint rather than the wrist bone head.
     for side in sides:
@@ -216,13 +152,12 @@ def apply_push_up_contact_ik(rig):
         arm_ik.name = "FitPulsePushUpArmIK" + side
         arm_ik.target = hand_target
         arm_ik.pole_target = pole
-        arm_ik.pole_angle = pole_angles[side][scene.frame_start]
+        arm_ik.pole_angle = pole_angle
         arm_ik.chain_count = 5
         arm_ik.iterations = 100
         arm_ik.use_stretch = False
         arm_ik.use_tail = True
         arm_ik.influence = 1.0
-        arm_ik_constraints[side] = arm_ik
 
         toe_target = bpy.data.objects.new("FitPulsePushUpToeTarget" + side, None)
         scene.collection.objects.link(toe_target)
@@ -240,34 +175,13 @@ def apply_push_up_contact_ik(rig):
         leg_ik.use_stretch = False
         leg_ik.influence = 1.0
 
-    # Keyframe the computed pole_angle for every pose. This changes the bend plane
-    # with the movement instead of forcing one static roll offset across the cycle.
-    for side in sides:
-        ik = arm_ik_constraints[side]
-        data_path = ik.path_from_id("pole_angle")
-        for frame in frame_range:
-            scene.frame_set(frame)
-            ik.pole_angle = pole_angles[side][frame]
-            rig.keyframe_insert(
-                data_path=data_path,
-                frame=frame,
-                group="FitPulse elbow IK calibration",
-            )
-        action = rig.animation_data.action if rig.animation_data else None
-        if action:
-            for fcurve in action.fcurves:
-                if fcurve.data_path == data_path:
-                    for point in fcurve.keyframe_points:
-                        point.interpolation = "LINEAR"
-                    fcurve.update()
-
     scene.frame_set(scene.frame_start)
     view_layer.update()
     print(
         "PUSHUP_CONTACT_IK PASS "
         f"hand_z=({hand_targets['.L'].z:.3f},{hand_targets['.R'].z:.3f})m "
         f"toe_targets_z=({toe_targets['.L'].z:.3f},{toe_targets['.R'].z:.3f})m "
-        f"elbow_pole=animated_per_frame frames={len(frame_range)} "
+        f"elbow_pole_target=animated_per_frame pole_angle=-90deg frames={len(frame_range)} "
         "target_flare=45deg pole_basis=desired_elbow chain_arm=5 tail_contact=on chain_leg=3"
     )
 
