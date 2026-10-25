@@ -87,6 +87,8 @@ class PushUpRendererPatchTests(unittest.TestCase):
     def test_workflow_disables_checkout_credential_persistence(self):
         self.assertEqual(self.workflow_source.count("uses: actions/checkout@v4"), 3)
         self.assertEqual(self.workflow_source.count("persist-credentials: false"), 3)
+        self.assertEqual(self.pullup_workflow_source.count("uses: actions/checkout@v4"), 3)
+        self.assertEqual(self.pullup_workflow_source.count("persist-credentials: false"), 3)
 
     def test_pull_up_workflow_gates_female_hair_color_in_render_and_embedded_gltf(self):
         self.assertIn("HAIR_COLOR_VISUAL_QA PASS", self.pullup_workflow_source)
