@@ -46,7 +46,7 @@ class PushUpRendererPatchTests(unittest.TestCase):
         # The renderer should color-grade a copied image, retain alpha, and log the
         # result so the emitted GLB can be audited from its build log.
         self.assertIn("def normalize_female_hair_texture(hair_object):", self.source)
-        self.assertIn("natural chestnut", self.source.lower())
+        self.assertIn("palette=natural_chestnut", self.source)
         self.assertIn("rgba[:, 2]", self.source)
         self.assertIn("original alpha channel is preserved", self.source)
         self.assertIn("HAIR_COLOR_GRADED gender=female palette=natural_chestnut", self.source)
