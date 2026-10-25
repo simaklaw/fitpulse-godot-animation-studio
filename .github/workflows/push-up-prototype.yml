@@ -7,6 +7,7 @@ on:
     paths:
       - "animation-pipeline/exercises/push_up.json"
       - "animation-pipeline/scripts/patch_opengym3d_pushup.py"
+      - "animation-pipeline/scripts/patch_opengym3d_pullup.py"
       - ".github/workflows/push-up-prototype.yml"
   pull_request:
     branches:
@@ -14,6 +15,7 @@ on:
     paths:
       - "animation-pipeline/exercises/push_up.json"
       - "animation-pipeline/scripts/patch_opengym3d_pushup.py"
+      - "animation-pipeline/scripts/patch_opengym3d_pullup.py"
       - ".github/workflows/push-up-prototype.yml"
   workflow_dispatch:
 
@@ -238,7 +240,7 @@ jobs:
           if [ "$gender" = "female" ]; then
             # Require the exact in-place recolor path, then visually guard the
             # rendered thumbnail against the purple source-hair failure mode.
-            grep -q "HAIR_COLOR_GRADED gender=female palette=natural_chestnut.*in_place=true" "../output/$gender/build.log"
+            grep -q "HAIR_COLOR_GRADED gender=female palette=natural_chestnut.*saved_reloaded=true" "../output/$gender/build.log"
             python3 - "../output/$gender/push_up.png" <<'PY'
           from PIL import Image
           import sys
@@ -263,6 +265,71 @@ jobs:
               f"HAIR_COLOR_VISUAL_QA PASS pixels={purple_pixels} limit={limit} "
               f"image={path}"
           )
+          PY
+            python3 - "../output/$gender/push_up.glb" <<'PY'
+          import io
+          import json
+          import struct
+          import sys
+          from pathlib import Path
+          from PIL import Image
+
+          path = Path(sys.argv[1])
+          data = path.read_bytes()
+          if data[:4] != b"glTF":
+              raise SystemExit("Female GLB texture QA failed: file is not GLB 2.0.")
+          offset = 12
+          document = None
+          binary = None
+          while offset < len(data):
+              length, chunk_type = struct.unpack_from("<I4s", data, offset)
+              offset += 8
+              chunk = data[offset:offset + length]
+              offset += length
+              if chunk_type == b"JSON":
+                  document = json.loads(chunk.decode("utf-8"))
+              elif chunk_type == b"BIN\\x00":
+                  binary = chunk
+          if document is None or binary is None:
+              raise SystemExit("Female GLB texture QA failed: missing JSON/BIN chunk.")
+
+          hair_images = [
+              item for item in document.get("images", [])
+              if any(token in item.get("name", "").lower()
+                     for token in ("braid01", "grapewash", "female hair chestnut"))
+          ]
+          if not hair_images:
+              raise SystemExit(
+                  "Female GLB texture QA failed: embedded braid diffuse image not found."
+              )
+
+          for item in hair_images:
+              if "bufferView" not in item:
+                  raise SystemExit(
+                      f"Female GLB hair texture is not embedded: {item.get('name')!r}"
+                  )
+              view = document["bufferViews"][item["bufferView"]]
+              begin = view.get("byteOffset", 0)
+              image_bytes = binary[begin:begin + view["byteLength"]]
+              image = Image.open(io.BytesIO(image_bytes)).convert("RGBA")
+              width, height = image.size
+              purple_pixels = sum(
+                  1 for red, green, blue, alpha in image.getdata()
+                  if alpha > 20 and red > 60 and blue > 70
+                  and blue > red * 1.25
+                  and blue > green * 1.6
+                  and red > green * 1.2
+              )
+              limit = max(40, int(width * height * 0.0002))
+              if purple_pixels > limit:
+                  raise SystemExit(
+                      f"Female GLB embedded hair texture failed: {purple_pixels} "
+                      f"purple-dominant pixels in {width}x{height} (limit {limit})."
+                  )
+              print(
+                  f"HAIR_GLTF_TEXTURE_QA PASS name={item.get('name')} "
+                  f"pixels={purple_pixels} limit={limit} size={width}x{height}"
+              )
           PY
           fi
         working-directory: upstream
