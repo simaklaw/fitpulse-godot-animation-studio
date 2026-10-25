@@ -288,7 +288,7 @@ jobs:
               offset += length
               if chunk_type == b"JSON":
                   document = json.loads(chunk.decode("utf-8"))
-              elif chunk_type == b"BIN\\x00":
+              elif chunk_type == b"BIN\x00":
                   binary = chunk
           if document is None or binary is None:
               raise SystemExit("Female GLB texture QA failed: missing JSON/BIN chunk.")
