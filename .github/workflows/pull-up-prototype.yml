@@ -400,7 +400,7 @@ jobs:
           from pathlib import Path
           from PIL import Image
 
-          thumbnail_path = Path("output/female/pull_up.png")
+          thumbnail_path = Path("../output/female/pull_up.png")
           thumbnail = Image.open(thumbnail_path).convert("RGB")
           width, height = thumbnail.size
           purple_pixels = sum(
@@ -421,7 +421,7 @@ jobs:
               f"image={thumbnail_path}"
           )
 
-          glb_path = Path("output/female/pull_up.glb")
+          glb_path = Path("../output/female/pull_up.glb")
           data = glb_path.read_bytes()
           if data[:4] != b"glTF":
               raise SystemExit("Female GLB texture QA failed: file is not GLB 2.0.")
