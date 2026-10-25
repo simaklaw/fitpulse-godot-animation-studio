@@ -55,7 +55,12 @@ class PushUpRendererPatchTests(unittest.TestCase):
         self.assertIn("source_image.pixels.foreach_set(pixels)", self.shared_source)
         self.assertIn("node.type != \"TEX_IMAGE\"", self.shared_source)
         self.assertIn("flush=True", self.shared_source)
-        self.assertIn("only RGB changes, never alpha", self.shared_source)
+        self.assertIn("original_alpha = rgba[:, 3].copy()", self.shared_source)
+        self.assertIn("rgba[:, 3] = original_alpha", self.shared_source)
+        self.assertIn("natural_image.save()", self.shared_source)
+        self.assertIn("bpy.data.images.load(output_path, check_existing=False)", self.shared_source)
+        self.assertIn("node.image = exported_image", self.shared_source)
+        self.assertIn("saved_reloaded=true", self.shared_source)
         self.assertIn("HAIR_COLOR_GRADED gender=female palette=natural_chestnut", self.shared_source)
 
     def test_hand_and_toe_contact_gates_remain_present(self):
