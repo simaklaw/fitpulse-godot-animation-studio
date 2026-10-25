@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import re
 import unittest
 from pathlib import Path
@@ -17,23 +18,18 @@ class PushUpRendererPatchTests(unittest.TestCase):
         cls.shared_source = SHARED_PATCH.read_text(encoding="utf-8")
         cls.workflow_source = WORKFLOW.read_text(encoding="utf-8")
 
-    def test_pole_angle_uses_intended_elbow_not_original_mocap_elbow(self):
-        # The generated Blender patch must calibrate the pole from the target bend
-        # plane. Calibrating from elbow_point (the source pose) can cancel the
-        # intended flare and caused the recurring 23–24 degree QA failure.
-        expected = re.compile(
-            r"pole_angles\[side\]\[frame\]\s*=\s*calculated_pole_angle\(\s*"
-            r"shoulder_point,\s*desired_elbow,\s*hand_targets\[side\],\s*"
-            r"pole_position\s*\)",
-            re.MULTILINE,
-        )
-        self.assertRegex(self.source, expected)
-        self.assertNotRegex(
+    def test_pole_angle_is_explicit_and_pole_target_remains_animated(self):
+        # The MakeHuman rig uses a fixed calibrated roll offset. The pole target's
+        # position, not a self-referential plane calculation, tracks the elbow path.
+        self.assertIn("pole_angle = -math.pi * 0.5", self.source)
+        self.assertIn("arm_ik.pole_angle = pole_angle", self.source)
+        self.assertIn(
+            'pole.keyframe_insert(data_path="location", frame=frame, group="FitPulse elbow tracking")',
             self.source,
-            r"pole_angles\[side\]\[frame\]\s*=\s*calculated_pole_angle\(\s*"
-            r"shoulder_point,\s*elbow_point,\s*hand_targets\[side\],\s*"
-            r"pole_position\s*\)",
         )
+        self.assertIn("elbow_pole_target=animated_per_frame pole_angle=-90deg", self.source)
+        self.assertNotIn("calculated_pole_angle", self.source)
+        self.assertNotIn("pole_angles[side][frame]", self.source)
 
     def test_elbow_path_acceptance_range_is_not_relaxed(self):
         self.assertIn(
@@ -76,6 +72,19 @@ class PushUpRendererPatchTests(unittest.TestCase):
         self.assertIn("HAIR_GLTF_TEXTURE_QA PASS", self.workflow_source)
         self.assertIn("Female GLB embedded hair texture failed", self.workflow_source)
         self.assertIn('chunk_type == b"BIN\\x00"', self.workflow_source)
+
+    def test_bottom_phase_and_keyframe_match_catalog_timing(self):
+        spec = json.loads((ROOT / "animation-pipeline" / "exercises" / "push_up.json").read_text(encoding="utf-8"))
+        catalog = json.loads((ROOT / "animation-pipeline" / "catalog" / "exercise_catalog.json").read_text(encoding="utf-8"))
+        catalog_exercise = next(item for item in catalog["exercises"] if item["id"] == "push_up")
+        spec_bottom = next(item for item in spec["phases"] if item["id"] == "bottom")
+        catalog_bottom = next(item for item in catalog_exercise["movement"]["phases"] if item["id"] == "bottom")
+        self.assertAlmostEqual(spec_bottom["time"], catalog_bottom["time"], places=4)
+        self.assertIn(spec_bottom["time"], [frame["t"] for frame in spec["keyframes"]])
+
+    def test_workflow_disables_checkout_credential_persistence(self):
+        self.assertEqual(self.workflow_source.count("uses: actions/checkout@v4"), 3)
+        self.assertEqual(self.workflow_source.count("persist-credentials: false"), 3)
 
     def test_hand_and_toe_contact_gates_remain_present(self):
         self.assertIn("push-up hand-floor contact failed", self.source)
