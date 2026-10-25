@@ -500,6 +500,72 @@ setter_new = '''    TargetService.reapply_macro_details(basemesh)
         material_type="GAMEENGINE", set_up_rigging=True,
         interpolate_weights=True, import_subrig=False, import_weights=True,
     )
+
+    def normalize_female_hair_texture(hair_object):
+        """Recolor the female hair albedo while preserving strand alpha and UV detail."""
+        import numpy as np
+
+        changed = 0
+        for material in hair_object.data.materials:
+            if material is None or not material.use_nodes or material.node_tree is None:
+                continue
+            shader = next(
+                (node for node in material.node_tree.nodes if node.type == "BSDF_PRINCIPLED"),
+                None,
+            )
+            if shader is None:
+                continue
+            base_color = shader.inputs.get("Base Color")
+            if base_color is None:
+                continue
+
+            texture_nodes = [
+                link.from_node
+                for link in material.node_tree.links
+                if link.to_node == shader
+                and link.to_socket == base_color
+                and link.from_node.type == "TEX_IMAGE"
+                and link.from_node.image is not None
+            ]
+            for texture_node in texture_nodes:
+                # Work on a copy: never recolor a shared or upstream source image.
+                source_image = texture_node.image
+                natural_image = source_image.copy()
+                natural_image.name = f"FitPulse Female Hair Chestnut {source_image.name}"
+
+                pixels = np.empty(len(natural_image.pixels), dtype=np.float32)
+                natural_image.pixels.foreach_get(pixels)
+                rgba = pixels.reshape((-1, 4))
+                luminance = (
+                    rgba[:, 0] * 0.2126
+                    + rgba[:, 1] * 0.7152
+                    + rgba[:, 2] * 0.0722
+                )
+                luminance = np.clip(luminance, 0.0, 1.0)
+
+                # Convert the source's purple highlights into a restrained chestnut
+                # palette. Only RGB is changed; the original alpha channel is preserved.
+                rgba[:, 0] = np.clip(0.004 + 0.30 * luminance, 0.0, 1.0)
+                rgba[:, 1] = np.clip(0.003 + 0.13 * luminance, 0.0, 1.0)
+                rgba[:, 2] = np.clip(0.002 + 0.055 * luminance, 0.0, 1.0)
+                natural_image.pixels.foreach_set(pixels)
+                natural_image.update()
+                texture_node.image = natural_image
+                changed += 1
+
+        if changed < 1:
+            raise RuntimeError(
+                "Female hair recolor failed: no base-color image texture was found; "
+                "refusing to export purple source hair."
+            )
+        print(
+            f"HAIR_COLOR_GRADED gender=female palette=natural_chestnut "
+            f"textures={changed} alpha=preserved"
+        )
+
+    if gender_name == "female":
+        normalize_female_hair_texture(hair)
+
     print(
         f"APPAREL_LOADED gender={gender_name} item=hair "
         f"asset={hair_name} vertices={len(hair.data.vertices)}"
