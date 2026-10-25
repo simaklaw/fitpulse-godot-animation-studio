@@ -13,6 +13,7 @@ Run the Godot project to open the workshop home. It reads the catalog to show th
 - Renderer contracts/coverage: `animation-pipeline/catalog/renderer_adapter_registry.json` and `animation-pipeline/catalog/repdb-preview-coverage.json`.
 - Production workflow and authoring rules: `animation-pipeline/EXERCISE_PRODUCTION_WORKFLOW.md`.
 - Pull-up motion/technical acceptance brief: `animation-pipeline/PULL_UP_MOTION_BRIEF.md`.
+- Push-up renderer/technique/QA brief: `animation-pipeline/PUSH_UP_MOTION_BRIEF.md` (first new mocap-backed floor-push adapter; not production-approved until both profiles pass).
 
 The catalog currently contains 11 reusable exercise briefs. It is a production registry, not a claim that every listed exercise already has a finished animation. A card displays a real poster/video/SpriteFrames resource only when its declared media path exists. Otherwise it explicitly shows that the clip has not been generated; there is no fake character placeholder.
 

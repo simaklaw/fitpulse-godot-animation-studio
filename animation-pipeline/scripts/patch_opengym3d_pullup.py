@@ -500,6 +500,136 @@ setter_new = '''    TargetService.reapply_macro_details(basemesh)
         material_type="GAMEENGINE", set_up_rigging=True,
         interpolate_weights=True, import_subrig=False, import_weights=True,
     )
+
+    def normalize_female_hair_texture(hair_object):
+        """Recolor the female hair diffuse texture in-place, preserving alpha and image links."""
+        import numpy as np
+
+        image_nodes = []
+        seen_images = set()
+
+        # Prefer image names that identify an albedo/diffuse map, not normal maps.
+        # This still finds the visible diffuse image even if an intermediary node
+        # means it is not wired directly to the Principled Base Color socket.
+        for material in hair_object.data.materials:
+            if material is None or not material.use_nodes or material.node_tree is None:
+                continue
+            for node in material.node_tree.nodes:
+                if node.type != "TEX_IMAGE" or node.image is None:
+                    continue
+                image_name = f"{node.image.name} {node.label}".lower()
+                if not any(token in image_name for token in ("diffuse", "albedo", "basecolor", "base_color", "grapewash")):
+                    continue
+                image_key = node.image.as_pointer()
+                if image_key not in seen_images:
+                    seen_images.add(image_key)
+                    image_nodes.append(node)
+
+        if not image_nodes:
+            # Fallback to image nodes connected directly to a Principled Base Color.
+            for material in hair_object.data.materials:
+                if material is None or not material.use_nodes or material.node_tree is None:
+                    continue
+                shader = next(
+                    (node for node in material.node_tree.nodes if node.type == "BSDF_PRINCIPLED"),
+                    None,
+                )
+                if shader is None:
+                    continue
+                base_color = shader.inputs.get("Base Color")
+                if base_color is None:
+                    continue
+                for link in material.node_tree.links:
+                    node = link.from_node
+                    if (
+                        link.to_node == shader
+                        and link.to_socket == base_color
+                        and node.type == "TEX_IMAGE"
+                        and node.image is not None
+                    ):
+                        image_key = node.image.as_pointer()
+                        if image_key not in seen_images:
+                            seen_images.add(image_key)
+                            image_nodes.append(node)
+
+        if not image_nodes:
+            raise RuntimeError(
+                "Female hair recolor failed: no diffuse image texture was found; "
+                "refusing to export purple source hair."
+            )
+
+        changed = 0
+        processed_images = {}
+        for texture_node in image_nodes:
+            source_image = texture_node.image
+            source_key = source_image.as_pointer()
+            if source_key in processed_images:
+                texture_node.image = processed_images[source_key]
+                continue
+
+            # Render/export may resolve the source image from its original file
+            # path, even after in-memory pixels were changed. Work on a copy,
+            # write a dedicated PNG, reload that exact file, then rebind every
+            # hair material node that referenced the source datablock.
+            natural_image = source_image.copy()
+            natural_image.name = f"FitPulse Female Hair Chestnut {source_image.name}"
+            pixels = np.empty(len(natural_image.pixels), dtype=np.float32)
+            natural_image.pixels.foreach_get(pixels)
+            rgba = pixels.reshape((-1, 4))
+            original_alpha = rgba[:, 3].copy()
+            luminance = (
+                rgba[:, 0] * 0.2126
+                + rgba[:, 1] * 0.7152
+                + rgba[:, 2] * 0.0722
+            )
+            luminance = np.clip(luminance, 0.0, 1.0)
+
+            # Replace purple chroma with natural chestnut while retaining
+            # strand luminance and alpha.
+            rgba[:, 0] = np.clip(2.40 * luminance, 0.0, 1.0)
+            rgba[:, 1] = np.clip(0.70 * luminance, 0.0, 1.0)
+            rgba[:, 2] = np.clip(0.20 * luminance, 0.0, 1.0)
+            rgba[:, 3] = original_alpha
+            natural_image.pixels.foreach_set(pixels)
+            natural_image.update()
+
+            import os
+            import tempfile
+            output_path = os.path.join(
+                tempfile.gettempdir(),
+                f"fitpulse_female_hair_chestnut_{source_key}.png",
+            )
+            natural_image.filepath_raw = output_path
+            natural_image.file_format = "PNG"
+            natural_image.save()
+            natural_image.pack()
+
+            # Reload the written PNG so both Blender render and glTF export consume
+            # the serialized recolor rather than the original source file bytes.
+            exported_image = bpy.data.images.load(output_path, check_existing=False)
+            exported_image.name = f"FitPulse Female Hair Chestnut Export {source_image.name}"
+            try:
+                exported_image.colorspace_settings.name = source_image.colorspace_settings.name
+            except Exception:
+                pass
+            for material in bpy.data.materials:
+                if material is None or not material.use_nodes or material.node_tree is None:
+                    continue
+                for node in material.node_tree.nodes:
+                    if node.type == "TEX_IMAGE" and node.image == source_image:
+                        node.image = exported_image
+            processed_images[source_key] = exported_image
+            changed += 1
+
+        print(
+            f"HAIR_COLOR_GRADED gender=female palette=natural_chestnut "
+            f"textures={changed} alpha=preserved in_place=true saved_reloaded=true",
+            flush=True,
+        )
+
+    if gender_name == "female":
+        normalize_female_hair_texture(hair)
+
     print(
         f"APPAREL_LOADED gender={gender_name} item=hair "
         f"asset={hair_name} vertices={len(hair.data.vertices)}"
