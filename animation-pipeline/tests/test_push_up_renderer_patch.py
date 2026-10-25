@@ -52,7 +52,7 @@ class PushUpRendererPatchTests(unittest.TestCase):
         self.assertIn("rgba[:, 0] = np.clip(2.40 * luminance", self.shared_source)
         self.assertIn("rgba[:, 1] = np.clip(0.70 * luminance", self.shared_source)
         self.assertIn("rgba[:, 2] = np.clip(0.20 * luminance", self.shared_source)
-        self.assertIn("original alpha channel is preserved", self.shared_source)
+        self.assertIn("only RGB changes, never alpha", self.shared_source)
         self.assertIn("HAIR_COLOR_GRADED gender=female palette=natural_chestnut", self.shared_source)
 
     def test_hand_and_toe_contact_gates_remain_present(self):
