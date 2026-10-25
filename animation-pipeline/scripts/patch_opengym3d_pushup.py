@@ -23,7 +23,7 @@ if "def assert_push_up_pose(rig, frame_end):" in source_text:
 
 qa = r'''
 def apply_push_up_contact_ik(rig):
-    """Pin palms/toes and keyframe pole angles from the intended elbow plane."""
+    """Pin palms/toes and animate elbow pole targets along the intended plane."""
     scene = bpy.context.scene
     view_layer = bpy.context.view_layer
     sides = (".L", ".R")
@@ -37,8 +37,7 @@ def apply_push_up_contact_ik(rig):
     # elbow and pole vectors is self-referential and can sign-flip at a threshold.
     pole_angle = -math.pi * 0.5
 
-    # First pass: sample original mocap poses and construct per-frame pole positions
-    # and pole-angle offsets before adding constraints.
+    # First pass: sample original mocap poses and construct per-frame pole positions.
     for frame in frame_range:
         scene.frame_set(frame)
         view_layer.update()
@@ -78,8 +77,7 @@ def apply_push_up_contact_ik(rig):
             sign = 1.0 if side == ".L" else -1.0
 
             # The intended upper-arm projection follows a controlled 45-degree
-            # path from the torso; the pole angle is derived independently for
-            # each frame because the shoulder axis and bone roll change in motion.
+            # path from the torso; the pole target tracks that desired plane per frame.
             flare = math.radians(45.0)
             desired_horizontal = (
                 -trunk * math.cos(flare) +
