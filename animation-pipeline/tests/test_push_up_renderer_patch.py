@@ -20,18 +20,36 @@ class PushUpRendererPatchTests(unittest.TestCase):
         cls.workflow_source = WORKFLOW.read_text(encoding="utf-8")
         cls.pullup_workflow_source = PULLUP_WORKFLOW.read_text(encoding="utf-8")
 
-    def test_pole_angle_is_explicit_and_pole_target_remains_animated(self):
-        # The MakeHuman rig uses a fixed calibrated roll offset. The pole target's
-        # position, not a self-referential plane calculation, tracks the elbow path.
-        self.assertIn("pole_angle = -math.pi * 0.5", self.source)
+    def test_pole_angle_and_wrist_endpoint_preserve_anatomical_arm_plane(self):
+        # Pole positions are animated in the intended bend plane, without a
+        # compensating quarter-turn that can fold the elbow in the wrong direction.
+        self.assertIn("pole_angle = 0.0", self.source)
         self.assertIn("arm_ik.pole_angle = pole_angle", self.source)
         self.assertIn(
             'pole.keyframe_insert(data_path="location", frame=frame, group="FitPulse elbow tracking")',
             self.source,
         )
-        self.assertIn("elbow_pole_target=animated_per_frame pole_angle=-90deg", self.source)
+        self.assertIn("elbow_pole_target=animated_per_frame pole_angle=0deg", self.source)
+        self.assertIn('forearm = rig.pose.bones.get("lowerarm02" + side)', self.source)
+        self.assertIn("arm_ik.chain_count = 4", self.source)
+        self.assertIn('keep_hand.name = "FitPulsePushUpStablePalm" + side', self.source)
         self.assertNotIn("calculated_pole_angle", self.source)
         self.assertNotIn("pole_angles[side][frame]", self.source)
+
+    def test_pushup_elbow_direction_is_signed_not_mirrored(self):
+        self.assertIn("trunk * math.cos(flare)", self.source)
+        self.assertNotIn("min(arm_to_trunk, 180.0 - arm_to_trunk)", self.source)
+        self.assertIn("elbow is", self.source)
+        self.assertIn('pose["wrists"][side].z - 0.05', self.source)
+
+    def test_pullup_uses_wrist_joint_and_animated_elbow_poles(self):
+        self.assertIn('forearm = rig.pose.bones.get("lowerarm02" + side)', self.shared_source)
+        self.assertIn('pole_target = pole', self.shared_source)
+        self.assertIn('pole.keyframe_insert(data_path="location", frame=frame, group="FitPulse pull-up elbow tracking")', self.shared_source)
+        self.assertIn('keep_hand.name = "FitPulsePullUpStablePalm" + side', self.shared_source)
+        self.assertIn("hand_end_effector=wrist.head", self.shared_source)
+        self.assertIn("max palm-centre-to-bar distance", self.shared_source)
+        self.assertIn("PULLUP_ARM_QA PASS", self.shared_source)
 
     def test_elbow_path_acceptance_range_is_not_relaxed(self):
         self.assertIn(
