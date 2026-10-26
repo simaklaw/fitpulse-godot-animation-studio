@@ -576,7 +576,12 @@ def assert_pull_up_body_pose(rig, frame_end):
         raise RuntimeError(f"pull-up top-position failed: head-base proxy {head_base_z:.3f} m does not clear bar top {bar_top_z:.3f} m by 0.03 m")
 
 
-def apply_pull_up_grip_every_frame(rig, prop_objs, frame_end):
+
+
+'''
+text = text.replace(needle, contact_helper + needle, 1)
+
+grip_bake_helper = r'''def apply_pull_up_grip_every_frame(rig, prop_objs, frame_end):
     """Bake the same calibrated pull-up finger grip at every output frame."""
     if not any(obj.name == "PullUpBar" for obj, _ in prop_objs):
         return
@@ -603,10 +608,11 @@ def apply_pull_up_grip_every_frame(rig, prop_objs, frame_end):
         f"PULLUP_GRIP_BAKED frames={frame_end} "
         f"finger_rotation_keypoints={baked_keys} interpolation=LINEAR"
     )
-
-
 '''
-text = text.replace(needle, contact_helper + needle, 1)
+main_marker = "def main():\n"
+if text.count(main_marker) != 1:
+    raise SystemExit("Expected exactly one upstream main function marker for the full-frame grip helper")
+text = text.replace(main_marker, grip_bake_helper + main_marker, 1)
 
 main_old = '        prop_objs = build_props(spec)\n        if mocap and mocap_kind == "video":'
 main_new = '        prop_objs = build_props(spec)\n        if spec.get("id") == "pull_up":\n            prop_objs.extend((obj, "static") for obj in build_pull_up_rig())\n        if mocap and mocap_kind == "video":'

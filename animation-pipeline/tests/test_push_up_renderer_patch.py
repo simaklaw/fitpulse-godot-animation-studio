@@ -71,6 +71,8 @@ class PushUpRendererPatchTests(unittest.TestCase):
         self.assertIn("FITPULSE_PULLUP_FINGER_BASE_POSES restored frame={frame}", self.shared_source)
         self.assertIn("def apply_pull_up_grip_every_frame(rig, prop_objs, frame_end):", self.shared_source)
         self.assertIn("apply_pull_up_grip_every_frame(rig, prop_objs, frame_end)", self.shared_source)
+        self.assertIn("grip_bake_helper = r'''def apply_pull_up_grip_every_frame", self.shared_source)
+        self.assertIn("text = text.replace(main_marker, grip_bake_helper + main_marker, 1)", self.shared_source)
         self.assertIn("PULLUP_GRIP_BAKED frames={frame_end}", self.shared_source)
         self.assertIn('point.interpolation = "LINEAR"', self.shared_source)
         self.assertIn("Source mocap animates the fingers at each exercise keyframe.", self.shared_source)
