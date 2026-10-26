@@ -21,7 +21,7 @@ class PushUpRendererPatchTests(unittest.TestCase):
         cls.pullup_workflow_source = PULLUP_WORKFLOW.read_text(encoding="utf-8")
 
     def test_pole_angle_and_wrist_endpoint_preserve_anatomical_arm_plane(self):
-        # The MakeHuman rest-roll requires the half-turn; renderer QA verifies the branch.
+        # The MakeHuman rig requires a calibrated 90-degree roll; QA verifies the branch.
         self.assertIn("pole_angle = math.pi * 0.5", self.source)
         self.assertIn("arm_ik.pole_angle = pole_angle", self.source)
         self.assertIn(
@@ -53,6 +53,7 @@ class PushUpRendererPatchTests(unittest.TestCase):
         self.assertIn("anatomical_direction = Vector((outward_sign * 0.48, 0.877, 0.0))", self.shared_source)
         self.assertNotIn("elbow_projection = shoulder + axis", self.shared_source)
         self.assertIn("pull-up elbow symmetry failed", self.shared_source)
+        self.assertIn("minimum_elbow_angle = 25.0", self.shared_source)
         self.assertIn("FitPulsePullUpStablePalm", self.shared_source)
 
     def test_elbow_path_acceptance_range_is_not_relaxed(self):
