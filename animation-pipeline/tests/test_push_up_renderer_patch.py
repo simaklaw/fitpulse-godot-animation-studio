@@ -38,6 +38,8 @@ class PushUpRendererPatchTests(unittest.TestCase):
         self.assertIn("wrist_angle < 130.0 or wrist_angle > 180.0", self.shared_source)
         self.assertIn('forearm = pose["wrist_joints"][side] - elbow_point', self.source)
         self.assertIn("def assert_pull_up_arm_pose(rig, frame_end):", self.shared_source)
+        self.assertIn("bend_alignment < 0.10", self.shared_source)
+        self.assertNotIn("elbow.z > shoulder.z + 0.15", self.shared_source)
         self.assertIn("constraint.chain_count = 3", self.shared_source)
         self.assertIn("constraint.use_rotation = True", self.shared_source)
         self.assertIn("constraint.pole_target = pole", self.shared_source)
