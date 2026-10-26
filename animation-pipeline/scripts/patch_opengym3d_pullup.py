@@ -101,31 +101,29 @@ if text.count(needle) != 1:
 text = text.replace(needle, helper + needle, 1)
 
 contact_helper = r'''def fit_pull_up_rack_to_hang_pose(rig):
-    """Fit rack height/grip to the generated model's natural hang reach."""
+    """Fit the bar to the palm centre, not to the fingertips at wrist.tail."""
     scene = bpy.context.scene
     scene.frame_set(1)
-    # Evaluate animation/deformation before sampling the hang pose. Without this,
-    # Blender can expose the previous dependency-graph pose for the first frame,
-    # fitting the bar to stale wrist coordinates (seen as a 21 cm female miss).
     bpy.context.view_layer.update()
-    hands = {}
+    palms = {}
+    wrist_points = {}
     for side in (".L", ".R"):
         wrist = rig.pose.bones.get("wrist" + side)
         if wrist is None:
             raise RuntimeError(f"pull-up fit gate: missing wrist{side}")
-        hands[side] = rig.matrix_world @ wrist.tail
+        wrist_head = rig.matrix_world @ wrist.head
+        wrist_tail = rig.matrix_world @ wrist.tail
+        palms[side] = (wrist_head + wrist_tail) * 0.5
+        wrist_points[side] = wrist_head.copy()
 
-    # Keep the same small wrist-to-bar offset as the original validated male rig,
-    # while adapting for narrower shoulders and different reach in the female rig.
-    bar_z = (hands[".L"].z + hands[".R"].z) / 2.0 + 0.037
-    bar_y = (hands[".L"].y + hands[".R"].y) / 2.0
+    bar_z = (palms[".L"].z + palms[".R"].z) / 2.0
+    bar_y = (palms[".L"].y + palms[".R"].y) / 2.0
     bar = bpy.data.objects.get("PullUpBar")
     if bar is None:
         raise RuntimeError("pull-up fit gate: missing PullUpBar")
     bar.location.z = bar_z
     bar.location.y = bar_y
 
-    # Adjustable posts stay connected to the fitted bar; feet remain at floor level.
     for side in ("L", "R"):
         post = bpy.data.objects.get("PullUpPost_" + side)
         foot = bpy.data.objects.get("PullUpBase_" + side)
@@ -139,18 +137,72 @@ contact_helper = r'''def fit_pull_up_rack_to_hang_pose(rig):
     bpy.context.view_layer.update()
     targets = {}
     for side in (".L", ".R"):
-        point = hands[side]
-        targets[side] = (point.x, bar_y, bar_z)
+        # The IK end point is wrist.head (the wrist joint). Preserve the source
+        # wrist-to-palm offset so the middle of the hand, not the fingertips,
+        # is placed on the bar.
+        targets[side] = wrist_points[side] + (bar.location - palms[side])
     print(
-        f"RACK_FIT pull_up: bar=({bar.location.x:.3f},{bar_y:.3f},{bar_z:.3f}) "
-        f"grip_x=({targets['.L'][0]:.3f},{targets['.R'][0]:.3f})"
+        f"RACK_FIT pull_up: palm_center=({bar.location.x:.3f},{bar_y:.3f},{bar_z:.3f}) "
+        f"grip_x=({targets['.L'].x:.3f},{targets['.R'].x:.3f})"
     )
     return targets
 
 
-def add_pull_up_ik(rig, target_positions):
-    """Solve wrist endpoints against the model-fitted fixed bar."""
+def add_pull_up_ik(rig, target_positions, frame_end):
+    """Pin the wrist joints to the bar, keep palms stable, and steer elbow poles."""
     scene = bpy.context.scene
+    view_layer = bpy.context.view_layer
+    pole_positions = {".L": {}, ".R": {}}
+    hand_rotations = {}
+
+    # Capture the wrist/hand world orientation from the first dead-hang pose.
+    # The hand is deliberately excluded from the IK chain below: otherwise
+    # IK can twist the palm to reach the target, producing a broken-looking wrist.
+    scene.frame_set(1)
+    view_layer.update()
+    for side in (".L", ".R"):
+        wrist = rig.pose.bones.get("wrist" + side)
+        if wrist is None:
+            raise RuntimeError(f"pull-up IK gate: missing wrist{side}")
+        hand_rotations[side] = (rig.matrix_world @ wrist.matrix).to_quaternion().copy()
+
+    previous_pole_directions = {".L": None, ".R": None}
+    for frame in range(1, frame_end + 1):
+        scene.frame_set(frame)
+        view_layer.update()
+        for side in (".L", ".R"):
+            shoulder_bone = rig.pose.bones.get("upperarm01" + side)
+            elbow_bone = rig.pose.bones.get("lowerarm01" + side)
+            if shoulder_bone is None or elbow_bone is None:
+                raise RuntimeError(f"pull-up pole gate: incomplete arm chain on {side}")
+            shoulder = rig.matrix_world @ shoulder_bone.head
+            elbow = rig.matrix_world @ elbow_bone.head
+            endpoint = Vector(target_positions[side])
+            axis = endpoint - shoulder
+            if axis.length < 1e-5:
+                raise RuntimeError(f"pull-up pole gate: degenerate shoulder-to-wrist axis on {side}")
+            axis.normalize()
+            elbow_projection = shoulder + axis * (elbow - shoulder).dot(axis)
+            offset = elbow - elbow_projection
+
+            # Near a fully straight dead hang the projected source elbow becomes
+            # almost zero. Use the athlete's forward (-Y) direction as fallback.
+            if offset.length < 0.035:
+                forward = Vector((0.0, -1.0, 0.0))
+                offset = forward - axis * forward.dot(axis)
+            if offset.length < 1e-5:
+                lateral = Vector((1.0, 0.0, 0.0))
+                offset = lateral - axis * lateral.dot(axis)
+            if offset.length < 1e-5:
+                raise RuntimeError(f"pull-up pole gate: cannot establish elbow plane on {side}")
+
+            pole_direction = offset.normalized()
+            previous = previous_pole_directions[side]
+            if previous is not None and pole_direction.dot(previous) < 0.0:
+                pole_direction.negate()
+            previous_pole_directions[side] = pole_direction.copy()
+            pole_positions[side][frame] = (shoulder + endpoint) * 0.5 + pole_direction * 0.35
+
     for side in (".L", ".R"):
         target = bpy.data.objects.new("PullUpIKTarget" + side, None)
         scene.collection.objects.link(target)
@@ -159,28 +211,63 @@ def add_pull_up_ik(rig, target_positions):
         target.empty_display_size = 0.025
         target.hide_render = True
 
+        pole = bpy.data.objects.new("FitPulsePullUpElbowPole" + side, None)
+        scene.collection.objects.link(pole)
+        pole.empty_display_type = "SPHERE"
+        pole.empty_display_size = 0.02
+        pole.hide_render = True
+        for frame in range(1, frame_end + 1):
+            scene.frame_set(frame)
+            pole.location = pole_positions[side][frame]
+            pole.keyframe_insert(data_path="location", frame=frame, group="FitPulse pull-up elbow tracking")
+        if pole.animation_data and pole.animation_data.action:
+            for fcurve in pole.animation_data.action.fcurves:
+                for point in fcurve.keyframe_points:
+                    point.interpolation = "LINEAR"
+                fcurve.update()
+
+        forearm = rig.pose.bones.get("lowerarm02" + side)
         wrist = rig.pose.bones.get("wrist" + side)
-        if wrist is None:
-            raise RuntimeError(f"pull-up IK gate: missing wrist{side}")
-        constraint = wrist.constraints.new(type="IK")
-        constraint.name = "FitPulsePullUpIK" + side
-        constraint.target = target
-        constraint.chain_count = 5
-        constraint.iterations = 100
-        constraint.use_stretch = False
-        constraint.influence = 1.0
-    bpy.context.view_layer.update()
+        if forearm is None or wrist is None:
+            raise RuntimeError(f"pull-up IK gate: incomplete distal arm chain on {side}")
+        arm_ik = forearm.constraints.new(type="IK")
+        arm_ik.name = "FitPulsePullUpArmIK" + side
+        arm_ik.target = target
+        arm_ik.pole_target = pole
+        arm_ik.pole_angle = 0.0
+        arm_ik.chain_count = 4
+        arm_ik.iterations = 100
+        arm_ik.use_stretch = False
+        arm_ik.use_tail = True
+        arm_ik.influence = 1.0
+
+        orientation = bpy.data.objects.new("FitPulsePullUpHandOrientation" + side, None)
+        scene.collection.objects.link(orientation)
+        orientation.location = target_positions[side]
+        orientation.rotation_mode = "QUATERNION"
+        orientation.rotation_quaternion = hand_rotations[side]
+        orientation.hide_render = True
+        keep_hand = wrist.constraints.new(type="COPY_ROTATION")
+        keep_hand.name = "FitPulsePullUpStablePalm" + side
+        keep_hand.target = orientation
+        keep_hand.owner_space = "WORLD"
+        keep_hand.target_space = "WORLD"
+
+    view_layer.update()
+    print(
+        f"PULLUP_ARM_IK PASS frames={frame_end} end_effector=wrist.head "
+        "arm_chain=lowerarm02:4 pole_target=animated_per_frame pole_angle=0 "
+        "palm_orientation=world_locked"
+    )
 
 
 def assert_pull_up_bar_contact(rig, frame_end):
-    """Check wrist-to-bar distance at every rendered frame."""
+    """Check palm-centre-to-bar distance at every rendered frame."""
     scene = bpy.context.scene
     bar = bpy.data.objects.get("PullUpBar")
     if bar is None:
         raise RuntimeError("pull-up contact gate: missing PullUpBar")
     bar_center = bar.matrix_world.translation.copy()
-    # Blender can report dimensions along the cylinder's local axis despite its
-    # rotation. Use the actual world-space rack-post spacing as the grip span.
     post_l = bpy.data.objects.get("PullUpPost_L")
     post_r = bpy.data.objects.get("PullUpPost_R")
     if post_l is None or post_r is None:
@@ -189,52 +276,73 @@ def assert_pull_up_bar_contact(rig, frame_end):
         0.0,
         abs(post_r.matrix_world.translation.x - post_l.matrix_world.translation.x) / 2.0 - 0.02,
     )
-    print(f"CONTACT_GATE rack_half_length={half_length:.3f} m")
     worst = 0.0
     worst_at = None
     for frame in range(1, frame_end + 1):
         scene.frame_set(frame)
-        # Force dependency-graph evaluation before sampling wrist endpoints.
-        # Otherwise the first sampled frame can expose the pre-IK pose.
         bpy.context.view_layer.update()
         for side in (".L", ".R"):
             wrist = rig.pose.bones.get("wrist" + side)
             if wrist is None:
                 raise RuntimeError(f"pull-up contact gate: missing wrist{side}")
-            point = rig.matrix_world @ wrist.tail
-            radial = math.sqrt((point.y - bar_center.y) ** 2 + (point.z - bar_center.z) ** 2)
-            beyond_bar = max(0.0, abs(point.x - bar_center.x) - half_length)
+            palm = (rig.matrix_world @ wrist.head + rig.matrix_world @ wrist.tail) * 0.5
+            radial = math.sqrt((palm.y - bar_center.y) ** 2 + (palm.z - bar_center.z) ** 2)
+            beyond_bar = max(0.0, abs(palm.x - bar_center.x) - half_length)
             distance = math.sqrt(radial ** 2 + beyond_bar ** 2)
-            print(
-                f"CONTACT_FRAME frame={frame} side={side} "
-                f"wrist=({point.x:.3f},{point.y:.3f},{point.z:.3f}) "
-                f"bar=({bar_center.x:.3f},{bar_center.y:.3f},{bar_center.z:.3f}) "
-                f"distance={distance:.3f}"
-            )
             if distance > worst:
                 worst = distance
-                worst_at = (frame, side, tuple(round(v, 3) for v in point))
+                worst_at = (frame, side, tuple(round(v, 3) for v in palm))
     limit = 0.08
-    print(f"CONTACT pull_up: max wrist-to-bar distance {worst:.3f} m at {worst_at}; limit {limit:.2f} m")
+    print(f"CONTACT pull_up: max palm-centre-to-bar distance {worst:.3f} m at {worst_at}; limit {limit:.2f} m")
     if worst > limit:
-        raise RuntimeError(f"pull-up hand-to-bar contact failed: {worst:.3f} m > {limit:.2f} m")
+        raise RuntimeError(f"pull-up palm-to-bar contact failed: {worst:.3f} m > {limit:.2f} m")
 
 
 def assert_pull_up_body_pose(rig, frame_end):
-    """Require feet to stay clear of the floor and the head to clear the bar."""
+    """Check clearance and reject upward-folded elbows throughout the rep."""
     scene = bpy.context.scene
     min_foot_z = float("inf")
     min_foot_at = None
+    elbow_angles = []
+    max_elbow_above_wrist = float("-inf")
     for frame in range(1, frame_end + 1):
         scene.frame_set(frame)
+        bpy.context.view_layer.update()
         for side in (".L", ".R"):
             foot = rig.pose.bones.get("foot" + side)
-            if foot is None:
-                raise RuntimeError(f"pull-up clearance gate: missing foot{side}")
-            point = rig.matrix_world @ foot.tail
-            if point.z < min_foot_z:
-                min_foot_z = point.z
-                min_foot_at = (frame, side, tuple(round(v, 3) for v in point))
+            upper = rig.pose.bones.get("upperarm01" + side)
+            elbow_bone = rig.pose.bones.get("lowerarm01" + side)
+            wrist = rig.pose.bones.get("wrist" + side)
+            if any(pb is None for pb in (foot, upper, elbow_bone, wrist)):
+                raise RuntimeError(f"pull-up joint-integrity gate: missing required bone on {side}")
+            foot_point = rig.matrix_world @ foot.tail
+            min_foot_z = min(min_foot_z, foot_point.z)
+            if foot_point.z == min_foot_z:
+                min_foot_at = (frame, side, tuple(round(v, 3) for v in foot_point))
+
+            shoulder = rig.matrix_world @ upper.head
+            elbow = rig.matrix_world @ elbow_bone.head
+            wrist_joint = rig.matrix_world @ wrist.head
+            upper_vec = shoulder - elbow
+            forearm_vec = wrist_joint - elbow
+            if upper_vec.length < 1e-5 or forearm_vec.length < 1e-5:
+                raise RuntimeError(f"pull-up joint-integrity gate: collapsed arm segment at frame {frame} {side}")
+            cosine = max(-1.0, min(1.0, upper_vec.normalized().dot(forearm_vec.normalized())))
+            elbow_angle = math.degrees(math.acos(cosine))
+            elbow_angles.append(elbow_angle)
+            if elbow_angle < 35.0:
+                raise RuntimeError(
+                    f"pull-up elbow flexion failed at frame {frame} {side}: "
+                    f"{elbow_angle:.1f} degrees < 35 degrees"
+                )
+            above_wrist = elbow.z - wrist_joint.z
+            max_elbow_above_wrist = max(max_elbow_above_wrist, above_wrist)
+            if above_wrist > 0.08:
+                raise RuntimeError(
+                    f"pull-up elbow direction failed at frame {frame} {side}: "
+                    f"elbow is {above_wrist:.3f} m above the wrist joint; expected elbow-down flexion"
+                )
+
     min_clearance = 0.18
     print(f"CLEARANCE pull_up: min foot height {min_foot_z:.3f} m at {min_foot_at}; limit {min_clearance:.2f} m")
     if min_foot_z < min_clearance:
@@ -249,8 +357,6 @@ def assert_pull_up_body_pose(rig, frame_end):
         raise RuntimeError("pull-up top-position gate: missing head bone or PullUpBar")
     head_base_z = (rig.matrix_world @ head.head).z
     head_top_z = (rig.matrix_world @ head.tail).z
-    # The rack crossbar is rotated onto the X axis; object-space dimensions.z
-    # is not its vertical thickness. Use the actual cylinder radius instead.
     bar_top_z = bar.location.z + 0.028
     minimum_head_top_z = bar_top_z + 0.03
     maximum_head_base_drop = 0.18
@@ -265,6 +371,13 @@ def assert_pull_up_body_pose(rig, frame_end):
             f"does not clear bar top {bar_top_z:.3f} m while keeping the base within "
             f"{maximum_head_base_drop:.2f} m below bar center"
         )
+    print(
+        f"PULLUP_ARM_QA PASS frames={frame_end} "
+        f"elbow_angle=[{min(elbow_angles):.1f},{max(elbow_angles):.1f}]deg "
+        f"max_elbow_above_wrist={max_elbow_above_wrist:.3f}m "
+        "hand_end_effector=wrist.head"
+    )
+
 
 
 '''
@@ -340,7 +453,7 @@ if text.count(main_old) != 1:
 text = text.replace(main_old, main_new, 1)
 
 anim_old = '            animate(driver, rig, spec, frame_end, prop_objs)\n        bpy.data.objects.remove(driver, do_unlink=True)'
-anim_new = '            animate(driver, rig, spec, frame_end, prop_objs)\n            if spec.get("id") == "pull_up":\n                hand_targets = fit_pull_up_rack_to_hang_pose(rig)\n                add_pull_up_ik(rig, hand_targets)\n                assert_pull_up_bar_contact(rig, frame_end)\n                assert_pull_up_body_pose(rig, frame_end)\n        bpy.data.objects.remove(driver, do_unlink=True)'
+anim_new = '            animate(driver, rig, spec, frame_end, prop_objs)\n            if spec.get("id") == "pull_up":\n                hand_targets = fit_pull_up_rack_to_hang_pose(rig)\n                add_pull_up_ik(rig, hand_targets, frame_end)\n                assert_pull_up_bar_contact(rig, frame_end)\n                assert_pull_up_body_pose(rig, frame_end)\n        bpy.data.objects.remove(driver, do_unlink=True)'
 if text.count(anim_old) != 1:
     raise SystemExit("Unexpected upstream animation block; refusing an unsafe contact-check patch")
 text = text.replace(anim_old, anim_new, 1)
