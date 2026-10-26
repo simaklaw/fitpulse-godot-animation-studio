@@ -22,15 +22,16 @@ class PushUpRendererPatchTests(unittest.TestCase):
 
     def test_pole_angle_and_wrist_endpoint_preserve_anatomical_arm_plane(self):
         # The MakeHuman rest-roll requires the half-turn; renderer QA verifies the branch.
-        self.assertIn("pole_angle = math.pi", self.source)
+        self.assertIn("pole_angle = math.pi * 0.5", self.source)
         self.assertIn("arm_ik.pole_angle = pole_angle", self.source)
         self.assertIn(
             'pole.keyframe_insert(data_path="location", frame=frame, group="FitPulse elbow tracking")',
             self.source,
         )
-        self.assertIn("elbow_pole_target=animated_per_frame pole_angle=180deg", self.source)
+        self.assertIn("elbow_pole_target=animated_per_frame pole_angle=90deg", self.source)
         self.assertIn('forearm = rig.pose.bones.get("lowerarm02" + side)', self.source)
         self.assertIn("arm_ik.chain_count = 4", self.source)
+        self.assertIn("wrist_joint_contact=on", self.source)
         self.assertIn('keep_hand.name = "FitPulsePushUpStablePalm" + side', self.source)
         self.assertNotIn("calculated_pole_angle", self.source)
         self.assertNotIn("pole_angles[side][frame]", self.source)
