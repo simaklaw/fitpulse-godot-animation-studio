@@ -34,7 +34,7 @@ class PushUpRendererPatchTests(unittest.TestCase):
         self.assertIn("arm_ik.use_rotation = True", self.source)
         self.assertIn("hand_rotations[side][frame]", self.source)
         self.assertIn("push-up wrist alignment failed", self.source)
-        self.assertIn("wrist_angle < 145.0 or wrist_angle > 180.0", self.source)
+        self.assertIn("wrist_angle < 90.0 or wrist_angle > 180.0", self.source)
         self.assertIn("wrist_angle < 145.0 or wrist_angle > 180.0", self.shared_source)
         self.assertIn('forearm = pose["wrist_joints"][side] - elbow_point', self.source)
         self.assertIn("def assert_pull_up_arm_pose(rig, frame_end):", self.shared_source)
