@@ -330,6 +330,9 @@ def assert_pull_up_finger_contact(rig, frame_end):
         )
 
     tolerance = 0.045
+    # Proximity alone accepted fingers lying on top of the bar. A proper overhand
+    # grip must bring distal finger tips around the lower half of the cylinder.
+    below_center_margin = max(0.005, bar_radius * 0.20)
     required_tips = 3
     required_frame_ratio = 0.90
     passing_frames = {".L": 0, ".R": 0}
@@ -341,7 +344,7 @@ def assert_pull_up_finger_contact(rig, frame_end):
         scene.frame_set(frame)
         view_layer.update()
         for side in (".L", ".R"):
-            close_tips = 0
+            wrapped_tips = 0
             gaps = []
             for finger_number in (2, 3, 4, 5):
                 tip_bone = rig.pose.bones.get(f"finger{finger_number}-3" + side)
@@ -356,16 +359,20 @@ def assert_pull_up_finger_contact(rig, frame_end):
                 surface_gap = abs(radial - bar_radius)
                 beyond_bar = max(0.0, abs(tip.x - center.x) - half_length)
                 gap = math.sqrt(surface_gap ** 2 + beyond_bar ** 2)
-                gaps.append((finger_number, gap))
+                under_bar = tip.z <= center.z - below_center_margin
+                gaps.append((finger_number, gap, tip.z - center.z))
                 max_tip_gap = max(max_tip_gap, gap)
-                if gap <= tolerance:
-                    close_tips += 1
+                if gap <= tolerance and under_bar:
+                    wrapped_tips += 1
 
-            if close_tips >= required_tips:
+            if wrapped_tips >= required_tips:
                 passing_frames[side] += 1
-            if close_tips < worst_count:
-                worst_count = close_tips
-                worst_at = (frame, side, sorted((n, round(g, 3)) for n, g in gaps))
+            if wrapped_tips < worst_count:
+                worst_count = wrapped_tips
+                worst_at = (
+                    frame, side,
+                    sorted((n, round(g, 3), round(dz, 3)) for n, g, dz in gaps),
+                )
 
     frame_ratio = min(passing_frames.values()) / max(1, frame_end)
     print(
@@ -373,13 +380,15 @@ def assert_pull_up_finger_contact(rig, frame_end):
         f"left={passing_frames['.L']}/{frame_end} "
         f"right={passing_frames['.R']}/{frame_end} "
         f"required={required_tips}/4 distal tips within {tolerance:.3f} m "
-        f"of bar surface for {required_frame_ratio:.0%} frames; "
+        f"of bar surface and at least {below_center_margin:.3f} m below bar centre "
+        f"for {required_frame_ratio:.0%} frames; "
         f"worst_tips={worst_count}/4 at {worst_at}; max_tip_gap={max_tip_gap:.3f} m"
     )
     if frame_ratio < required_frame_ratio:
         raise RuntimeError(
             "pull-up finger-wrap failed: at least 3 of 4 distal fingertips per hand "
-            f"must stay within {tolerance:.3f} m of the bar surface in "
+            f"must stay within {tolerance:.3f} m of the bar surface and at least "
+            f"{below_center_margin:.3f} m below its centre in "
             f"{required_frame_ratio:.0%} of frames; left={passing_frames['.L']}/{frame_end}, "
             f"right={passing_frames['.R']}/{frame_end}; worst={worst_at}"
         )
@@ -956,9 +965,15 @@ def grip_hands(rig, prop_objs, frame):
         FITPULSE_PULLUP_GRIP_SIGNS = {}
         for side in (".L", ".R"):
             center = rig.matrix_world @ rig.pose.bones["wrist" + side].tail
+            finger_sign = _curl_sign(rig, "finger2-1" + side, axis, 50, center)
+            thumb_sign = _curl_sign(rig, "finger1-1" + side, axis, 30, center)
+            # The upstream heuristic curls tips toward the palm centre. On this
+            # hanging pose that leaves the fingertips draped over the top of the
+            # bar. Reverse the candidate so the fingers hook around its underside;
+            # the per-frame geometric gate below decides whether this is valid.
             FITPULSE_PULLUP_GRIP_SIGNS[side] = (
-                _curl_sign(rig, "finger2-1" + side, axis, 50, center),
-                _curl_sign(rig, "finger1-1" + side, axis, 30, center),
+                -finger_sign if finger_sign is not None else None,
+                -thumb_sign if thumb_sign is not None else None,
             )
         print("FITPULSE_PULLUP_GRIP_SIGNS locked from first dead-hang pose: "
               + repr(FITPULSE_PULLUP_GRIP_SIGNS))
