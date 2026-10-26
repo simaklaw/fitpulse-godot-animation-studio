@@ -28,6 +28,7 @@ def apply_push_up_contact_ik(rig):
     view_layer = bpy.context.view_layer
     sides = (".L", ".R")
     hand_targets = {}
+    hand_orientations = {}
     toe_targets = {}
     pole_targets = {side: {} for side in sides}
     frame_range = list(range(scene.frame_start, scene.frame_end + 1))
@@ -35,7 +36,9 @@ def apply_push_up_contact_ik(rig):
     # For this MakeHuman default rig, a fixed -90-degree IK pole offset is
     # the calibrated roll convention; deriving it from the same constructed
     # elbow and pole vectors is self-referential and can sign-flip at a threshold.
-    pole_angle = -math.pi * 0.5
+    # Pole targets are constructed in the desired elbow plane; an extra quarter-turn
+    # can rotate the bend out of that plane and fold the elbow upward.
+    pole_angle = 0.0
 
     # First pass: sample original mocap poses and construct per-frame pole positions.
     for frame in frame_range:
@@ -57,12 +60,16 @@ def apply_push_up_contact_ik(rig):
             if any(pb is None for pb in (wrist, foot, upper, elbow)):
                 raise RuntimeError(f"push-up contact IK: incomplete rig on side {side}")
 
-            wrist_point = rig.matrix_world @ wrist.tail
+            # Anchor the wrist joint, not the fingertip end of the hand bone.
+            # The hand bone stays outside the IK chain so it cannot be twisted
+            # just to satisfy a palm-contact target.
+            wrist_point = rig.matrix_world @ wrist.head
             toe_point = rig.matrix_world @ foot.tail
             shoulder_point = rig.matrix_world @ upper.head
             elbow_point = rig.matrix_world @ elbow.head
             if frame == scene.frame_start:
                 hand_targets[side] = wrist_point.copy()
+                hand_orientations[side] = (rig.matrix_world @ wrist.matrix).to_quaternion().copy()
                 toe_targets[side] = Vector((toe_point.x, toe_point.y, 0.02))
 
             trunk = Vector((
@@ -80,7 +87,7 @@ def apply_push_up_contact_ik(rig):
             # path from the torso; the pole target tracks that desired plane per frame.
             flare = math.radians(45.0)
             desired_horizontal = (
-                -trunk * math.cos(flare) +
+                trunk * math.cos(flare) +
                 lateral * sign * math.sin(flare)
             ).normalized()
             upper_delta = elbow_point - shoulder_point
@@ -145,17 +152,35 @@ def apply_push_up_contact_ik(rig):
                 fcurve.update()
         pole_objects[side] = pole
 
-        wrist = rig.pose.bones["wrist" + side]
-        arm_ik = wrist.constraints.new(type="IK")
+        # End IK at the wrist joint (lowerarm02.tail), not at wrist.tail.
+        # This leaves the palm bone out of the solve and prevents a backwards
+        # wrist deformation when the shoulder moves through the rep.
+        forearm = rig.pose.bones.get("lowerarm02" + side)
+        wrist = rig.pose.bones.get("wrist" + side)
+        if forearm is None or wrist is None:
+            raise RuntimeError(f"push-up contact IK: missing distal forearm/hand on {side}")
+        arm_ik = forearm.constraints.new(type="IK")
         arm_ik.name = "FitPulsePushUpArmIK" + side
         arm_ik.target = hand_target
         arm_ik.pole_target = pole
         arm_ik.pole_angle = pole_angle
-        arm_ik.chain_count = 5
+        arm_ik.chain_count = 4
         arm_ik.iterations = 100
         arm_ik.use_stretch = False
         arm_ik.use_tail = True
         arm_ik.influence = 1.0
+
+        orientation = bpy.data.objects.new("FitPulsePushUpHandOrientation" + side, None)
+        scene.collection.objects.link(orientation)
+        orientation.location = hand_targets[side]
+        orientation.rotation_mode = "QUATERNION"
+        orientation.rotation_quaternion = hand_orientations[side]
+        orientation.hide_render = True
+        keep_hand = wrist.constraints.new(type="COPY_ROTATION")
+        keep_hand.name = "FitPulsePushUpStablePalm" + side
+        keep_hand.target = orientation
+        keep_hand.owner_space = "WORLD"
+        keep_hand.target_space = "WORLD"
 
         toe_target = bpy.data.objects.new("FitPulsePushUpToeTarget" + side, None)
         scene.collection.objects.link(toe_target)
@@ -179,7 +204,7 @@ def apply_push_up_contact_ik(rig):
         "PUSHUP_CONTACT_IK PASS "
         f"hand_z=({hand_targets['.L'].z:.3f},{hand_targets['.R'].z:.3f})m "
         f"toe_targets_z=({toe_targets['.L'].z:.3f},{toe_targets['.R'].z:.3f})m "
-        f"elbow_pole_target=animated_per_frame pole_angle=-90deg frames={len(frame_range)} "
+        f"elbow_pole_target=animated_per_frame pole_angle=0deg frames={len(frame_range)} "
         "target_flare=45deg pole_basis=desired_elbow chain_arm=5 tail_contact=on chain_leg=3"
     )
 
@@ -328,15 +353,25 @@ def assert_push_up_pose(rig, frame_end):
                 0.0,
             ))
             trunk_horizontal = Vector((trunk.x, trunk.y, 0.0))
+            # Preserve the signed direction: a 135-degree forward fold is not
+            # an acceptable substitute for a 45-degree backward-and-out path.
             arm_to_trunk = angle_degrees(arm_horizontal, trunk_horizontal)
-            # Elbow-line orientation is undirected: 100 degrees is equivalent
-            # to an 80-degree flare, not a negative/forward-facing angle.
-            arm_to_trunk = min(arm_to_trunk, 180.0 - arm_to_trunk)
             elbow_angles.append(joint_angle)
             if joint_angle < 45.0 or joint_angle > 180.0:
                 raise RuntimeError(
                     f"push-up elbow flexion failed at frame {frame} {side}: "
                     f"{joint_angle:.1f} degrees outside 45–180 degrees"
+                )
+            if elbow_point.z > shoulder_point.z + 0.10:
+                raise RuntimeError(
+                    f"push-up elbow direction failed at frame {frame} {side}: "
+                    f"elbow is {elbow_point.z - shoulder_point.z:.3f} m above shoulder"
+                )
+            if elbow_point.z < pose["wrists"][side].z - 0.05:
+                raise RuntimeError(
+                    f"push-up elbow direction failed at frame {frame} {side}: "
+                    f"elbow is below the planted wrist plane (elbow_z={elbow_point.z:.3f}, "
+                    f"wrist_center_z={pose['wrists'][side].z:.3f})"
                 )
             # In a near-locked top-plank position the upper arm's floor-plane
             # projection becomes ill-conditioned: tiny bone-roll changes dominate
