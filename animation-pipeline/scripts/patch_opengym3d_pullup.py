@@ -349,12 +349,39 @@ def assert_pull_up_arm_pose(rig, frame_end):
 
             lateral = Vector((shoulder.x - center.x, shoulder.y - center.y, 0.0))
             elbow_lateral = Vector((elbow.x - center.x, elbow.y - center.y, 0.0))
-            if lateral.length > 1e-5 and elbow_angle < 150.0:
-                lateral.normalize()
-                if elbow_lateral.dot(lateral) < 0.015 or elbow.z > shoulder.z + 0.15:
+            if elbow_angle < 150.0:
+                if lateral.length > 1e-5:
+                    lateral.normalize()
+                    outward_projection = elbow_lateral.dot(lateral)
+                    if outward_projection < 0.015:
+                        raise RuntimeError(
+                            f"pull-up elbow path failed at frame {frame} {side}: "
+                            f"elbow points inward (outward projection={outward_projection:.3f} m)"
+                        )
+
+                # Elbows are naturally above the shoulder line while hanging from
+                # an overhead bar. Compare the actual elbow bend with the intended
+                # pole plane instead of using an absolute shoulder-height threshold.
+                hand_target = bpy.data.objects.get("PullUpIKTarget" + side)
+                pole_target = bpy.data.objects.get("PullUpElbowPole" + side)
+                if hand_target is None or pole_target is None:
+                    raise RuntimeError(f"pull-up elbow QA: missing IK/pole target on {side}")
+                arm_axis = hand_target.matrix_world.translation - shoulder
+                if arm_axis.length < 1e-5:
+                    raise RuntimeError(f"pull-up elbow QA: degenerate shoulder-to-grip axis on {side}")
+                arm_axis.normalize()
+                elbow_offset = elbow - shoulder
+                actual_bend = elbow_offset - arm_axis * elbow_offset.dot(arm_axis)
+                pole_offset = pole_target.matrix_world.translation - shoulder
+                desired_bend = pole_offset - arm_axis * pole_offset.dot(arm_axis)
+                if actual_bend.length < 1e-5 or desired_bend.length < 1e-5:
+                    raise RuntimeError(f"pull-up elbow QA: degenerate bend plane on frame {frame} {side}")
+                bend_alignment = actual_bend.normalized().dot(desired_bend.normalized())
+                if bend_alignment < 0.10:
                     raise RuntimeError(
-                        f"pull-up elbow path failed at frame {frame} {side}: "
-                        "flexed elbow must remain outward and no more than 0.15 m above shoulder"
+                        f"pull-up elbow plane failed at frame {frame} {side}: "
+                        f"actual-vs-target bend alignment={bend_alignment:.3f}; "
+                        "elbow must bend on the outward/downward pole side"
                     )
 
     print(
