@@ -160,29 +160,16 @@ def add_pull_up_ik(rig, target_positions, frame_end):
     hand_rotations = {}
     desired_hand_tails = {}
 
-    # Align the palm so the fingers can curl around the lower side of the bar.
-    # The original dead-hang hand roll placed the fingertips over the bar top.
-    # Rotate the whole hand 180 degrees about the fixed bar axis, then recompute
-    # each wrist-head target so the measured hand-base contact stays fixed.
+    # Preserve the original stable world-space wrist orientation and target.
+    # The pull-up-specific flexion in grip_hands is responsible for wrapping the
+    # fingers under the bar; don't move the wrist target into an unreachable pose.
     scene.frame_set(1)
     view_layer.update()
-    bar = bpy.data.objects.get("PullUpBar")
-    if bar is None:
-        raise RuntimeError("pull-up IK gate: missing PullUpBar for hand orientation")
-    bar_axis = (bar.matrix_world.to_3x3() @ Vector((1, 0, 0))).normalized()
-    grip_rotation = Quaternion(bar_axis, math.pi)
     for side in (".L", ".R"):
         wrist = rig.pose.bones.get("wrist" + side)
         if wrist is None:
             raise RuntimeError(f"pull-up IK gate: missing wrist{side}")
-        wrist_head = rig.matrix_world @ wrist.head
-        wrist_tail = rig.matrix_world @ wrist.tail
-        hand_vector = wrist_tail - wrist_head
-        desired_hand_tail = Vector(target_positions[side]) + hand_vector
-        desired_hand_tails[side] = desired_hand_tail.copy()
-        target_hand_vector = grip_rotation @ hand_vector
-        target_positions[side] = desired_hand_tail - target_hand_vector
-        hand_rotations[side] = grip_rotation @ (rig.matrix_world @ wrist.matrix).to_quaternion().copy()
+        hand_rotations[side] = (rig.matrix_world @ wrist.matrix).to_quaternion().copy()
 
     for frame in range(1, frame_end + 1):
         scene.frame_set(frame)
@@ -221,20 +208,16 @@ def add_pull_up_ik(rig, target_positions, frame_end):
             pole_direction = offset.normalized()
             pole_positions[side][frame] = (shoulder + endpoint) * 0.5 + pole_direction * 0.35
 
-    target_objects = {}
-    pole_objects = {}
     for side in (".L", ".R"):
         target = bpy.data.objects.new("PullUpIKTarget" + side, None)
         scene.collection.objects.link(target)
         target.location = target_positions[side]
-        target_objects[side] = target
         target.empty_display_type = "SPHERE"
         target.empty_display_size = 0.025
         target.hide_render = True
 
         pole = bpy.data.objects.new("FitPulsePullUpElbowPole" + side, None)
         scene.collection.objects.link(pole)
-        pole_objects[side] = pole
         pole.empty_display_type = "SPHERE"
         pole.empty_display_size = 0.02
         pole.hide_render = True
@@ -278,64 +261,6 @@ def add_pull_up_ik(rig, target_positions, frame_end):
         keep_hand.target = orientation
         keep_hand.owner_space = "WORLD"
         keep_hand.target_space = "WORLD"
-
-    # IK + world-space COPY_ROTATION do not always land exactly on the
-    # analytically predicted hand-tail position for every MakeHuman profile.
-    # Calibrate against the evaluated pose rather than weakening the contact gate.
-    # Translating the unparented IK target moves the wrist head; translating the
-    # animated pole by the same delta preserves the intended posterior/outward plane.
-    for calibration_pass in range(4):
-        scene.frame_set(1)
-        view_layer.update()
-        corrections = {}
-        max_correction = 0.0
-        for side in (".L", ".R"):
-            wrist = rig.pose.bones.get("wrist" + side)
-            if wrist is None:
-                raise RuntimeError(f"pull-up contact calibration: missing wrist{side}")
-            actual_tail = rig.matrix_world @ wrist.tail
-            correction = desired_hand_tails[side] - actual_tail
-            corrections[side] = correction
-            max_correction = max(max_correction, correction.length)
-        print(
-            f"PULLUP_HAND_CONTACT_CALIBRATION pass={calibration_pass + 1} "
-            f"max_correction={max_correction:.4f}m"
-        )
-        if max_correction < 0.002:
-            break
-        for side in (".L", ".R"):
-            correction = corrections[side]
-            target_objects[side].location += correction
-            pole = pole_objects[side]
-            if pole.animation_data and pole.animation_data.action:
-                for fcurve in pole.animation_data.action.fcurves:
-                    if fcurve.data_path != "location":
-                        continue
-                    delta_component = float(correction[fcurve.array_index])
-                    for point in fcurve.keyframe_points:
-                        point.co.y += delta_component
-                        point.handle_left.y += delta_component
-                        point.handle_right.y += delta_component
-                    fcurve.update()
-        view_layer.update()
-
-    scene.frame_set(1)
-    view_layer.update()
-    max_contact_residual = 0.0
-    for side in (".L", ".R"):
-        wrist = rig.pose.bones.get("wrist" + side)
-        actual_tail = rig.matrix_world @ wrist.tail
-        residual = (desired_hand_tails[side] - actual_tail).length
-        max_contact_residual = max(max_contact_residual, residual)
-    print(
-        f"PULLUP_HAND_CONTACT_CALIBRATION residual={max_contact_residual:.4f}m "
-        "limit=0.0200m"
-    )
-    if max_contact_residual > 0.02:
-        raise RuntimeError(
-            "pull-up hand contact calibration failed: residual "
-            f"{max_contact_residual:.3f} m > 0.020 m"
-        )
 
     print(
         f"PULLUP_ARM_IK PASS frames={frame_end} end_effector=wrist.head "
@@ -1025,6 +950,8 @@ grip_new = '''# FitPulse pull-up must not re-guess curl direction at every keyfr
 # first dead-hang pose for the entire fixed-bar cycle. Other exercise grips keep
 # the upstream per-keyframe behavior.
 FITPULSE_PULLUP_GRIP_SIGNS = None
+FITPULSE_PULLUP_FINGER_CURL = {1: 48, 2: 65, 3: 48}
+FITPULSE_PULLUP_THUMB_CURL = {1: 18, 2: 30, 3: 25}
 
 
 def grip_hands(rig, prop_objs, frame):
@@ -1058,7 +985,10 @@ def grip_hands(rig, prop_objs, frame):
             thumb_sign = _curl_sign(rig, "finger1-1" + side, axis, 30, center)
         applied = 0
         for f in range(1, 6):
-            curls = THUMB_CURL if f == 1 else FINGER_CURL
+            if is_fitpulse_pull_up:
+                curls = FITPULSE_PULLUP_THUMB_CURL if f == 1 else FITPULSE_PULLUP_FINGER_CURL
+            else:
+                curls = THUMB_CURL if f == 1 else FINGER_CURL
             sign = thumb_sign if f == 1 else finger_sign
             if sign is None:
                 continue
