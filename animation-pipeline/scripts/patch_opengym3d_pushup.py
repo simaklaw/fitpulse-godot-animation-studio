@@ -33,10 +33,10 @@ def apply_push_up_contact_ik(rig):
     pole_targets = {side: {} for side in sides}
     frame_range = list(range(scene.frame_start, scene.frame_end + 1))
     # The pole target itself follows the desired elbow plane on every frame.
-    # Blender's MakeHuman rig calibration puts the desired elbow branch halfway
-    # between the 0 and 180 degree test cases. Keep this 90-degree roll explicit;
-    # frame-by-frame elbow-direction QA remains the authority.
-    pole_angle = math.pi * 0.5
+    # The rig's pole-angle response is circular: +90 degrees selects the
+    # opposite projected elbow branch. A calibrated -90 degrees gives the intended
+    # backward-and-out projection; frame-by-frame QA remains the authority.
+    pole_angle = -math.pi * 0.5
 
     # First pass: sample original mocap poses and construct per-frame pole positions.
     for frame in frame_range:
@@ -202,7 +202,7 @@ def apply_push_up_contact_ik(rig):
         "PUSHUP_CONTACT_IK PASS "
         f"hand_z=({hand_targets['.L'].z:.3f},{hand_targets['.R'].z:.3f})m "
         f"toe_targets_z=({toe_targets['.L'].z:.3f},{toe_targets['.R'].z:.3f})m "
-        f"elbow_pole_target=animated_per_frame pole_angle=90deg frames={len(frame_range)} "
+        f"elbow_pole_target=animated_per_frame pole_angle=-90deg frames={len(frame_range)} "
         "target_flare=45deg pole_basis=desired_elbow chain_arm=4 wrist_joint_contact=on chain_leg=3"
     )
 
