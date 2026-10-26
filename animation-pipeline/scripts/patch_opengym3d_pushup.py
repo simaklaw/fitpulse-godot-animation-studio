@@ -79,8 +79,10 @@ def apply_push_up_contact_ik(rig):
             # The intended upper-arm projection follows a controlled 45-degree
             # path from the torso; the pole target tracks that desired plane per frame.
             flare = math.radians(45.0)
+            # trunk points from the shoulder toward the pelvis. The elbow
+            # must travel back along this vector, not forward toward the head.
             desired_horizontal = (
-                -trunk * math.cos(flare) +
+                trunk * math.cos(flare) +
                 lateral * sign * math.sin(flare)
             ).normalized()
             upper_delta = elbow_point - shoulder_point
@@ -366,8 +368,13 @@ def assert_push_up_pose(rig, frame_end):
             ))
             trunk_horizontal = Vector((trunk.x, trunk.y, 0.0))
             arm_to_trunk = angle_degrees(arm_horizontal, trunk_horizontal)
-            # Elbow-line orientation is undirected: 100 degrees is equivalent
-            # to an 80-degree flare, not a negative/forward-facing angle.
+            # Keep both flare magnitude and direction: an undirected angle alone
+            # accepts a mirror-image elbow path toward the head.
+            directional_projection = (
+                arm_horizontal.normalized().dot(trunk_horizontal.normalized())
+                if arm_horizontal.length > 1e-5 and trunk_horizontal.length > 1e-5
+                else -1.0
+            )
             arm_to_trunk = min(arm_to_trunk, 180.0 - arm_to_trunk)
             elbow_angles.append(joint_angle)
             if joint_angle < 45.0 or joint_angle > 180.0:
@@ -381,6 +388,11 @@ def assert_push_up_pose(rig, frame_end):
             # while the elbow is clearly flexed, without widening that range.
             if joint_angle <= 145.0:
                 elbow_to_trunk_angles.append(arm_to_trunk)
+                if directional_projection <= 0.0:
+                    raise RuntimeError(
+                        f"push-up elbow direction failed at frame {frame} {side}: "
+                        "elbow must move back toward the pelvis, not forward toward the head"
+                    )
                 if arm_to_trunk < 25.0 or arm_to_trunk > 75.0:
                     print(
                         "PUSHUP_ELBOW_DEBUG "
