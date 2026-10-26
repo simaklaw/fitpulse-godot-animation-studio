@@ -41,6 +41,9 @@ class PushUpRendererPatchTests(unittest.TestCase):
         self.assertNotIn("min(arm_to_trunk, 180.0 - arm_to_trunk)", self.source)
         self.assertIn("elbow is", self.source)
         self.assertIn('pose["wrists"][side].z - 0.05', self.source)
+        self.assertIn("signed_outward = arm_horizontal.normalized().dot(lateral_axis) * side_sign", self.source)
+        self.assertIn("push-up elbow handedness failed", self.source)
+        self.assertIn("pole_angle = -math.pi * 0.5", self.source)
 
     def test_pullup_uses_wrist_joint_and_animated_elbow_poles(self):
         self.assertIn('forearm = rig.pose.bones.get("lowerarm02" + side)', self.shared_source)
