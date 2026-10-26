@@ -306,6 +306,85 @@ def assert_pull_up_bar_contact(rig, frame_end):
         raise RuntimeError(f"pull-up hand-base-to-bar contact failed: {worst:.3f} m > {limit:.2f} m")
 
 
+def assert_pull_up_finger_contact(rig, frame_end):
+    """Require distal fingers to track close around the bar, not just the palm."""
+    scene = bpy.context.scene
+    view_layer = bpy.context.view_layer
+    bar = bpy.data.objects.get("PullUpBar")
+    post_l = bpy.data.objects.get("PullUpPost_L")
+    post_r = bpy.data.objects.get("PullUpPost_R")
+    if bar is None or post_l is None or post_r is None:
+        raise RuntimeError("pull-up finger-contact gate: missing bar or rack posts")
+
+    center = bar.matrix_world.translation.copy()
+    half_length = max(
+        0.0,
+        abs(post_r.matrix_world.translation.x - post_l.matrix_world.translation.x) / 2.0 - 0.02,
+    )
+    # The bar is a cylinder aligned to world X. Use the exported object's cross
+    # section rather than an assumed visual scale for the radius.
+    bar_radius = max(float(bar.dimensions.y), float(bar.dimensions.z)) * 0.5
+    if bar_radius < 0.015 or bar_radius > 0.05:
+        raise RuntimeError(
+            f"pull-up finger-contact gate: unexpected bar radius {bar_radius:.3f} m"
+        )
+
+    tolerance = 0.045
+    required_tips = 3
+    required_frame_ratio = 0.90
+    passing_frames = {".L": 0, ".R": 0}
+    worst_count = 4
+    worst_at = None
+    max_tip_gap = 0.0
+
+    for frame in range(1, frame_end + 1):
+        scene.frame_set(frame)
+        view_layer.update()
+        for side in (".L", ".R"):
+            close_tips = 0
+            gaps = []
+            for finger_number in (2, 3, 4, 5):
+                tip_bone = rig.pose.bones.get(f"finger{finger_number}-3" + side)
+                if tip_bone is None:
+                    raise RuntimeError(
+                        f"pull-up finger-contact gate: missing distal finger{finger_number}{side}"
+                    )
+                tip = rig.matrix_world @ tip_bone.tail
+                radial = math.sqrt(
+                    (tip.y - center.y) ** 2 + (tip.z - center.z) ** 2
+                )
+                surface_gap = abs(radial - bar_radius)
+                beyond_bar = max(0.0, abs(tip.x - center.x) - half_length)
+                gap = math.sqrt(surface_gap ** 2 + beyond_bar ** 2)
+                gaps.append((finger_number, gap))
+                max_tip_gap = max(max_tip_gap, gap)
+                if gap <= tolerance:
+                    close_tips += 1
+
+            if close_tips >= required_tips:
+                passing_frames[side] += 1
+            if close_tips < worst_count:
+                worst_count = close_tips
+                worst_at = (frame, side, sorted((n, round(g, 3)) for n, g in gaps))
+
+    frame_ratio = min(passing_frames.values()) / max(1, frame_end)
+    print(
+        "GRIP_CONTACT pull_up: "
+        f"left={passing_frames['.L']}/{frame_end} "
+        f"right={passing_frames['.R']}/{frame_end} "
+        f"required={required_tips}/4 distal tips within {tolerance:.3f} m "
+        f"of bar surface for {required_frame_ratio:.0%} frames; "
+        f"worst_tips={worst_count}/4 at {worst_at}; max_tip_gap={max_tip_gap:.3f} m"
+    )
+    if frame_ratio < required_frame_ratio:
+        raise RuntimeError(
+            "pull-up finger-wrap failed: at least 3 of 4 distal fingertips per hand "
+            f"must stay within {tolerance:.3f} m of the bar surface in "
+            f"{required_frame_ratio:.0%} of frames; left={passing_frames['.L']}/{frame_end}, "
+            f"right={passing_frames['.R']}/{frame_end}; worst={worst_at}"
+        )
+
+
 def assert_pull_up_body_pose(rig, frame_end):
     """Check clearance and reject upward-folded elbows throughout the rep."""
     scene = bpy.context.scene
@@ -498,7 +577,7 @@ if text.count(main_old) != 1:
 text = text.replace(main_old, main_new, 1)
 
 anim_old = '            animate(driver, rig, spec, frame_end, prop_objs)\n        bpy.data.objects.remove(driver, do_unlink=True)'
-anim_new = '            animate(driver, rig, spec, frame_end, prop_objs)\n            if spec.get("id") == "pull_up":\n                hand_targets = fit_pull_up_rack_to_hang_pose(rig)\n                add_pull_up_ik(rig, hand_targets, frame_end)\n                assert_pull_up_bar_contact(rig, frame_end)\n                assert_pull_up_body_pose(rig, frame_end)\n        bpy.data.objects.remove(driver, do_unlink=True)'
+anim_new = '            animate(driver, rig, spec, frame_end, prop_objs)\n            if spec.get("id") == "pull_up":\n                hand_targets = fit_pull_up_rack_to_hang_pose(rig)\n                add_pull_up_ik(rig, hand_targets, frame_end)\n                assert_pull_up_bar_contact(rig, frame_end)\n                assert_pull_up_finger_contact(rig, frame_end)\n                assert_pull_up_body_pose(rig, frame_end)\n        bpy.data.objects.remove(driver, do_unlink=True)'
 if text.count(anim_old) != 1:
     raise SystemExit("Unexpected upstream animation block; refusing an unsafe contact-check patch")
 text = text.replace(anim_old, anim_new, 1)
