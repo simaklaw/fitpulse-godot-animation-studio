@@ -62,7 +62,7 @@ class PushUpRendererPatchTests(unittest.TestCase):
         self.assertIn("below_center_margin = max(0.005, bar_radius * 0.20)", self.shared_source)
         self.assertIn("under_bar = tip.z <= center.z - below_center_margin", self.shared_source)
         self.assertIn("if gap <= tolerance and under_bar:", self.shared_source)
-        self.assertIn("FITPULSE_PULLUP_FINGER_CURL = {1: 48, 2: 65, 3: 48}", self.shared_source)
+        self.assertIn("FITPULSE_PULLUP_FINGER_CURL = {1: 70, 2: 90, 3: 70}", self.shared_source)
         self.assertIn("FITPULSE_PULLUP_THUMB_CURL = {1: 18, 2: 30, 3: 25}", self.shared_source)
         self.assertIn("curls = FITPULSE_PULLUP_THUMB_CURL if f == 1 else FITPULSE_PULLUP_FINGER_CURL", self.shared_source)
         self.assertIn("hand_rotations[side] = (rig.matrix_world @ wrist.matrix).to_quaternion().copy()", self.shared_source)

@@ -950,7 +950,7 @@ grip_new = '''# FitPulse pull-up must not re-guess curl direction at every keyfr
 # first dead-hang pose for the entire fixed-bar cycle. Other exercise grips keep
 # the upstream per-keyframe behavior.
 FITPULSE_PULLUP_GRIP_SIGNS = None
-FITPULSE_PULLUP_FINGER_CURL = {1: 48, 2: 65, 3: 48}
+FITPULSE_PULLUP_FINGER_CURL = {1: 70, 2: 90, 3: 70}
 FITPULSE_PULLUP_THUMB_CURL = {1: 18, 2: 30, 3: 25}
 
 
