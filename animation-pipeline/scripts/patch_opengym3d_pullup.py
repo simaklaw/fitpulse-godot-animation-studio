@@ -101,23 +101,28 @@ if text.count(needle) != 1:
 text = text.replace(needle, helper + needle, 1)
 
 contact_helper = r'''def fit_pull_up_rack_to_hang_pose(rig):
-    """Fit the bar to the palm centre, not to the fingertips at wrist.tail."""
+    """Fit the bar to the hand/finger base while preserving the hand's shape."""
     scene = bpy.context.scene
     scene.frame_set(1)
     bpy.context.view_layer.update()
-    palms = {}
-    wrist_points = {}
+    hands = {}
+    wrist_heads = {}
+    hand_vectors = {}
     for side in (".L", ".R"):
         wrist = rig.pose.bones.get("wrist" + side)
         if wrist is None:
             raise RuntimeError(f"pull-up fit gate: missing wrist{side}")
         wrist_head = rig.matrix_world @ wrist.head
         wrist_tail = rig.matrix_world @ wrist.tail
-        palms[side] = (wrist_head + wrist_tail) * 0.5
-        wrist_points[side] = wrist_head.copy()
+        hands[side] = wrist_tail.copy()
+        wrist_heads[side] = wrist_head.copy()
+        hand_vectors[side] = wrist_tail - wrist_head
 
-    bar_z = (palms[".L"].z + palms[".R"].z) / 2.0
-    bar_y = (palms[".L"].y + palms[".R"].y) / 2.0
+    # The bar contacts the distal palm/knuckle region, not the middle of the palm.
+    # Keep the small clearance used by the source rig so the cylinder does not
+    # visibly pass through the mesh.
+    bar_z = (hands[".L"].z + hands[".R"].z) / 2.0 + 0.037
+    bar_y = (hands[".L"].y + hands[".R"].y) / 2.0
     bar = bpy.data.objects.get("PullUpBar")
     if bar is None:
         raise RuntimeError("pull-up fit gate: missing PullUpBar")
@@ -137,18 +142,15 @@ contact_helper = r'''def fit_pull_up_rack_to_hang_pose(rig):
     bpy.context.view_layer.update()
     targets = {}
     for side in (".L", ".R"):
-        # The IK end point is wrist.head (the wrist joint). Preserve the source
-        # wrist-to-palm offset so the middle of the hand, not the fingertips,
-        # is placed on the bar.
-        # Preserve each hand's position along the bar (X); align only the
-        # perpendicular wrist-to-palm offset with the bar centre in Y/Z.
-        targets[side] = wrist_points[side] + Vector((0.0, bar_y - palms[side].y, bar_z - palms[side].z))
+        # Keep the fingertips at the bar contact zone and solve only for the wrist
+        # joint. Copy-rotation later preserves this measured hand orientation.
+        desired_hand_tail = Vector((hands[side].x, bar_y, bar_z - 0.037))
+        targets[side] = desired_hand_tail - hand_vectors[side]
     print(
-        f"RACK_FIT pull_up: palm_center=({bar.location.x:.3f},{bar_y:.3f},{bar_z:.3f}) "
+        f"RACK_FIT pull_up: hand_contact=({bar.location.x:.3f},{bar_y:.3f},{bar_z:.3f}) "
         f"grip_x=({targets['.L'].x:.3f},{targets['.R'].x:.3f})"
     )
     return targets
-
 
 def add_pull_up_ik(rig, target_positions, frame_end):
     """Pin the wrist joints to the bar, keep palms stable, and steer elbow poles."""
@@ -287,17 +289,17 @@ def assert_pull_up_bar_contact(rig, frame_end):
             wrist = rig.pose.bones.get("wrist" + side)
             if wrist is None:
                 raise RuntimeError(f"pull-up contact gate: missing wrist{side}")
-            palm = (rig.matrix_world @ wrist.head + rig.matrix_world @ wrist.tail) * 0.5
-            radial = math.sqrt((palm.y - bar_center.y) ** 2 + (palm.z - bar_center.z) ** 2)
-            beyond_bar = max(0.0, abs(palm.x - bar_center.x) - half_length)
+            hand_base = rig.matrix_world @ wrist.tail
+            radial = math.sqrt((hand_base.y - bar_center.y) ** 2 + (hand_base.z - bar_center.z) ** 2)
+            beyond_bar = max(0.0, abs(hand_base.x - bar_center.x) - half_length)
             distance = math.sqrt(radial ** 2 + beyond_bar ** 2)
             if distance > worst:
                 worst = distance
-                worst_at = (frame, side, tuple(round(v, 3) for v in palm))
+                worst_at = (frame, side, tuple(round(v, 3) for v in hand_base))
     limit = 0.08
-    print(f"CONTACT pull_up: max palm-centre-to-bar distance {worst:.3f} m at {worst_at}; limit {limit:.2f} m")
+    print(f"CONTACT pull_up: max hand-base-to-bar distance {worst:.3f} m at {worst_at}; limit {limit:.2f} m")
     if worst > limit:
-        raise RuntimeError(f"pull-up palm-to-bar contact failed: {worst:.3f} m > {limit:.2f} m")
+        raise RuntimeError(f"pull-up hand-base-to-bar contact failed: {worst:.3f} m > {limit:.2f} m")
 
 
 def assert_pull_up_body_pose(rig, frame_end):
