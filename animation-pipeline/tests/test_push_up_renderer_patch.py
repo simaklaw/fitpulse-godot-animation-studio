@@ -50,6 +50,10 @@ class PushUpRendererPatchTests(unittest.TestCase):
         self.assertIn("hand_end_effector=wrist.head", self.shared_source)
         self.assertIn("max palm-centre-to-bar distance", self.shared_source)
         self.assertIn("PULLUP_ARM_QA PASS", self.shared_source)
+        self.assertIn("anatomical_direction = Vector((outward_sign * 0.48, 0.877, 0.0))", self.shared_source)
+        self.assertNotIn("elbow_projection = shoulder + axis", self.shared_source)
+        self.assertIn("pull-up elbow symmetry failed", self.shared_source)
+        self.assertIn("FitPulsePullUpStablePalm", self.shared_source)
 
     def test_elbow_path_acceptance_range_is_not_relaxed(self):
         self.assertIn(
