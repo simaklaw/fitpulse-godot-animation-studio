@@ -47,6 +47,10 @@ class PushUpRendererPatchTests(unittest.TestCase):
             "if arm_to_trunk < 25.0 or arm_to_trunk > 75.0:",
             self.source,
         )
+        self.assertIn("trunk * math.cos(flare)", self.source)
+        self.assertIn("directional_projection <= 0.0", self.source)
+        self.assertIn("elbow must move back toward the pelvis", self.source)
+
         self.assertIn(
             "expected a controlled back-and-out path (25–75 degrees)",
             self.source,
