@@ -297,6 +297,70 @@ def assert_pull_up_bar_contact(rig, frame_end):
         raise RuntimeError(f"pull-up hand-to-bar contact failed: {worst:.3f} m > {limit:.2f} m")
 
 
+
+def assert_pull_up_arm_pose(rig, frame_end):
+    """Reject impossible elbow flexion and reversed wrist articulation on every frame."""
+    scene = bpy.context.scene
+    view_layer = bpy.context.view_layer
+
+    def angle_degrees(a, b):
+        if a.length < 1e-7 or b.length < 1e-7:
+            raise RuntimeError("pull-up arm QA: degenerate joint vector")
+        cosine = max(-1.0, min(1.0, a.normalized().dot(b.normalized())))
+        return math.degrees(math.acos(cosine))
+
+    elbow_min, elbow_max = 180.0, 0.0
+    wrist_min, wrist_max = 180.0, 0.0
+    for frame in range(scene.frame_start, frame_end + 1):
+        scene.frame_set(frame)
+        view_layer.update()
+        shoulders = {
+            side: rig.matrix_world @ rig.pose.bones["upperarm01" + side].head
+            for side in (".L", ".R")
+        }
+        center = (shoulders[".L"] + shoulders[".R"]) * 0.5
+        for side in (".L", ".R"):
+            upper = rig.pose.bones.get("upperarm01" + side)
+            forearm = rig.pose.bones.get("lowerarm01" + side)
+            wrist = rig.pose.bones.get("wrist" + side)
+            if any(pb is None for pb in (upper, forearm, wrist)):
+                raise RuntimeError(f"pull-up arm QA: missing arm bone on {side}")
+            shoulder = rig.matrix_world @ upper.head
+            elbow = rig.matrix_world @ forearm.head
+            wrist_joint = rig.matrix_world @ wrist.head
+            hand_tip = rig.matrix_world @ wrist.tail
+            elbow_angle = angle_degrees(shoulder - elbow, wrist_joint - elbow)
+            wrist_angle = angle_degrees(elbow - wrist_joint, hand_tip - wrist_joint)
+            elbow_min, elbow_max = min(elbow_min, elbow_angle), max(elbow_max, elbow_angle)
+            wrist_min, wrist_max = min(wrist_min, wrist_angle), max(wrist_max, wrist_angle)
+
+            if elbow_angle < 30.0 or elbow_angle > 180.0:
+                raise RuntimeError(
+                    f"pull-up elbow flexion failed at frame {frame} {side}: "
+                    f"{elbow_angle:.1f} degrees outside 30–180 degrees"
+                )
+            if wrist_angle < 35.0 or wrist_angle > 150.0:
+                raise RuntimeError(
+                    f"pull-up wrist alignment failed at frame {frame} {side}: "
+                    f"{wrist_angle:.1f} degrees outside 35–150 degrees"
+                )
+
+            lateral = Vector((shoulder.x - center.x, shoulder.y - center.y, 0.0))
+            elbow_lateral = Vector((elbow.x - center.x, elbow.y - center.y, 0.0))
+            if lateral.length > 1e-5 and elbow_angle < 150.0:
+                lateral.normalize()
+                if elbow_lateral.dot(lateral) < 0.015 or elbow.z > shoulder.z + 0.15:
+                    raise RuntimeError(
+                        f"pull-up elbow path failed at frame {frame} {side}: "
+                        "flexed elbow must remain outward and no more than 0.15 m above shoulder"
+                    )
+
+    print(
+        "PULLUP_ARM_QA PASS "
+        f"frames={frame_end} elbow_angle=[{elbow_min:.1f},{elbow_max:.1f}]deg "
+        f"wrist_angle=[{wrist_min:.1f},{wrist_max:.1f}]deg"
+    )
+
 def assert_pull_up_body_pose(rig, frame_end):
     """Require feet to stay clear of the floor and the head to clear the bar."""
     scene = bpy.context.scene
@@ -417,7 +481,7 @@ if text.count(main_old) != 1:
 text = text.replace(main_old, main_new, 1)
 
 anim_old = '            animate(driver, rig, spec, frame_end, prop_objs)\n        bpy.data.objects.remove(driver, do_unlink=True)'
-anim_new = '            animate(driver, rig, spec, frame_end, prop_objs)\n            if spec.get("id") == "pull_up":\n                hand_targets = fit_pull_up_rack_to_hang_pose(rig)\n                add_pull_up_ik(rig, hand_targets)\n                assert_pull_up_bar_contact(rig, frame_end)\n                assert_pull_up_body_pose(rig, frame_end)\n        bpy.data.objects.remove(driver, do_unlink=True)'
+anim_new = '            animate(driver, rig, spec, frame_end, prop_objs)\n            if spec.get("id") == "pull_up":\n                hand_targets = fit_pull_up_rack_to_hang_pose(rig)\n                add_pull_up_ik(rig, hand_targets)\n                assert_pull_up_bar_contact(rig, frame_end)\n                assert_pull_up_arm_pose(rig, frame_end)\n                assert_pull_up_body_pose(rig, frame_end)\n        bpy.data.objects.remove(driver, do_unlink=True)'
 if text.count(anim_old) != 1:
     raise SystemExit("Unexpected upstream animation block; refusing an unsafe contact-check patch")
 text = text.replace(anim_old, anim_new, 1)
