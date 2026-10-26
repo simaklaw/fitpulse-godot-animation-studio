@@ -159,16 +159,28 @@ def add_pull_up_ik(rig, target_positions, frame_end):
     pole_positions = {".L": {}, ".R": {}}
     hand_rotations = {}
 
-    # Capture the wrist/hand world orientation from the first dead-hang pose.
-    # The hand is deliberately excluded from the IK chain below: otherwise
-    # IK can twist the palm to reach the target, producing a broken-looking wrist.
+    # Align the palm so the fingers can curl around the lower side of the bar.
+    # The original dead-hang hand roll placed the fingertips over the bar top.
+    # Rotate the whole hand 180 degrees about the fixed bar axis, then recompute
+    # each wrist-head target so the measured hand-base contact stays fixed.
     scene.frame_set(1)
     view_layer.update()
+    bar = bpy.data.objects.get("PullUpBar")
+    if bar is None:
+        raise RuntimeError("pull-up IK gate: missing PullUpBar for hand orientation")
+    bar_axis = (bar.matrix_world.to_3x3() @ Vector((1, 0, 0))).normalized()
+    grip_rotation = Quaternion(bar_axis, math.pi)
     for side in (".L", ".R"):
         wrist = rig.pose.bones.get("wrist" + side)
         if wrist is None:
             raise RuntimeError(f"pull-up IK gate: missing wrist{side}")
-        hand_rotations[side] = (rig.matrix_world @ wrist.matrix).to_quaternion().copy()
+        wrist_head = rig.matrix_world @ wrist.head
+        wrist_tail = rig.matrix_world @ wrist.tail
+        hand_vector = wrist_tail - wrist_head
+        desired_hand_tail = Vector(target_positions[side]) + hand_vector
+        target_hand_vector = grip_rotation @ hand_vector
+        target_positions[side] = desired_hand_tail - target_hand_vector
+        hand_rotations[side] = grip_rotation @ (rig.matrix_world @ wrist.matrix).to_quaternion().copy()
 
     for frame in range(1, frame_end + 1):
         scene.frame_set(frame)
@@ -967,14 +979,10 @@ def grip_hands(rig, prop_objs, frame):
             center = rig.matrix_world @ rig.pose.bones["wrist" + side].tail
             finger_sign = _curl_sign(rig, "finger2-1" + side, axis, 50, center)
             thumb_sign = _curl_sign(rig, "finger1-1" + side, axis, 30, center)
-            # The upstream heuristic curls tips toward the palm centre. On this
-            # hanging pose that leaves the fingertips draped over the top of the
-            # bar. Reverse the candidate so the fingers hook around its underside;
-            # the per-frame geometric gate below decides whether this is valid.
-            FITPULSE_PULLUP_GRIP_SIGNS[side] = (
-                -finger_sign if finger_sign is not None else None,
-                -thumb_sign if thumb_sign is not None else None,
-            )
+            # Keep the rig-measured natural curl direction. Pull-up hand
+            # orientation is corrected as a whole in add_pull_up_ik; reversing
+            # each finger curl independently made the tips move away from the bar.
+            FITPULSE_PULLUP_GRIP_SIGNS[side] = (finger_sign, thumb_sign)
         print("FITPULSE_PULLUP_GRIP_SIGNS locked from first dead-hang pose: "
               + repr(FITPULSE_PULLUP_GRIP_SIGNS))
 
