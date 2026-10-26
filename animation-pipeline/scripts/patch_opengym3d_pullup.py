@@ -950,31 +950,76 @@ grip_new = '''# FitPulse pull-up must not re-guess curl direction at every keyfr
 # first dead-hang pose for the entire fixed-bar cycle. Other exercise grips keep
 # the upstream per-keyframe behavior.
 FITPULSE_PULLUP_GRIP_SIGNS = None
-FITPULSE_PULLUP_FINGER_CURL = {1: 70, 2: 90, 3: 70}
+FITPULSE_PULLUP_FINGER_BASE_POSES = None
+FITPULSE_PULLUP_FINGER_CURL = {1: 58, 2: 75, 3: 58}
 FITPULSE_PULLUP_THUMB_CURL = {1: 18, 2: 30, 3: 25}
 
 
 def grip_hands(rig, prop_objs, frame):
     """Close fingers around a held implement; stabilize signs for the pull-up."""
-    global FITPULSE_PULLUP_GRIP_SIGNS
+    global FITPULSE_PULLUP_GRIP_SIGNS, FITPULSE_PULLUP_FINGER_BASE_POSES
     if not prop_objs:
         return
     held_object = prop_objs[0][0]
     is_fitpulse_pull_up = held_object.name == "PullUpBar"
     axis = (held_object.matrix_world.to_3x3() @ Vector((1, 0, 0))).normalized()
 
-    if is_fitpulse_pull_up and (frame == 1 or FITPULSE_PULLUP_GRIP_SIGNS is None):
+    if is_fitpulse_pull_up and (
+        frame == 1
+        or FITPULSE_PULLUP_GRIP_SIGNS is None
+        or FITPULSE_PULLUP_FINGER_BASE_POSES is None
+    ):
         FITPULSE_PULLUP_GRIP_SIGNS = {}
+        FITPULSE_PULLUP_FINGER_BASE_POSES = {}
         for side in (".L", ".R"):
             center = rig.matrix_world @ rig.pose.bones["wrist" + side].tail
             finger_sign = _curl_sign(rig, "finger2-1" + side, axis, 50, center)
             thumb_sign = _curl_sign(rig, "finger1-1" + side, axis, 30, center)
-            # Keep the rig-measured natural curl direction. Pull-up hand
-            # orientation is corrected as a whole in add_pull_up_ik; reversing
-            # each finger curl independently made the tips move away from the bar.
+            # Keep the rig-measured natural curl direction. Reverse curling moved
+            # the tips away from the cylinder, so preserve the calibrated sign.
             FITPULSE_PULLUP_GRIP_SIGNS[side] = (finger_sign, thumb_sign)
-        print("FITPULSE_PULLUP_GRIP_SIGNS locked from first dead-hang pose: "
-              + repr(FITPULSE_PULLUP_GRIP_SIGNS))
+            for finger_number in range(1, 6):
+                for segment_number in (1, 2, 3):
+                    finger_bone = rig.pose.bones.get(
+                        f"finger{finger_number}-{segment_number}" + side
+                    )
+                    if finger_bone is not None:
+                        FITPULSE_PULLUP_FINGER_BASE_POSES[
+                            (finger_number, segment_number, side)
+                        ] = finger_bone.matrix_basis.copy()
+        print(
+            "FITPULSE_PULLUP_GRIP_SIGNS locked from first dead-hang pose: "
+            + repr(FITPULSE_PULLUP_GRIP_SIGNS)
+        )
+        print(
+            f"FITPULSE_PULLUP_FINGER_BASE_POSES captured "
+            f"bones={len(FITPULSE_PULLUP_FINGER_BASE_POSES)} frame={frame}"
+        )
+
+    # Source mocap animates the fingers at each exercise keyframe. Restore the
+    # same baseline local pose before applying pull-up curls, so interpolation
+    # cannot alternately open and close the hand as the wrist moves.
+    if is_fitpulse_pull_up:
+        missing_bones = []
+        for side in (".L", ".R"):
+            for finger_number in range(1, 6):
+                for segment_number in (1, 2, 3):
+                    key = (finger_number, segment_number, side)
+                    finger_bone = rig.pose.bones.get(
+                        f"finger{finger_number}-{segment_number}" + side
+                    )
+                    base_pose = FITPULSE_PULLUP_FINGER_BASE_POSES.get(key)
+                    if finger_bone is None or base_pose is None:
+                        missing_bones.append(key)
+                        continue
+                    finger_bone.matrix_basis = base_pose.copy()
+        bpy.context.view_layer.update()
+        if missing_bones:
+            raise RuntimeError(
+                "pull-up finger pose reset failed: missing baseline bones "
+                f"{missing_bones}"
+            )
+        print(f"FITPULSE_PULLUP_FINGER_BASE_POSES restored frame={frame}")
 
     for side in (".L", ".R"):
         center = rig.matrix_world @ rig.pose.bones["wrist" + side].tail
