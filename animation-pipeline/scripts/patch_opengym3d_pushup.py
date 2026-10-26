@@ -354,6 +354,13 @@ def assert_push_up_pose(rig, frame_end):
             # Preserve the signed direction: a 135-degree forward fold is not
             # an acceptable substitute for a 45-degree backward-and-out path.
             arm_to_trunk = angle_degrees(arm_horizontal, trunk_horizontal)
+            trunk_axis = Vector((trunk_horizontal.x, trunk_horizontal.y, 0.0))
+            if trunk_axis.length < 1e-7:
+                raise RuntimeError(f"push-up QA: degenerate horizontal trunk axis at frame {frame}")
+            trunk_axis.normalize()
+            lateral_axis = Vector((trunk_axis.y, -trunk_axis.x, 0.0))
+            side_sign = 1.0 if side == ".L" else -1.0
+            signed_outward = arm_horizontal.normalized().dot(lateral_axis) * side_sign
             elbow_angles.append(joint_angle)
             if joint_angle < 45.0 or joint_angle > 180.0:
                 raise RuntimeError(
@@ -377,6 +384,12 @@ def assert_push_up_pose(rig, frame_end):
             # while the elbow is clearly flexed, without widening that range.
             if joint_angle <= 145.0:
                 elbow_to_trunk_angles.append(arm_to_trunk)
+                if signed_outward < math.sin(math.radians(25.0)) or signed_outward > math.sin(math.radians(75.0)):
+                    raise RuntimeError(
+                        f"push-up elbow handedness failed at frame {frame} {side}: "
+                        f"signed outward component={signed_outward:.3f}; "
+                        "expected positive outward flare on the anatomical side"
+                    )
                 if arm_to_trunk < 25.0 or arm_to_trunk > 75.0:
                     print(
                         "PUSHUP_ELBOW_DEBUG "
