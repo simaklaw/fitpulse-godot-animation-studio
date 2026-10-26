@@ -21,15 +21,14 @@ class PushUpRendererPatchTests(unittest.TestCase):
         cls.pullup_workflow_source = PULLUP_WORKFLOW.read_text(encoding="utf-8")
 
     def test_pole_angle_and_wrist_endpoint_preserve_anatomical_arm_plane(self):
-        # Pole positions are animated in the intended bend plane, without a
-        # compensating quarter-turn that can fold the elbow in the wrong direction.
-        self.assertIn("pole_angle = 0.0", self.source)
+        # The MakeHuman rest-roll requires the half-turn; renderer QA verifies the branch.
+        self.assertIn("pole_angle = math.pi", self.source)
         self.assertIn("arm_ik.pole_angle = pole_angle", self.source)
         self.assertIn(
             'pole.keyframe_insert(data_path="location", frame=frame, group="FitPulse elbow tracking")',
             self.source,
         )
-        self.assertIn("elbow_pole_target=animated_per_frame pole_angle=0deg", self.source)
+        self.assertIn("elbow_pole_target=animated_per_frame pole_angle=180deg", self.source)
         self.assertIn('forearm = rig.pose.bones.get("lowerarm02" + side)', self.source)
         self.assertIn("arm_ik.chain_count = 4", self.source)
         self.assertIn('keep_hand.name = "FitPulsePushUpStablePalm" + side', self.source)
