@@ -48,6 +48,8 @@ class PushUpRendererPatchTests(unittest.TestCase):
     def test_pullup_uses_wrist_joint_and_animated_elbow_poles(self):
         self.assertIn('forearm = rig.pose.bones.get("lowerarm02" + side)', self.shared_source)
         self.assertIn('pole_target = pole', self.shared_source)
+        self.assertIn("arm_ik.pole_angle = -math.pi * 0.5", self.shared_source)
+        self.assertIn("pole_angle=-90deg", self.shared_source)
         self.assertIn('pole.keyframe_insert(data_path="location", frame=frame, group="FitPulse pull-up elbow tracking")', self.shared_source)
         self.assertIn('keep_hand.name = "FitPulsePullUpStablePalm" + side', self.shared_source)
         self.assertIn("hand_end_effector=wrist.head", self.shared_source)

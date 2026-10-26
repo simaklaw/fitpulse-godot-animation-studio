@@ -238,7 +238,11 @@ def add_pull_up_ik(rig, target_positions, frame_end):
         arm_ik.name = "FitPulsePullUpArmIK" + side
         arm_ik.target = target
         arm_ik.pole_target = pole
-        arm_ik.pole_angle = 0.0
+        # MakeHuman's default shoulder/arm roll places the zero-angle pole
+        # branch almost orthogonal to the intended posterior-and-outward bend.
+        # Rotate the pole plane by -90 degrees; strict per-frame handedness QA
+        # below remains the acceptance gate for both profile variants.
+        arm_ik.pole_angle = -math.pi * 0.5
         arm_ik.chain_count = 4
         arm_ik.iterations = 100
         arm_ik.use_stretch = False
@@ -260,7 +264,7 @@ def add_pull_up_ik(rig, target_positions, frame_end):
     view_layer.update()
     print(
         f"PULLUP_ARM_IK PASS frames={frame_end} end_effector=wrist.head "
-        "arm_chain=lowerarm02:4 pole_target=animated_per_frame pole_angle=0 "
+        "arm_chain=lowerarm02:4 pole_target=animated_per_frame pole_angle=-90deg "
         "palm_orientation=world_locked"
     )
 
