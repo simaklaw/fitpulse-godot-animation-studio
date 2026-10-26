@@ -140,7 +140,9 @@ contact_helper = r'''def fit_pull_up_rack_to_hang_pose(rig):
         # The IK end point is wrist.head (the wrist joint). Preserve the source
         # wrist-to-palm offset so the middle of the hand, not the fingertips,
         # is placed on the bar.
-        targets[side] = wrist_points[side] + (bar.location - palms[side])
+        # Preserve each hand's position along the bar (X); align only the
+        # perpendicular wrist-to-palm offset with the bar centre in Y/Z.
+        targets[side] = wrist_points[side] + Vector((0.0, bar_y - palms[side].y, bar_z - palms[side].z))
     print(
         f"RACK_FIT pull_up: palm_center=({bar.location.x:.3f},{bar_y:.3f},{bar_z:.3f}) "
         f"grip_x=({targets['.L'].x:.3f},{targets['.R'].x:.3f})"
