@@ -33,9 +33,10 @@ def apply_push_up_contact_ik(rig):
     pole_targets = {side: {} for side in sides}
     frame_range = list(range(scene.frame_start, scene.frame_end + 1))
     # The pole target itself follows the desired elbow plane on every frame.
-    # The MakeHuman arm roll makes a half-turn necessary to select the opposite
-    # branch of the IK plane. This is calibrated against elbow-direction QA.
-    pole_angle = math.pi
+    # Blender's MakeHuman rig calibration puts the desired elbow branch halfway
+    # between the 0 and 180 degree test cases. Keep this 90-degree roll explicit;
+    # frame-by-frame elbow-direction QA remains the authority.
+    pole_angle = math.pi * 0.5
 
     # First pass: sample original mocap poses and construct per-frame pole positions.
     for frame in frame_range:
@@ -122,8 +123,8 @@ def apply_push_up_contact_ik(rig):
 
     hand_objects = {}
     pole_objects = {}
-    # Second pass: add targets and IK constraints. Wrist-tail targeting pins the
-    # actual hand endpoint rather than the wrist bone head.
+    # Second pass: add targets and IK constraints. The endpoint is the wrist joint;
+    # the hand bone stays out of the solve so IK cannot twist it.
     for side in sides:
         hand_target = bpy.data.objects.new("FitPulsePushUpHandTarget" + side, None)
         scene.collection.objects.link(hand_target)
@@ -201,8 +202,8 @@ def apply_push_up_contact_ik(rig):
         "PUSHUP_CONTACT_IK PASS "
         f"hand_z=({hand_targets['.L'].z:.3f},{hand_targets['.R'].z:.3f})m "
         f"toe_targets_z=({toe_targets['.L'].z:.3f},{toe_targets['.R'].z:.3f})m "
-        f"elbow_pole_target=animated_per_frame pole_angle=180deg frames={len(frame_range)} "
-        "target_flare=45deg pole_basis=desired_elbow chain_arm=5 tail_contact=on chain_leg=3"
+        f"elbow_pole_target=animated_per_frame pole_angle=90deg frames={len(frame_range)} "
+        "target_flare=45deg pole_basis=desired_elbow chain_arm=4 wrist_joint_contact=on chain_leg=3"
     )
 
 
