@@ -33,9 +33,9 @@ def apply_push_up_contact_ik(rig):
     pole_targets = {side: {} for side in sides}
     frame_range = list(range(scene.frame_start, scene.frame_end + 1))
     # The pole target itself follows the desired elbow plane on every frame.
-    # The pole target is constructed directly in the desired elbow plane.
-    # Use no quarter-turn offset: an extra 90 degrees can fold the elbow upward.
-    pole_angle = 0.0
+    # The MakeHuman arm roll makes a half-turn necessary to select the opposite
+    # branch of the IK plane. This is calibrated against elbow-direction QA.
+    pole_angle = math.pi
 
     # First pass: sample original mocap poses and construct per-frame pole positions.
     for frame in frame_range:
@@ -201,7 +201,7 @@ def apply_push_up_contact_ik(rig):
         "PUSHUP_CONTACT_IK PASS "
         f"hand_z=({hand_targets['.L'].z:.3f},{hand_targets['.R'].z:.3f})m "
         f"toe_targets_z=({toe_targets['.L'].z:.3f},{toe_targets['.R'].z:.3f})m "
-        f"elbow_pole_target=animated_per_frame pole_angle=0deg frames={len(frame_range)} "
+        f"elbow_pole_target=animated_per_frame pole_angle=180deg frames={len(frame_range)} "
         "target_flare=45deg pole_basis=desired_elbow chain_arm=5 tail_contact=on chain_leg=3"
     )
 
