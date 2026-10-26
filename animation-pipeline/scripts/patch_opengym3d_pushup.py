@@ -33,11 +33,8 @@ def apply_push_up_contact_ik(rig):
     pole_targets = {side: {} for side in sides}
     frame_range = list(range(scene.frame_start, scene.frame_end + 1))
     # The pole target itself follows the desired elbow plane on every frame.
-    # For this MakeHuman default rig, a fixed -90-degree IK pole offset is
-    # the calibrated roll convention; deriving it from the same constructed
-    # elbow and pole vectors is self-referential and can sign-flip at a threshold.
-    # Pole targets are constructed in the desired elbow plane; an extra quarter-turn
-    # can rotate the bend out of that plane and fold the elbow upward.
+    # The pole target is constructed directly in the desired elbow plane.
+    # Use no quarter-turn offset: an extra 90 degrees can fold the elbow upward.
     pole_angle = 0.0
 
     # First pass: sample original mocap poses and construct per-frame pole positions.
