@@ -48,7 +48,7 @@ class PushUpRendererPatchTests(unittest.TestCase):
         self.assertIn('pole.keyframe_insert(data_path="location", frame=frame, group="FitPulse pull-up elbow tracking")', self.shared_source)
         self.assertIn('keep_hand.name = "FitPulsePullUpStablePalm" + side', self.shared_source)
         self.assertIn("hand_end_effector=wrist.head", self.shared_source)
-        self.assertIn("max palm-centre-to-bar distance", self.shared_source)
+        self.assertIn("max hand-base-to-bar distance", self.shared_source)
         self.assertIn("PULLUP_ARM_QA PASS", self.shared_source)
         self.assertIn("anatomical_direction = Vector((outward_sign * 0.48, 0.877, 0.0))", self.shared_source)
         self.assertNotIn("elbow_projection = shoulder + axis", self.shared_source)
