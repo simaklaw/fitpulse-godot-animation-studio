@@ -576,6 +576,35 @@ def assert_pull_up_body_pose(rig, frame_end):
         raise RuntimeError(f"pull-up top-position failed: head-base proxy {head_base_z:.3f} m does not clear bar top {bar_top_z:.3f} m by 0.03 m")
 
 
+def apply_pull_up_grip_every_frame(rig, prop_objs, frame_end):
+    """Bake the same calibrated pull-up finger grip at every output frame."""
+    if not any(obj.name == "PullUpBar" for obj, _ in prop_objs):
+        return
+    scene = bpy.context.scene
+    for frame in range(1, frame_end + 1):
+        scene.frame_set(frame)
+        bpy.context.view_layer.update()
+        # grip_hands restores the cached local phalanx pose, then reapplies the
+        # signed curl and inserts keys at this exact frame.
+        grip_hands(rig, prop_objs, frame)
+
+    action = rig.animation_data.action if rig.animation_data else None
+    if action is None:
+        raise RuntimeError("pull-up grip bake failed: rig has no animation action")
+    baked_keys = 0
+    for fcurve in action.fcurves:
+        if "finger" not in fcurve.data_path or "rotation_quaternion" not in fcurve.data_path:
+            continue
+        for point in fcurve.keyframe_points:
+            point.interpolation = "LINEAR"
+        fcurve.update()
+        baked_keys += len(fcurve.keyframe_points)
+    print(
+        f"PULLUP_GRIP_BAKED frames={frame_end} "
+        f"finger_rotation_keypoints={baked_keys} interpolation=LINEAR"
+    )
+
+
 '''
 text = text.replace(needle, contact_helper + needle, 1)
 
@@ -586,7 +615,7 @@ if text.count(main_old) != 1:
 text = text.replace(main_old, main_new, 1)
 
 anim_old = '            animate(driver, rig, spec, frame_end, prop_objs)\n        bpy.data.objects.remove(driver, do_unlink=True)'
-anim_new = '            animate(driver, rig, spec, frame_end, prop_objs)\n            if spec.get("id") == "pull_up":\n                hand_targets = fit_pull_up_rack_to_hang_pose(rig)\n                add_pull_up_ik(rig, hand_targets, frame_end)\n                assert_pull_up_bar_contact(rig, frame_end)\n                assert_pull_up_finger_contact(rig, frame_end)\n                assert_pull_up_body_pose(rig, frame_end)\n        bpy.data.objects.remove(driver, do_unlink=True)'
+anim_new = '            animate(driver, rig, spec, frame_end, prop_objs)\n            if spec.get("id") == "pull_up":\n                apply_pull_up_grip_every_frame(rig, prop_objs, frame_end)\n                hand_targets = fit_pull_up_rack_to_hang_pose(rig)\n                add_pull_up_ik(rig, hand_targets, frame_end)\n                assert_pull_up_bar_contact(rig, frame_end)\n                assert_pull_up_finger_contact(rig, frame_end)\n                assert_pull_up_body_pose(rig, frame_end)\n        bpy.data.objects.remove(driver, do_unlink=True)'
 if text.count(anim_old) != 1:
     raise SystemExit("Unexpected upstream animation block; refusing an unsafe contact-check patch")
 text = text.replace(anim_old, anim_new, 1)
@@ -965,8 +994,7 @@ def grip_hands(rig, prop_objs, frame):
     axis = (held_object.matrix_world.to_3x3() @ Vector((1, 0, 0))).normalized()
 
     if is_fitpulse_pull_up and (
-        frame == 1
-        or FITPULSE_PULLUP_GRIP_SIGNS is None
+        FITPULSE_PULLUP_GRIP_SIGNS is None
         or FITPULSE_PULLUP_FINGER_BASE_POSES is None
     ):
         FITPULSE_PULLUP_GRIP_SIGNS = {}
