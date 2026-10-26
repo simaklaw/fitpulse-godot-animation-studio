@@ -28,14 +28,13 @@ def apply_push_up_contact_ik(rig):
     view_layer = bpy.context.view_layer
     sides = (".L", ".R")
     hand_targets = {}
+    hand_rotations = {side: {} for side in sides}
     toe_targets = {}
     pole_targets = {side: {} for side in sides}
     frame_range = list(range(scene.frame_start, scene.frame_end + 1))
-    # The pole target itself follows the desired elbow plane on every frame.
-    # For this MakeHuman default rig, a fixed -90-degree IK pole offset is
-    # the calibrated roll convention; deriving it from the same constructed
-    # elbow and pole vectors is self-referential and can sign-flip at a threshold.
-    pole_angle = -math.pi * 0.5
+    # The animated pole defines the bend plane itself; a quarter-turn offset
+    # was visibly flipping elbows away from that plane in the rendered preview.
+    pole_angle = math.pi
 
     # First pass: sample original mocap poses and construct per-frame pole positions.
     for frame in frame_range:
@@ -58,6 +57,7 @@ def apply_push_up_contact_ik(rig):
                 raise RuntimeError(f"push-up contact IK: incomplete rig on side {side}")
 
             wrist_point = rig.matrix_world @ wrist.tail
+            hand_rotations[side][frame] = (rig.matrix_world @ wrist.matrix).to_quaternion()
             toe_point = rig.matrix_world @ foot.tail
             shoulder_point = rig.matrix_world @ upper.head
             elbow_point = rig.matrix_world @ elbow.head
@@ -79,8 +79,10 @@ def apply_push_up_contact_ik(rig):
             # The intended upper-arm projection follows a controlled 45-degree
             # path from the torso; the pole target tracks that desired plane per frame.
             flare = math.radians(45.0)
+            # trunk points from the shoulder toward the pelvis. The elbow
+            # must travel back along this vector, not forward toward the head.
             desired_horizontal = (
-                -trunk * math.cos(flare) +
+                trunk * math.cos(flare) +
                 lateral * sign * math.sin(flare)
             ).normalized()
             upper_delta = elbow_point - shoulder_point
@@ -127,6 +129,17 @@ def apply_push_up_contact_ik(rig):
         hand_target.empty_display_type = "SPHERE"
         hand_target.empty_display_size = 0.02
         hand_target.hide_render = True
+        hand_target.rotation_mode = "QUATERNION"
+        for frame in frame_range:
+            hand_target.rotation_quaternion = hand_rotations[side][frame]
+            hand_target.keyframe_insert(
+                data_path="rotation_quaternion", frame=frame,
+                group="FitPulse push-up wrist orientation",
+            )
+        if hand_target.animation_data and hand_target.animation_data.action:
+            for fcurve in hand_target.animation_data.action.fcurves:
+                for point in fcurve.keyframe_points:
+                    point.interpolation = "LINEAR"
         hand_objects[side] = hand_target
 
         pole = bpy.data.objects.new("FitPulsePushUpElbowPole" + side, None)
@@ -151,10 +164,11 @@ def apply_push_up_contact_ik(rig):
         arm_ik.target = hand_target
         arm_ik.pole_target = pole
         arm_ik.pole_angle = pole_angle
-        arm_ik.chain_count = 5
+        arm_ik.chain_count = 3
         arm_ik.iterations = 100
         arm_ik.use_stretch = False
         arm_ik.use_tail = True
+        arm_ik.use_rotation = True
         arm_ik.influence = 1.0
 
         toe_target = bpy.data.objects.new("FitPulsePushUpToeTarget" + side, None)
@@ -179,8 +193,9 @@ def apply_push_up_contact_ik(rig):
         "PUSHUP_CONTACT_IK PASS "
         f"hand_z=({hand_targets['.L'].z:.3f},{hand_targets['.R'].z:.3f})m "
         f"toe_targets_z=({toe_targets['.L'].z:.3f},{toe_targets['.R'].z:.3f})m "
-        f"elbow_pole_target=animated_per_frame pole_angle=-90deg frames={len(frame_range)} "
-        "target_flare=45deg pole_basis=desired_elbow chain_arm=5 tail_contact=on chain_leg=3"
+        f"elbow_pole_target=animated_per_frame pole_angle=180deg frames={len(frame_range)} "
+        "target_flare=45deg pole_basis=desired_elbow chain_arm=3 wrist_rotation=preserved "
+        "tail_contact=on chain_leg=3"
     )
 
 
@@ -229,12 +244,24 @@ def assert_push_up_pose(rig, frame_end):
             side: bone_point("upperarm01" + side, "head")
             for side in (".L", ".R")
         }
+        wrist_joints = {
+            side: bone_point("wrist" + side, "head")
+            for side in (".L", ".R")
+        }
         hands = {
             side: bone_point("wrist" + side, "tail")
             for side in (".L", ".R")
         }
+        wrist_angles = {
+            side: angle_degrees(
+                elbows[side] - wrist_joints[side],
+                hands[side] - wrist_joints[side],
+            )
+            for side in (".L", ".R")
+        }
         return {
-            "wrists": wrists, "toes": toes, "shoulders": shoulders,
+            "wrists": wrists, "wrist_joints": wrist_joints,
+            "wrist_angles": wrist_angles, "toes": toes, "shoulders": shoulders,
             "hips": hips, "ankles": ankles, "knees": knees,
             "elbows": elbows, "elbow_bases": elbows_outer, "hands": hands,
         }
@@ -247,6 +274,7 @@ def assert_push_up_pose(rig, frame_end):
     max_hip_deviation = 0.0
     max_knee_deviation = 0.0
     elbow_angles = []
+    wrist_angles_all = []
     elbow_to_trunk_angles = []
     first = None
     last = None
@@ -265,6 +293,17 @@ def assert_push_up_pose(rig, frame_end):
                     f"push-up hand-floor contact failed at frame {frame} {side}: "
                     f"wrist-centre z={point.z:.3f} m; expected [-0.06, 0.22] m"
                 )
+        wrist_angles_all.extend(pose["wrist_angles"].values())
+        for side, wrist_angle in pose["wrist_angles"].items():
+            # The palm-on-floor position naturally extends the wrist. With vectors
+            # pointing away from the joint, that reduces the included angle;
+            # reject only a severe reversal, not normal push-up wrist extension.
+            if wrist_angle < 90.0 or wrist_angle > 180.0:
+                raise RuntimeError(
+                    f"push-up wrist alignment failed at frame {frame} {side}: "
+                    f"{wrist_angle:.1f} degrees outside 90–180 degrees"
+                )
+
         for side, point in pose["toes"].items():
             toe_min = min(toe_min, point.z)
             toe_max = max(toe_max, point.z)
@@ -317,7 +356,7 @@ def assert_push_up_pose(rig, frame_end):
             # elbow->shoulder and elbow->wrist. Using shoulder->elbow here would
             # report 0 degrees for a locked straight arm and invert the acceptance test.
             upper = shoulder_point - elbow_point
-            forearm = wrist_point - elbow_point
+            forearm = pose["wrist_joints"][side] - elbow_point
             trunk = hip - shoulder
             joint_angle = angle_degrees(upper, forearm)
             # Elbow flare is assessed in the horizontal/top-down plane, not by
@@ -329,8 +368,13 @@ def assert_push_up_pose(rig, frame_end):
             ))
             trunk_horizontal = Vector((trunk.x, trunk.y, 0.0))
             arm_to_trunk = angle_degrees(arm_horizontal, trunk_horizontal)
-            # Elbow-line orientation is undirected: 100 degrees is equivalent
-            # to an 80-degree flare, not a negative/forward-facing angle.
+            # Keep both flare magnitude and direction: an undirected angle alone
+            # accepts a mirror-image elbow path toward the head.
+            directional_projection = (
+                arm_horizontal.normalized().dot(trunk_horizontal.normalized())
+                if arm_horizontal.length > 1e-5 and trunk_horizontal.length > 1e-5
+                else -1.0
+            )
             arm_to_trunk = min(arm_to_trunk, 180.0 - arm_to_trunk)
             elbow_angles.append(joint_angle)
             if joint_angle < 45.0 or joint_angle > 180.0:
@@ -344,6 +388,11 @@ def assert_push_up_pose(rig, frame_end):
             # while the elbow is clearly flexed, without widening that range.
             if joint_angle <= 145.0:
                 elbow_to_trunk_angles.append(arm_to_trunk)
+                if directional_projection <= 0.0:
+                    raise RuntimeError(
+                        f"push-up elbow direction failed at frame {frame} {side}: "
+                        "elbow must move back toward the pelvis, not forward toward the head"
+                    )
                 if arm_to_trunk < 25.0 or arm_to_trunk > 75.0:
                     print(
                         "PUSHUP_ELBOW_DEBUG "
@@ -421,6 +470,7 @@ def assert_push_up_pose(rig, frame_end):
         f"hip_deviation_max={max_hip_deviation:.3f}m "
         f"knee_deviation_max={max_knee_deviation:.3f}m "
         f"elbow_angle=[{min(elbow_angles):.1f},{max(elbow_angles):.1f}]deg "
+        f"wrist_angle=[{min(wrist_angles_all):.1f},{max(wrist_angles_all):.1f}]deg "
         f"elbow_abduction=[{min(elbow_to_trunk_angles):.1f},{max(elbow_to_trunk_angles):.1f}]deg "
         f"loop_drift_max={max(seam_distances.values()):.3f}m"
     )
