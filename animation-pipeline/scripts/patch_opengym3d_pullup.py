@@ -344,6 +344,31 @@ def assert_pull_up_body_pose(rig, frame_end):
                     f"pull-up elbow flexion failed at frame {frame} {side}: "
                     f"{elbow_angle:.1f} degrees < {minimum_elbow_angle:.1f} degrees"
                 )
+            if elbow_angle < 155.0:
+                arm_axis = wrist_joint - shoulder
+                arm_axis.normalize()
+                elbow_projection = shoulder + arm_axis * (elbow - shoulder).dot(arm_axis)
+                observed_bend = elbow - elbow_projection
+                shoulder_center_x = (
+                    (rig.matrix_world @ rig.pose.bones["upperarm01.L"].head).x
+                    + (rig.matrix_world @ rig.pose.bones["upperarm01.R"].head).x
+                ) * 0.5
+                outward_sign = 1.0 if shoulder.x >= shoulder_center_x else -1.0
+                expected_bend = Vector((outward_sign * 0.48, 0.877, 0.0))
+                expected_bend -= arm_axis * expected_bend.dot(arm_axis)
+                if observed_bend.length < 0.02 or expected_bend.length < 1e-5:
+                    raise RuntimeError(
+                        f"pull-up elbow plane failed at frame {frame} {side}: "
+                        "cannot establish a stable bend direction"
+                    )
+                bend_alignment = observed_bend.normalized().dot(expected_bend.normalized())
+                if bend_alignment < 0.20:
+                    raise RuntimeError(
+                        f"pull-up elbow handedness failed at frame {frame} {side}: "
+                        f"bend-plane alignment={bend_alignment:.3f} < 0.20; "
+                        "expected posterior-and-outward elbow flexion"
+                    )
+
             above_wrist = elbow.z - wrist_joint.z
             max_elbow_above_wrist = max(max_elbow_above_wrist, above_wrist)
             if above_wrist > 0.08:
