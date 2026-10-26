@@ -56,6 +56,8 @@ class PushUpRendererPatchTests(unittest.TestCase):
         self.assertIn("anatomical_direction = Vector((outward_sign * 0.48, 0.877, 0.0))", self.shared_source)
         self.assertNotIn("elbow_projection = shoulder + axis", self.shared_source)
         self.assertIn("pull-up elbow symmetry failed", self.shared_source)
+        self.assertIn("pull-up elbow handedness failed", self.shared_source)
+        self.assertIn("bend_alignment < 0.20", self.shared_source)
         self.assertIn("minimum_elbow_angle = 25.0", self.shared_source)
         self.assertIn("FitPulsePullUpStablePalm", self.shared_source)
 
