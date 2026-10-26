@@ -34,7 +34,7 @@ def apply_push_up_contact_ik(rig):
     frame_range = list(range(scene.frame_start, scene.frame_end + 1))
     # The animated pole defines the bend plane itself; a quarter-turn offset
     # was visibly flipping elbows away from that plane in the rendered preview.
-    pole_angle = 0.0
+    pole_angle = math.pi
 
     # First pass: sample original mocap poses and construct per-frame pole positions.
     for frame in frame_range:
@@ -193,7 +193,7 @@ def apply_push_up_contact_ik(rig):
         "PUSHUP_CONTACT_IK PASS "
         f"hand_z=({hand_targets['.L'].z:.3f},{hand_targets['.R'].z:.3f})m "
         f"toe_targets_z=({toe_targets['.L'].z:.3f},{toe_targets['.R'].z:.3f})m "
-        f"elbow_pole_target=animated_per_frame pole_angle=0deg frames={len(frame_range)} "
+        f"elbow_pole_target=animated_per_frame pole_angle=180deg frames={len(frame_range)} "
         "target_flare=45deg pole_basis=desired_elbow chain_arm=3 wrist_rotation=preserved "
         "tail_contact=on chain_leg=3"
     )
