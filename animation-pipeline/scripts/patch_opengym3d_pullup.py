@@ -168,41 +168,41 @@ def add_pull_up_ik(rig, target_positions, frame_end):
             raise RuntimeError(f"pull-up IK gate: missing wrist{side}")
         hand_rotations[side] = (rig.matrix_world @ wrist.matrix).to_quaternion().copy()
 
-    previous_pole_directions = {".L": None, ".R": None}
     for frame in range(1, frame_end + 1):
         scene.frame_set(frame)
         view_layer.update()
+        left_shoulder = rig.pose.bones.get("upperarm01.L")
+        right_shoulder = rig.pose.bones.get("upperarm01.R")
+        if left_shoulder is None or right_shoulder is None:
+            raise RuntimeError("pull-up pole gate: missing left/right shoulder bones")
+        left_x = (rig.matrix_world @ left_shoulder.head).x
+        right_x = (rig.matrix_world @ right_shoulder.head).x
+        shoulder_center_x = (left_x + right_x) * 0.5
+
         for side in (".L", ".R"):
             shoulder_bone = rig.pose.bones.get("upperarm01" + side)
-            elbow_bone = rig.pose.bones.get("lowerarm01" + side)
-            if shoulder_bone is None or elbow_bone is None:
+            if shoulder_bone is None:
                 raise RuntimeError(f"pull-up pole gate: incomplete arm chain on {side}")
             shoulder = rig.matrix_world @ shoulder_bone.head
-            elbow = rig.matrix_world @ elbow_bone.head
             endpoint = Vector(target_positions[side])
             axis = endpoint - shoulder
             if axis.length < 1e-5:
                 raise RuntimeError(f"pull-up pole gate: degenerate shoulder-to-wrist axis on {side}")
             axis.normalize()
-            elbow_projection = shoulder + axis * (elbow - shoulder).dot(axis)
-            offset = elbow - elbow_projection
 
-            # Near a fully straight dead hang the projected source elbow becomes
-            # almost zero. Use the athlete's forward (-Y) direction as fallback.
-            if offset.length < 0.035:
-                forward = Vector((0.0, -1.0, 0.0))
-                offset = forward - axis * forward.dot(axis)
+            # Do not inherit the source clip's elbow direction: its two arms can
+            # fold in opposite planes. Use a mirrored, anatomically intentional
+            # pole in the posterior/outward plane (character faces world -Y).
+            outward_sign = 1.0 if shoulder.x >= shoulder_center_x else -1.0
+            anatomical_direction = Vector((outward_sign * 0.48, 0.877, 0.0))
+            offset = anatomical_direction - axis * anatomical_direction.dot(axis)
             if offset.length < 1e-5:
-                lateral = Vector((1.0, 0.0, 0.0))
-                offset = lateral - axis * lateral.dot(axis)
+                fallback = Vector((0.0, 1.0, 0.0))
+                offset = fallback - axis * fallback.dot(axis)
             if offset.length < 1e-5:
-                raise RuntimeError(f"pull-up pole gate: cannot establish elbow plane on {side}")
+                raise RuntimeError(f"pull-up pole gate: cannot establish anatomical elbow plane on {side}")
 
             pole_direction = offset.normalized()
-            previous = previous_pole_directions[side]
-            if previous is not None and pole_direction.dot(previous) < 0.0:
-                pole_direction.negate()
-            previous_pole_directions[side] = pole_direction.copy()
             pole_positions[side][frame] = (shoulder + endpoint) * 0.5 + pole_direction * 0.35
 
     for side in (".L", ".R"):
@@ -310,6 +310,7 @@ def assert_pull_up_body_pose(rig, frame_end):
     for frame in range(1, frame_end + 1):
         scene.frame_set(frame)
         bpy.context.view_layer.update()
+        frame_elbow_angles = {}
         for side in (".L", ".R"):
             foot = rig.pose.bones.get("foot" + side)
             upper = rig.pose.bones.get("upperarm01" + side)
@@ -332,6 +333,7 @@ def assert_pull_up_body_pose(rig, frame_end):
             cosine = max(-1.0, min(1.0, upper_vec.normalized().dot(forearm_vec.normalized())))
             elbow_angle = math.degrees(math.acos(cosine))
             elbow_angles.append(elbow_angle)
+            frame_elbow_angles[side] = elbow_angle
             if elbow_angle < 35.0:
                 raise RuntimeError(
                     f"pull-up elbow flexion failed at frame {frame} {side}: "
@@ -343,6 +345,13 @@ def assert_pull_up_body_pose(rig, frame_end):
                 raise RuntimeError(
                     f"pull-up elbow direction failed at frame {frame} {side}: "
                     f"elbow is {above_wrist:.3f} m above the wrist joint; expected elbow-down flexion"
+                )
+        if len(frame_elbow_angles) == 2:
+            bilateral_delta = abs(frame_elbow_angles[".L"] - frame_elbow_angles[".R"])
+            if bilateral_delta > 35.0:
+                raise RuntimeError(
+                    f"pull-up elbow symmetry failed at frame {frame}: "
+                    f"left/right flexion differs by {bilateral_delta:.1f} degrees > 35 degrees"
                 )
 
     min_clearance = 0.18
