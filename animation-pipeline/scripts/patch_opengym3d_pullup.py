@@ -339,10 +339,12 @@ def assert_pull_up_arm_pose(rig, frame_end):
                     f"pull-up elbow flexion failed at frame {frame} {side}: "
                     f"{elbow_angle:.1f} degrees outside 30–180 degrees"
                 )
-            if wrist_angle < 35.0 or wrist_angle > 150.0:
+            # For vectors directed away from the wrist joint, a straight wrist is 180°.
+            # Reject excessive flexion instead of rejecting the natural straight line.
+            if wrist_angle < 145.0 or wrist_angle > 180.0:
                 raise RuntimeError(
                     f"pull-up wrist alignment failed at frame {frame} {side}: "
-                    f"{wrist_angle:.1f} degrees outside 35–150 degrees"
+                    f"{wrist_angle:.1f} degrees outside 145–180 degrees"
                 )
 
             lateral = Vector((shoulder.x - center.x, shoulder.y - center.y, 0.0))
