@@ -21,17 +21,24 @@ class PushUpRendererPatchTests(unittest.TestCase):
         cls.pullup_workflow_source = PULLUP_WORKFLOW.read_text(encoding="utf-8")
 
     def test_pole_angle_is_explicit_and_pole_target_remains_animated(self):
-        # The MakeHuman rig uses a fixed calibrated roll offset. The pole target's
-        # position, not a self-referential plane calculation, tracks the elbow path.
-        self.assertIn("pole_angle = -math.pi * 0.5", self.source)
+        # Hand orientation must be retained, while the arm solver must not
+        # drag the clavicle/spine or rotate the bend plane a quarter turn.
+        self.assertIn("pole_angle = 0.0", self.source)
         self.assertIn("arm_ik.pole_angle = pole_angle", self.source)
         self.assertIn(
             'pole.keyframe_insert(data_path="location", frame=frame, group="FitPulse elbow tracking")',
             self.source,
         )
-        self.assertIn("elbow_pole_target=animated_per_frame pole_angle=-90deg", self.source)
-        self.assertNotIn("calculated_pole_angle", self.source)
-        self.assertNotIn("pole_angles[side][frame]", self.source)
+        self.assertIn("elbow_pole_target=animated_per_frame pole_angle=0deg", self.source)
+        self.assertIn("arm_ik.chain_count = 3", self.source)
+        self.assertIn("arm_ik.use_rotation = True", self.source)
+        self.assertIn("hand_rotations[side][frame]", self.source)
+        self.assertIn("push-up wrist alignment failed", self.source)
+        self.assertIn('forearm = pose["wrist_joints"][side] - elbow_point', self.source)
+        self.assertIn("def assert_pull_up_arm_pose(rig, frame_end):", self.shared_source)
+        self.assertIn("constraint.chain_count = 3", self.shared_source)
+        self.assertIn("constraint.use_rotation = True", self.shared_source)
+        self.assertIn("constraint.pole_target = pole", self.shared_source)
 
     def test_elbow_path_acceptance_range_is_not_relaxed(self):
         self.assertIn(
