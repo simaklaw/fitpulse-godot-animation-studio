@@ -23,13 +23,13 @@ class PushUpRendererPatchTests(unittest.TestCase):
     def test_pole_angle_is_explicit_and_pole_target_remains_animated(self):
         # Hand orientation must be retained, while the arm solver must not
         # drag the clavicle/spine or rotate the bend plane a quarter turn.
-        self.assertIn("pole_angle = 0.0", self.source)
+        self.assertIn("pole_angle = math.pi", self.source)
         self.assertIn("arm_ik.pole_angle = pole_angle", self.source)
         self.assertIn(
             'pole.keyframe_insert(data_path="location", frame=frame, group="FitPulse elbow tracking")',
             self.source,
         )
-        self.assertIn("elbow_pole_target=animated_per_frame pole_angle=0deg", self.source)
+        self.assertIn("elbow_pole_target=animated_per_frame pole_angle=180deg", self.source)
         self.assertIn("arm_ik.chain_count = 3", self.source)
         self.assertIn("arm_ik.use_rotation = True", self.source)
         self.assertIn("hand_rotations[side][frame]", self.source)
