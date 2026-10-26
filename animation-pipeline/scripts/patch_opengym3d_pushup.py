@@ -293,10 +293,12 @@ def assert_push_up_pose(rig, frame_end):
                 )
         wrist_angles_all.extend(pose["wrist_angles"].values())
         for side, wrist_angle in pose["wrist_angles"].items():
-            if wrist_angle < 35.0 or wrist_angle > 150.0:
+            # For vectors directed away from the wrist joint, a straight wrist is 180°.
+            # Reject a backward bend, while allowing the forearm and hand to align.
+            if wrist_angle < 145.0 or wrist_angle > 180.0:
                 raise RuntimeError(
                     f"push-up wrist alignment failed at frame {frame} {side}: "
-                    f"{wrist_angle:.1f} degrees outside 35–150 degrees"
+                    f"{wrist_angle:.1f} degrees outside 145–180 degrees"
                 )
 
         for side, point in pose["toes"].items():
