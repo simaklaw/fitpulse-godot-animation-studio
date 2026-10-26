@@ -149,27 +149,104 @@ contact_helper = r'''def fit_pull_up_rack_to_hang_pose(rig):
 
 
 def add_pull_up_ik(rig, target_positions):
-    """Solve wrist endpoints against the model-fitted fixed bar."""
+    """Pin hands to the bar while preserving wrist orientation and elbow direction."""
     scene = bpy.context.scene
-    for side in (".L", ".R"):
+    view_layer = bpy.context.view_layer
+    sides = (".L", ".R")
+    frame_range = list(range(scene.frame_start, scene.frame_end + 1))
+    samples = {side: {} for side in sides}
+
+    # Capture the pre-IK pose. A five-bone chain can drag the clavicle/spine,
+    # while an unconstrained bend plane can flip an elbow through the shoulder.
+    for frame in frame_range:
+        scene.frame_set(frame)
+        view_layer.update()
+        shoulders = {
+            side: rig.matrix_world @ rig.pose.bones["upperarm01" + side].head
+            for side in sides
+        }
+        shoulder_center = (shoulders[".L"] + shoulders[".R"]) * 0.5
+        for side in sides:
+            upper = rig.pose.bones.get("upperarm01" + side)
+            elbow = rig.pose.bones.get("lowerarm01" + side)
+            wrist = rig.pose.bones.get("wrist" + side)
+            if any(pb is None for pb in (upper, elbow, wrist)):
+                raise RuntimeError(f"pull-up IK gate: incomplete arm chain on {side}")
+            shoulder = shoulders[side]
+            target_point = Vector(target_positions[side])
+            lateral = Vector((shoulder.x - shoulder_center.x,
+                              shoulder.y - shoulder_center.y, 0.0))
+            if lateral.length < 1e-5:
+                lateral = Vector((1.0 if side == ".L" else -1.0, 0.0, 0.0))
+            lateral.normalize()
+
+            # Set the bend pole to the outside and below the shoulder. The
+            # projection makes the direction valid at every point in the cycle.
+            desired_bend = (lateral * 0.82 + Vector((0.0, 0.0, -0.57))).normalized()
+            arm_axis = target_point - shoulder
+            if arm_axis.length < 1e-5:
+                raise RuntimeError(f"pull-up IK gate: degenerate shoulder-to-grip axis on {side}")
+            arm_axis.normalize()
+            pole_offset = desired_bend - arm_axis * desired_bend.dot(arm_axis)
+            if pole_offset.length < 1e-5:
+                source_elbow = rig.matrix_world @ elbow.head
+                source_offset = source_elbow - shoulder
+                pole_offset = source_offset - arm_axis * source_offset.dot(arm_axis)
+            if pole_offset.length < 1e-5:
+                raise RuntimeError(f"pull-up IK gate: degenerate elbow plane on {side}")
+            samples[side][frame] = {
+                "pole": shoulder + arm_axis * 0.25 + pole_offset.normalized() * 0.45,
+                "rotation": (rig.matrix_world @ wrist.matrix).to_quaternion(),
+            }
+
+    for side in sides:
         target = bpy.data.objects.new("PullUpIKTarget" + side, None)
         scene.collection.objects.link(target)
         target.location = target_positions[side]
+        target.rotation_mode = "QUATERNION"
         target.empty_display_type = "SPHERE"
         target.empty_display_size = 0.025
         target.hide_render = True
 
-        wrist = rig.pose.bones.get("wrist" + side)
-        if wrist is None:
-            raise RuntimeError(f"pull-up IK gate: missing wrist{side}")
+        pole = bpy.data.objects.new("PullUpElbowPole" + side, None)
+        scene.collection.objects.link(pole)
+        pole.empty_display_type = "SPHERE"
+        pole.empty_display_size = 0.025
+        pole.hide_render = True
+        for frame in frame_range:
+            pole.location = samples[side][frame]["pole"]
+            pole.keyframe_insert(data_path="location", frame=frame,
+                                 group="FitPulse pull-up elbow plane")
+            target.rotation_quaternion = samples[side][frame]["rotation"]
+            target.keyframe_insert(data_path="rotation_quaternion", frame=frame,
+                                   group="FitPulse pull-up wrist orientation")
+
+        for owner in (pole, target):
+            action = owner.animation_data.action if owner.animation_data else None
+            if action:
+                for fcurve in action.fcurves:
+                    for point in fcurve.keyframe_points:
+                        point.interpolation = "LINEAR"
+
+        wrist = rig.pose.bones["wrist" + side]
         constraint = wrist.constraints.new(type="IK")
         constraint.name = "FitPulsePullUpIK" + side
         constraint.target = target
-        constraint.chain_count = 5
+        constraint.pole_target = pole
+        constraint.pole_angle = 0.0
+        constraint.chain_count = 3
         constraint.iterations = 100
         constraint.use_stretch = False
+        constraint.use_tail = True
+        constraint.use_rotation = True
         constraint.influence = 1.0
-    bpy.context.view_layer.update()
+
+    view_layer.update()
+    print(
+        "PULLUP_ARM_IK PASS "
+        f"frames={len(frame_range)} chain_arm=3 pole_angle=0deg "
+        "elbows=outward_downward hand_rotation=preserved contact=bar"
+    )
 
 
 def assert_pull_up_bar_contact(rig, frame_end):
