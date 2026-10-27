@@ -990,6 +990,73 @@ FITPULSE_PULLUP_FINGER_CURL = {1: 58, 2: 75, 3: 58}
 FITPULSE_PULLUP_THUMB_CURL = {1: 18, 2: 30, 3: 25}
 
 
+def _fitpulse_reset_pullup_fingers(rig, side):
+    """Restore the measured uncurled baseline before evaluating one curl direction."""
+    for finger_number in range(2, 6):
+        for segment_number in (1, 2, 3):
+            key = (finger_number, segment_number, side)
+            pb = rig.pose.bones.get(f"finger{finger_number}-{segment_number}" + side)
+            base_pose = FITPULSE_PULLUP_FINGER_BASE_POSES.get(key)
+            if pb is None or base_pose is None:
+                raise RuntimeError(f"pull-up grip calibration: missing baseline finger bone {key}")
+            pb.matrix_basis = base_pose.copy()
+    bpy.context.view_layer.update()
+
+
+def _fitpulse_choose_pullup_curl_sign(rig, side, held_object, axis):
+    """Test both curl signs on evaluated distal tips; choose the real bar wrap."""
+    bar_center = held_object.matrix_world.translation.copy()
+    bar_radius = max(float(held_object.dimensions.y), float(held_object.dimensions.z)) * 0.5
+    half_length = 0.0
+    post_l = bpy.data.objects.get("PullUpPost_L")
+    post_r = bpy.data.objects.get("PullUpPost_R")
+    if post_l is not None and post_r is not None:
+        half_length = max(0.0, abs(post_r.matrix_world.translation.x - post_l.matrix_world.translation.x) * 0.5 - 0.02)
+    below_center = max(0.005, bar_radius * 0.20)
+    candidates = []
+
+    for candidate_sign in (1, -1):
+        _fitpulse_reset_pullup_fingers(rig, side)
+        for finger_number in range(2, 6):
+            for segment_number in (1, 2, 3):
+                pb = rig.pose.bones[f"finger{finger_number}-{segment_number}" + side]
+                angle = FITPULSE_PULLUP_FINGER_CURL[segment_number]
+                q = Quaternion(axis, math.radians(candidate_sign * angle))
+                location = pb.matrix.to_translation()
+                rotation = pb.matrix.to_quaternion()
+                pb.rotation_mode = "QUATERNION"
+                pb.matrix = Matrix.Translation(location) @ (q @ rotation).to_matrix().to_4x4()
+                bpy.context.view_layer.update()
+
+        wrapped = 0
+        total_gap = 0.0
+        tip_report = []
+        for finger_number in range(2, 6):
+            tip_bone = rig.pose.bones.get(f"finger{finger_number}-3" + side)
+            if tip_bone is None:
+                raise RuntimeError(f"pull-up grip calibration: missing finger{finger_number}-3{side}")
+            tip = rig.matrix_world @ tip_bone.tail
+            radial = math.sqrt((tip.y - bar_center.y) ** 2 + (tip.z - bar_center.z) ** 2)
+            surface_gap = abs(radial - bar_radius)
+            beyond_bar = max(0.0, abs(tip.x - bar_center.x) - half_length)
+            gap = math.sqrt(surface_gap ** 2 + beyond_bar ** 2)
+            under_bar = tip.z <= bar_center.z - below_center
+            if gap <= 0.045 and under_bar:
+                wrapped += 1
+            total_gap += gap
+            tip_report.append((finger_number, round(gap, 3), round(tip.z - bar_center.z, 3)))
+        candidates.append((wrapped, -total_gap, candidate_sign, tip_report))
+
+    _fitpulse_reset_pullup_fingers(rig, side)
+    best = max(candidates, key=lambda candidate: (candidate[0], candidate[1]))
+    print(
+        f"FITPULSE_PULLUP_CURL_CALIBRATION side={side} "
+        f"positive={candidates[0][0]}/4 negative={candidates[1][0]}/4 "
+        f"chosen={best[2]} tips={best[3]}"
+    )
+    return best[2]
+
+
 def grip_hands(rig, prop_objs, frame):
     """Close fingers around a held implement; stabilize signs for the pull-up."""
     global FITPULSE_PULLUP_GRIP_SIGNS, FITPULSE_PULLUP_FINGER_BASE_POSES
@@ -1007,10 +1074,10 @@ def grip_hands(rig, prop_objs, frame):
         FITPULSE_PULLUP_FINGER_BASE_POSES = {}
         for side in (".L", ".R"):
             center = rig.matrix_world @ rig.pose.bones["wrist" + side].tail
-            finger_sign = _curl_sign(rig, "finger2-1" + side, axis, 50, center)
+            # Select curl direction by the evaluated distal tips against the actual bar,
+            # rather than a proximal-bone heuristic that can look plausible but miss contact.
+            finger_sign = _fitpulse_choose_pullup_curl_sign(rig, side, held_object, axis)
             thumb_sign = _curl_sign(rig, "finger1-1" + side, axis, 30, center)
-            # Keep the rig-measured natural curl direction. Reverse curling moved
-            # the tips away from the cylinder, so preserve the calibrated sign.
             FITPULSE_PULLUP_GRIP_SIGNS[side] = (finger_sign, thumb_sign)
             for finger_number in range(1, 6):
                 for segment_number in (1, 2, 3):
