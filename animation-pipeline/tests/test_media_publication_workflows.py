@@ -40,7 +40,7 @@ class MediaPublicationWorkflowTests(unittest.TestCase):
 
     def test_export_is_gated_on_video_metadata_and_loop_continuity(self):
         expected = {
-            "pull-up": ("nb_frames=72", "pull_up.mp4", "PULLUP_ARM_QA PASS"),
+            "pull-up": ("nb_frames=72", "pull_up.mp4", "PULLUP_ARM_QA PASS frames=72"),
             "push-up": ("nb_frames=97", "push_up.mp4", "PUSHUP_QA PASS frames=97"),
         }
         for exercise, source in self.sources.items():
@@ -52,6 +52,8 @@ class MediaPublicationWorkflowTests(unittest.TestCase):
                 self.assertIn(frames, source)
                 self.assertIn(output_name, source)
                 self.assertIn(pose_gate, source)
+                if exercise == "pull-up":
+                    self.assertIn("GRIP_CONTACT pull_up: left=72/72 right=72/72", source)
                 self.assertIn("MP4_LOOP_SEAM_PASS", source)
                 self.assertIn("mean_absolute_rgb_difference", source)
                 self.assertIn("limit = 3.0", source)
