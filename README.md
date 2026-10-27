@@ -12,6 +12,7 @@ Run the Godot project to open the workshop home. It reads the catalog to show th
 - Catalog JSON and schema: `animation-pipeline/catalog/exercise_catalog.json` and `animation-pipeline/catalog/exercise-catalog.schema.json`.
 - Renderer contracts/coverage: `animation-pipeline/catalog/renderer_adapter_registry.json` and `animation-pipeline/catalog/repdb-preview-coverage.json`.
 - Production workflow and authoring rules: `animation-pipeline/EXERCISE_PRODUCTION_WORKFLOW.md`.
+- **Mesh2Motion retarget trial contract**: `animation-pipeline/MESH2MOTION_RETARGET_TRIAL.md` (controlled GLB/GLTF import/export experiment; not production-approved by default).
 - Pull-up motion/technical acceptance brief: `animation-pipeline/PULL_UP_MOTION_BRIEF.md`.
 - Push-up renderer/technique/QA brief: `animation-pipeline/PUSH_UP_MOTION_BRIEF.md` (first new mocap-backed floor-push adapter; not production-approved until both profiles pass).
 
