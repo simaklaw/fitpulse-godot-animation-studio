@@ -75,6 +75,8 @@ jobs:
             grep -q "APPAREL_LOADED gender=$gender item=shorts" "downloaded/$gender/build.log"
             grep -q "APPAREL_LOADED gender=$gender item=hair" "downloaded/$gender/build.log"
             grep -q "APPAREL_LOADED gender=$gender item=shoes" "downloaded/$gender/build.log"
+            grep -q "PULLUP_ARM_QA PASS frames=72" "downloaded/$gender/build.log"
+            grep -q "GRIP_CONTACT pull_up: left=72/72 right=72/72" "downloaded/$gender/build.log"
             ffprobe -v error -select_streams v:0 \
               -show_entries stream=width,height,r_frame_rate,nb_frames \
               -of default=noprint_wrappers=1 "downloaded/$gender/pull_up.mp4" > "/tmp/$gender-video-qa.txt"
