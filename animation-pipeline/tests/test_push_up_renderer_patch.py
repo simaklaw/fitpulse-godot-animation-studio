@@ -97,6 +97,14 @@ class PushUpRendererPatchTests(unittest.TestCase):
             first_candidate_call,
             "capture all source finger poses before candidate curl calibration",
         )
+        anim_block = self.shared_source.split("anim_new = ", 1)[1].split(
+            "if text.count(anim_old", 1
+        )[0]
+        self.assertLess(
+            anim_block.index("add_pull_up_ik(rig, hand_targets, frame_end)"),
+            anim_block.index("apply_pull_up_grip_every_frame(rig, prop_objs, frame_end)"),
+            "bake finger curl after wrist IK so the final contact remains stable",
+        )
         self.assertNotIn("-finger_sign if finger_sign is not None else None", self.shared_source)
         self.assertNotIn("-thumb_sign if thumb_sign is not None else None", self.shared_source)
         self.assertIn("assert_pull_up_finger_contact(rig, frame_end)", self.shared_source)
