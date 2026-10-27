@@ -162,6 +162,23 @@ class PushUpRendererPatchTests(unittest.TestCase):
         self.assertIn('thumbnail_path = Path("../output/female/pull_up.png")', self.pullup_workflow_source)
         self.assertIn('glb_path = Path("../output/female/pull_up.glb")', self.pullup_workflow_source)
 
+    def test_elbow_angle_uses_wrist_joint_and_signed_bend_plane(self):
+        # Fingertip endpoints include hand length and wrist flexion; use the
+        # actual hand base for elbow geometry and reject reverse elbow folding.
+        self.assertIn('"wrist_joints": wrist_joints', self.source)
+        self.assertIn('wrist_joint_point = pose["wrist_joints"][side]', self.source)
+        self.assertIn('forearm = wrist_joint_point - elbow_point', self.source)
+        self.assertIn("preferred_bend = trunk_axis + lateral_axis * side_sign", self.source)
+        self.assertIn("bend_alignment < 0.20", self.source)
+        self.assertIn("push-up elbow bend direction failed", self.source)
+        self.assertNotIn('wrist_point = pose["hands"][side]', self.source)
+
+    def test_palm_plane_and_fingertip_contact_are_checked(self):
+        self.assertIn("push-up fingertip-floor contact failed", self.source)
+        self.assertIn("push-up palm-plane alignment failed", self.source)
+        self.assertIn("math.sin(math.radians(30.0))", self.source)
+        self.assertIn('"hand_tips": hand_tips', self.source)
+
     def test_hand_and_toe_contact_gates_remain_present(self):
         self.assertIn("push-up hand-floor contact failed", self.source)
         self.assertIn("push-up toe-floor contact failed", self.source)
