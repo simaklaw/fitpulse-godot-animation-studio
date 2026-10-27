@@ -1072,29 +1072,37 @@ def grip_hands(rig, prop_objs, frame):
     ):
         FITPULSE_PULLUP_GRIP_SIGNS = {}
         FITPULSE_PULLUP_FINGER_BASE_POSES = {}
-        for side in (".L", ".R"):
-            center = rig.matrix_world @ rig.pose.bones["wrist" + side].tail
-            # Select curl direction by the evaluated distal tips against the actual bar,
-            # rather than a proximal-bone heuristic that can look plausible but miss contact.
-            finger_sign = _fitpulse_choose_pullup_curl_sign(rig, side, held_object, axis)
-            thumb_sign = _curl_sign(rig, "finger1-1" + side, axis, 30, center)
-            FITPULSE_PULLUP_GRIP_SIGNS[side] = (finger_sign, thumb_sign)
+
+        # Capture every finger's source pose first. Geometry-based sign selection
+        # restores this baseline for each candidate, so it must exist for both hands.
+        for side_to_cache in (".L", ".R"):
             for finger_number in range(1, 6):
                 for segment_number in (1, 2, 3):
+                    key = (finger_number, segment_number, side_to_cache)
                     finger_bone = rig.pose.bones.get(
-                        f"finger{finger_number}-{segment_number}" + side
+                        f"finger{finger_number}-{segment_number}" + side_to_cache
                     )
                     if finger_bone is not None:
-                        FITPULSE_PULLUP_FINGER_BASE_POSES[
-                            (finger_number, segment_number, side)
-                        ] = finger_bone.matrix_basis.copy()
-        print(
-            "FITPULSE_PULLUP_GRIP_SIGNS locked from first dead-hang pose: "
-            + repr(FITPULSE_PULLUP_GRIP_SIGNS)
-        )
+                        FITPULSE_PULLUP_FINGER_BASE_POSES[key] = finger_bone.matrix_basis.copy()
+        if len(FITPULSE_PULLUP_FINGER_BASE_POSES) < 30:
+            raise RuntimeError(
+                "pull-up finger pose capture failed: expected 30 baseline finger bones, "
+                f"got {len(FITPULSE_PULLUP_FINGER_BASE_POSES)}"
+            )
         print(
             f"FITPULSE_PULLUP_FINGER_BASE_POSES captured "
             f"bones={len(FITPULSE_PULLUP_FINGER_BASE_POSES)} frame={frame}"
+        )
+
+        # Only now can both signs be tested against real evaluated fingertip positions.
+        for side in (".L", ".R"):
+            center = rig.matrix_world @ rig.pose.bones["wrist" + side].tail
+            finger_sign = _fitpulse_choose_pullup_curl_sign(rig, side, held_object, axis)
+            thumb_sign = _curl_sign(rig, "finger1-1" + side, axis, 30, center)
+            FITPULSE_PULLUP_GRIP_SIGNS[side] = (finger_sign, thumb_sign)
+        print(
+            "FITPULSE_PULLUP_GRIP_SIGNS locked from measured bar wrap: "
+            + repr(FITPULSE_PULLUP_GRIP_SIGNS)
         )
 
     # Source mocap animates the fingers at each exercise keyframe. Restore the
