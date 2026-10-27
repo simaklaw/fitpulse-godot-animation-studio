@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "exerciseId": "pull_up",
+  "generatedFrom": {
+    "repository": "simaklaw/fitpulse-godot-animation-studio",
+    "commit": "ad778c3637192c2e7c0cd7504d864c93ef257db2",
+    "workflowRunId": 40461983918
+  },
+  "video": {
+    "width": 720,
+    "height": 720,
+    "fps": 30,
+    "frames": 72,
+    "durationSeconds": 2.4,
+    "loopSeamMaxMeanAbsoluteRgbDifference": 3.0
+  },
+  "sourceAssets": [
+    {
+      "asset": "elvs_male_athletic_tank1 / elvs_ladies_tank1",
+      "author": "Elvaerwyn",
+      "license": "CC-BY (as listed by MakeHuman Community)",
+      "source": "https://static.makehumancommunity.org/assets/assetpacks/shirts03.html",
+      "attribution": "Athletic tank tops: Elvaerwyn, MakeHuman Community Shirts 03 asset pack (CC-BY, as listed by the pack index)."
+    },
+    {
+      "asset": "cortu_jeans_shorts",
+      "author": "Cortu",
+      "license": "CC0",
+      "source": "https://static.makehumancommunity.org/assets/assetpacks/pants01.html"
+    },
+    {
+      "asset": "cortu_short_messy_hair / elvs_reverse_french_braid_bun",
+      "authors": [
+        "Cortu",
+        "Elvaerwyn"
+      ],
+      "license": "CC0",
+      "source": "https://static.makehumancommunity.org/assets/assetpacks/hair01.html"
+    },
+    {
+      "asset": "punkduck_running_shoes_01",
+      "author": "Punkduck",
+      "license": "CC-BY (as listed by MakeHuman Community)",
+      "source": "https://static.makehumancommunity.org/assets/assetpacks/shoes02.html",
+      "attribution": "Running shoes: Punkduck, MakeHuman Community Shoes 02 asset pack (CC-BY, as listed by the pack index)."
+    }
+  ],
+  "profiles": {
+    "male": {
+      "video": "assets/fitpulse/pull-up/male/pull_up.mp4",
+      "poster": "assets/fitpulse/pull-up/male/poster.png",
+      "videoSha256": "00a9bffeb102b3a201e0ff77c04a2157bf3c834a17c6f2f33243d72bdfd1d638",
+      "posterSha256": "0383e0c10a4e0773c42eaa66202b71637b7c5205d9666b527c0523afeb0f7b01",
+      "videoBytes": 76357,
+      "loopSeamMeanAbsoluteRgbDifference": 0.2947
+    },
+    "female": {
+      "video": "assets/fitpulse/pull-up/female/pull_up.mp4",
+      "poster": "assets/fitpulse/pull-up/female/poster.png",
+      "videoSha256": "668bd8e5431e46423a4e25a986f24ad280e08befecd9434fb9a63a6efd2256ad",
+      "posterSha256": "f1c161ffc8eab01c0826e485302cac38733141b9ca6e57f3b7ae90460b0d9b0b",
+      "videoBytes": 69146,
+      "loopSeamMeanAbsoluteRgbDifference": 0.2541
+    }
+  }
+}
