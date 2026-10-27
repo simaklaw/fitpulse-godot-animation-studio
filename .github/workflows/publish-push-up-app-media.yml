@@ -1,0 +1,210 @@
+name: Publish Verified Push-Up App Media
+
+on:
+  workflow_run:
+    workflows:
+      - Build Push-Up Animation Prototype
+    types:
+      - completed
+    branches:
+      - main
+
+permissions:
+  actions: read
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: publish-verified-push-up-app-media
+  cancel-in-progress: false
+
+jobs:
+  prepare-media-pr:
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout current main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+
+      - name: Download male validated renderer artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: fitpulse-push-up-male
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: downloaded/male
+
+      - name: Download female validated renderer artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: fitpulse-push-up-female
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: downloaded/female
+
+      - name: Install ffmpeg and ffprobe
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends ffmpeg
+          command -v ffmpeg
+          command -v ffprobe
+
+      - name: Verify generated media and prepare app payload
+        shell: bash
+        env:
+          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+          SOURCE_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          for gender in male female; do
+            test -s "downloaded/$gender/push_up.mp4"
+            test -s "downloaded/$gender/poster.png"
+            grep -q "CHARACTER_PROFILE_VERIFIED gender=$gender" "downloaded/$gender/build.log"
+            grep -q "PUSHUP_QA PASS frames=97" "downloaded/$gender/build.log"
+            grep -q "APPAREL_LOADED gender=$gender item=shorts" "downloaded/$gender/build.log"
+            grep -q "APPAREL_LOADED gender=$gender item=shirt" "downloaded/$gender/build.log"
+            grep -q "APPAREL_LOADED gender=$gender item=hair" "downloaded/$gender/build.log"
+            grep -q "APPAREL_LOADED gender=$gender item=shoes" "downloaded/$gender/build.log"
+            ffprobe -v error -select_streams v:0 \
+              -show_entries stream=width,height,r_frame_rate,nb_frames \
+              -of default=noprint_wrappers=1 "downloaded/$gender/push_up.mp4" > "/tmp/$gender-video-qa.txt"
+            grep -qx 'width=720' "/tmp/$gender-video-qa.txt"
+            grep -qx 'height=720' "/tmp/$gender-video-qa.txt"
+            grep -qx 'r_frame_rate=30/1' "/tmp/$gender-video-qa.txt"
+            grep -qx 'nb_frames=97' "/tmp/$gender-video-qa.txt"
+            ffmpeg -y -v error -i "downloaded/$gender/push_up.mp4" \
+              -vf "select='eq(n,0)+eq(n,96)'" -vsync 0 -frames:v 2 \
+              -f rawvideo -pix_fmt rgb24 "/tmp/$gender-loop.rgb"
+          done
+
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+
+          width = height = 720
+          frame_bytes = width * height * 3
+          limit = 3.0
+          result = {}
+          for gender in ("male", "female"):
+              data = Path(f"/tmp/{gender}-loop.rgb").read_bytes()
+              if len(data) != frame_bytes * 2:
+                  raise RuntimeError(
+                      f"{gender}: expected two decoded RGB frames, got {len(data)} bytes"
+                  )
+              first, last = data[:frame_bytes], data[frame_bytes:]
+              mae = sum(abs(a - b) for a, b in zip(first, last)) / frame_bytes
+              if mae > limit:
+                  raise RuntimeError(
+                      f"{gender}: MP4 loop seam MAE {mae:.3f} > permitted {limit:.1f}"
+                  )
+              result[gender] = {"meanAbsoluteRgbDifference": round(mae, 4), "limit": limit}
+              print(
+                  f"MP4_LOOP_SEAM_PASS gender={gender} "
+                  f"mean_absolute_rgb_difference={mae:.4f} limit={limit:.1f}"
+              )
+          Path("/tmp/loop-seam-qa.json").write_text(json.dumps(result, indent=2) + "\n")
+          PY
+
+          mkdir -p assets/fitpulse/push-up/male assets/fitpulse/push-up/female
+          for gender in male female; do
+            cp "downloaded/$gender/push_up.mp4" "assets/fitpulse/push-up/$gender/push_up.mp4"
+            cp "downloaded/$gender/poster.png" "assets/fitpulse/push-up/$gender/poster.png"
+          done
+
+          SOURCE_RUN_ID="$SOURCE_RUN_ID" SOURCE_SHA="$SOURCE_SHA" python3 - <<'PY'
+          from hashlib import sha256
+          from pathlib import Path
+          import json
+          import os
+
+          root = Path("assets/fitpulse/push-up")
+          loop_qa = json.loads(Path("/tmp/loop-seam-qa.json").read_text())
+          manifest = {
+              "schemaVersion": 1,
+              "exerciseId": "push_up",
+              "generatedFrom": {
+                  "repository": "simaklaw/fitpulse-godot-animation-studio",
+                  "commit": os.environ["SOURCE_SHA"],
+                  "workflowRunId": int(os.environ["SOURCE_RUN_ID"]),
+              },
+              "video": {
+                  "width": 720,
+                  "height": 720,
+                  "fps": 30,
+                  "frames": 97,
+                  "durationSeconds": round(97 / 30, 6),
+                  "loopSeamMaxMeanAbsoluteRgbDifference": 3.0,
+              },
+              "sourceMotion": {
+                  "repository": "AssiamahS/opengym3d",
+                  "revision": "ea3a60130fdcfb3c4771e44d09f84ebab4ee9bae",
+                  "asset": "motions/cc0/mesh2motion/human-addon-animations.glb#Pushup",
+                  "license": "CC0 1.0 Universal",
+                  "source": "https://github.com/AssiamahS/opengym3d",
+              },
+              "sourceAssets": [
+                  {
+                      "asset": "elvs_male_athletic_tank1 / elvs_ladies_tank1",
+                      "author": "Elvaerwyn",
+                      "license": "CC-BY (as listed by MakeHuman Community)",
+                      "source": "https://static.makehumancommunity.org/assets/assetpacks/shirts03.html",
+                      "attribution": "Athletic tank tops: Elvaerwyn, MakeHuman Community Shirts 03 asset pack (CC-BY, as listed by the pack index).",
+                  },
+                  {
+                      "asset": "cortu_jeans_shorts",
+                      "author": "Cortu",
+                      "license": "CC0",
+                      "source": "https://static.makehumancommunity.org/assets/assetpacks/pants01.html",
+                  },
+                  {
+                      "asset": "cortu_short_messy_hair / elvs_reverse_french_braid_bun",
+                      "authors": ["Cortu", "Elvaerwyn"],
+                      "license": "CC0",
+                      "source": "https://static.makehumancommunity.org/assets/assetpacks/hair01.html",
+                  },
+                  {
+                      "asset": "punkduck_running_shoes_01",
+                      "author": "Punkduck",
+                      "license": "CC-BY (as listed by MakeHuman Community)",
+                      "source": "https://static.makehumancommunity.org/assets/assetpacks/shoes02.html",
+                      "attribution": "Running shoes: Punkduck, MakeHuman Community Shoes 02 asset pack (CC-BY, as listed by the pack index).",
+                  },
+              ],
+              "profiles": {},
+          }
+          for gender in ("male", "female"):
+              video = root / gender / "push_up.mp4"
+              poster = root / gender / "poster.png"
+              manifest["profiles"][gender] = {
+                  "video": f"assets/fitpulse/push-up/{gender}/push_up.mp4",
+                  "poster": f"assets/fitpulse/push-up/{gender}/poster.png",
+                  "videoSha256": sha256(video.read_bytes()).hexdigest(),
+                  "posterSha256": sha256(poster.read_bytes()).hexdigest(),
+                  "videoBytes": video.stat().st_size,
+                  "loopSeamMeanAbsoluteRgbDifference": loop_qa[gender]["meanAbsoluteRgbDifference"],
+              }
+          (root / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
+          print(json.dumps(manifest, indent=2))
+          PY
+
+          echo "Prepared verified push-up payload:"
+          du -h assets/fitpulse/push-up/male/* assets/fitpulse/push-up/female/*
+
+      - name: Open or update a PR with the verified media
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: automation/publish-push-up-media
+          delete-branch: false
+          title: "chore(assets): publish verified male/female push-up media"
+          commit-message: "chore(assets): publish verified push-up media"
+          body: |
+            Automated media publication from a successful main-branch animation build.
+
+            Included are the 720×720, 30 fps, 97-frame male and female MP4 previews, poster PNGs, and a SHA-256 manifest. The payload is gated on renderer QA, the generated character profiles, embedded activewear/hair/shoes, MP4 metadata, and first/last-frame loop similarity.
+
+            These are validated technical prototypes, not expert-certified biomechanics. The manifest records the CC0 motion source and retains CC-BY credits for the MakeHuman Community tank tops and running shoes.
