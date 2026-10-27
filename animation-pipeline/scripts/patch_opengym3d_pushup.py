@@ -28,13 +28,14 @@ def apply_push_up_contact_ik(rig):
     view_layer = bpy.context.view_layer
     sides = (".L", ".R")
     hand_targets = {}
+    hand_orientations = {}
     toe_targets = {}
     pole_targets = {side: {} for side in sides}
     frame_range = list(range(scene.frame_start, scene.frame_end + 1))
     # The pole target itself follows the desired elbow plane on every frame.
-    # For this MakeHuman default rig, a fixed -90-degree IK pole offset is
-    # the calibrated roll convention; deriving it from the same constructed
-    # elbow and pole vectors is self-referential and can sign-flip at a threshold.
+    # The rig's pole-angle response is circular: +90 degrees selects the
+    # opposite projected elbow branch. A calibrated -90 degrees gives the intended
+    # backward-and-out projection; frame-by-frame QA remains the authority.
     pole_angle = -math.pi * 0.5
 
     # First pass: sample original mocap poses and construct per-frame pole positions.
@@ -57,12 +58,16 @@ def apply_push_up_contact_ik(rig):
             if any(pb is None for pb in (wrist, foot, upper, elbow)):
                 raise RuntimeError(f"push-up contact IK: incomplete rig on side {side}")
 
-            wrist_point = rig.matrix_world @ wrist.tail
+            # Anchor the wrist joint, not the fingertip end of the hand bone.
+            # The hand bone stays outside the IK chain so it cannot be twisted
+            # just to satisfy a palm-contact target.
+            wrist_point = rig.matrix_world @ wrist.head
             toe_point = rig.matrix_world @ foot.tail
             shoulder_point = rig.matrix_world @ upper.head
             elbow_point = rig.matrix_world @ elbow.head
             if frame == scene.frame_start:
                 hand_targets[side] = wrist_point.copy()
+                hand_orientations[side] = (rig.matrix_world @ wrist.matrix).to_quaternion().copy()
                 toe_targets[side] = Vector((toe_point.x, toe_point.y, 0.02))
 
             trunk = Vector((
@@ -80,7 +85,7 @@ def apply_push_up_contact_ik(rig):
             # path from the torso; the pole target tracks that desired plane per frame.
             flare = math.radians(45.0)
             desired_horizontal = (
-                -trunk * math.cos(flare) +
+                trunk * math.cos(flare) +
                 lateral * sign * math.sin(flare)
             ).normalized()
             upper_delta = elbow_point - shoulder_point
@@ -118,8 +123,8 @@ def apply_push_up_contact_ik(rig):
 
     hand_objects = {}
     pole_objects = {}
-    # Second pass: add targets and IK constraints. Wrist-tail targeting pins the
-    # actual hand endpoint rather than the wrist bone head.
+    # Second pass: add targets and IK constraints. The endpoint is the wrist joint;
+    # the hand bone stays out of the solve so IK cannot twist it.
     for side in sides:
         hand_target = bpy.data.objects.new("FitPulsePushUpHandTarget" + side, None)
         scene.collection.objects.link(hand_target)
@@ -145,17 +150,35 @@ def apply_push_up_contact_ik(rig):
                 fcurve.update()
         pole_objects[side] = pole
 
-        wrist = rig.pose.bones["wrist" + side]
-        arm_ik = wrist.constraints.new(type="IK")
+        # End IK at the wrist joint (lowerarm02.tail), not at wrist.tail.
+        # This leaves the palm bone out of the solve and prevents a backwards
+        # wrist deformation when the shoulder moves through the rep.
+        forearm = rig.pose.bones.get("lowerarm02" + side)
+        wrist = rig.pose.bones.get("wrist" + side)
+        if forearm is None or wrist is None:
+            raise RuntimeError(f"push-up contact IK: missing distal forearm/hand on {side}")
+        arm_ik = forearm.constraints.new(type="IK")
         arm_ik.name = "FitPulsePushUpArmIK" + side
         arm_ik.target = hand_target
         arm_ik.pole_target = pole
         arm_ik.pole_angle = pole_angle
-        arm_ik.chain_count = 5
+        arm_ik.chain_count = 4
         arm_ik.iterations = 100
         arm_ik.use_stretch = False
         arm_ik.use_tail = True
         arm_ik.influence = 1.0
+
+        orientation = bpy.data.objects.new("FitPulsePushUpHandOrientation" + side, None)
+        scene.collection.objects.link(orientation)
+        orientation.location = hand_targets[side]
+        orientation.rotation_mode = "QUATERNION"
+        orientation.rotation_quaternion = hand_orientations[side]
+        orientation.hide_render = True
+        keep_hand = wrist.constraints.new(type="COPY_ROTATION")
+        keep_hand.name = "FitPulsePushUpStablePalm" + side
+        keep_hand.target = orientation
+        keep_hand.owner_space = "WORLD"
+        keep_hand.target_space = "WORLD"
 
         toe_target = bpy.data.objects.new("FitPulsePushUpToeTarget" + side, None)
         scene.collection.objects.link(toe_target)
@@ -180,7 +203,7 @@ def apply_push_up_contact_ik(rig):
         f"hand_z=({hand_targets['.L'].z:.3f},{hand_targets['.R'].z:.3f})m "
         f"toe_targets_z=({toe_targets['.L'].z:.3f},{toe_targets['.R'].z:.3f})m "
         f"elbow_pole_target=animated_per_frame pole_angle=-90deg frames={len(frame_range)} "
-        "target_flare=45deg pole_basis=desired_elbow chain_arm=5 tail_contact=on chain_leg=3"
+        "target_flare=45deg pole_basis=desired_elbow chain_arm=4 wrist_joint_contact=on chain_leg=3"
     )
 
 
@@ -229,14 +252,19 @@ def assert_push_up_pose(rig, frame_end):
             side: bone_point("upperarm01" + side, "head")
             for side in (".L", ".R")
         }
-        hands = {
+        wrist_joints = {
+            side: bone_point("wrist" + side, "head")
+            for side in (".L", ".R")
+        }
+        hand_tips = {
             side: bone_point("wrist" + side, "tail")
             for side in (".L", ".R")
         }
         return {
-            "wrists": wrists, "toes": toes, "shoulders": shoulders,
+            "wrists": wrists, "wrist_joints": wrist_joints, "hand_tips": hand_tips,
+            "toes": toes, "shoulders": shoulders,
             "hips": hips, "ankles": ankles, "knees": knees,
-            "elbows": elbows, "elbow_bases": elbows_outer, "hands": hands,
+            "elbows": elbows, "elbow_bases": elbows_outer,
         }
 
     wrist_min = float("inf")
@@ -312,12 +340,13 @@ def assert_push_up_pose(rig, frame_end):
         for side in (".L", ".R"):
             shoulder_point = pose["elbow_bases"][side]
             elbow_point = pose["elbows"][side]
-            wrist_point = pose["hands"][side]
-            # Internal elbow angle uses both vectors pointing away from the elbow:
-            # elbow->shoulder and elbow->wrist. Using shoulder->elbow here would
-            # report 0 degrees for a locked straight arm and invert the acceptance test.
+            wrist_joint_point = pose["wrist_joints"][side]
+            hand_tip_point = pose["hand_tips"][side]
+            # Measure the elbow at the actual wrist joint, not the fingertips.
+            # Using wrist.tail folds hand length and wrist bend into the elbow
+            # angle and can falsely accept a backward-folded hand as a valid elbow.
             upper = shoulder_point - elbow_point
-            forearm = wrist_point - elbow_point
+            forearm = wrist_joint_point - elbow_point
             trunk = hip - shoulder
             joint_angle = angle_degrees(upper, forearm)
             # Elbow flare is assessed in the horizontal/top-down plane, not by
@@ -328,15 +357,76 @@ def assert_push_up_pose(rig, frame_end):
                 0.0,
             ))
             trunk_horizontal = Vector((trunk.x, trunk.y, 0.0))
+            # Preserve the signed direction: a 135-degree forward fold is not
+            # an acceptable substitute for a 45-degree backward-and-out path.
             arm_to_trunk = angle_degrees(arm_horizontal, trunk_horizontal)
-            # Elbow-line orientation is undirected: 100 degrees is equivalent
-            # to an 80-degree flare, not a negative/forward-facing angle.
-            arm_to_trunk = min(arm_to_trunk, 180.0 - arm_to_trunk)
+            trunk_axis = Vector((trunk_horizontal.x, trunk_horizontal.y, 0.0))
+            if trunk_axis.length < 1e-7:
+                raise RuntimeError(f"push-up QA: degenerate horizontal trunk axis at frame {frame}")
+            trunk_axis.normalize()
+            lateral_axis = Vector((trunk_axis.y, -trunk_axis.x, 0.0))
+            side_sign = 1.0 if side == ".L" else -1.0
+            signed_outward = arm_horizontal.normalized().dot(lateral_axis) * side_sign
+
+            # A valid elbow path must bend toward the feet and out from the torso,
+            # not through the head/forward side. Project the elbow off the direct
+            # shoulder-to-wrist-joint line and check the signed 3D bend direction.
+            shoulder_to_wrist = wrist_joint_point - shoulder_point
+            if shoulder_to_wrist.length < 1e-5:
+                raise RuntimeError(f"push-up QA: degenerate shoulder-to-wrist axis at frame {frame} {side}")
+            arm_axis = shoulder_to_wrist.normalized()
+            projection_t = max(0.0, min(1.0,
+                (elbow_point - shoulder_point).dot(shoulder_to_wrist) /
+                shoulder_to_wrist.length_squared))
+            elbow_offset = elbow_point - (shoulder_point + shoulder_to_wrist * projection_t)
+            preferred_bend = trunk_axis + lateral_axis * side_sign
+            expected_bend = preferred_bend - arm_axis * preferred_bend.dot(arm_axis)
+            if joint_angle <= 145.0:
+                if elbow_offset.length < 0.015:
+                    raise RuntimeError(
+                        f"push-up elbow bend direction failed at frame {frame} {side}: "
+                        f"flexed elbow has only {elbow_offset.length:.3f} m offset from arm axis"
+                    )
+                if expected_bend.length < 1e-5:
+                    raise RuntimeError(f"push-up QA: degenerate expected elbow plane at frame {frame} {side}")
+                bend_alignment = elbow_offset.normalized().dot(expected_bend.normalized())
+                if bend_alignment < 0.20:
+                    raise RuntimeError(
+                        f"push-up elbow bend direction failed at frame {frame} {side}: "
+                        f"signed alignment={bend_alignment:.3f}; expected bend toward feet and out"
+                    )
+
+            # The fingertips are separate from the wrist joint; keep them close to
+            # the support plane so a valid joint angle cannot hide a folded/embedded hand.
+            if hand_tip_point.z < -0.05 or hand_tip_point.z > 0.10:
+                raise RuntimeError(
+                    f"push-up fingertip-floor contact failed at frame {frame} {side}: "
+                    f"tip z={hand_tip_point.z:.3f} m; expected [-0.05, 0.10] m"
+                )
+            hand_axis = hand_tip_point - wrist_joint_point
+            if hand_axis.length < 1e-5 or abs(hand_axis.normalized().z) > math.sin(math.radians(30.0)):
+                raise RuntimeError(
+                    f"push-up palm-plane alignment failed at frame {frame} {side}: "
+                    f"hand axis z-ratio={abs(hand_axis.normalized().z) if hand_axis.length >= 1e-5 else 1.0:.3f}; "
+                    "expected the hand/finger axis within 30 degrees of the floor plane"
+                )
+
             elbow_angles.append(joint_angle)
             if joint_angle < 45.0 or joint_angle > 180.0:
                 raise RuntimeError(
                     f"push-up elbow flexion failed at frame {frame} {side}: "
                     f"{joint_angle:.1f} degrees outside 45–180 degrees"
+                )
+            if elbow_point.z > shoulder_point.z + 0.10:
+                raise RuntimeError(
+                    f"push-up elbow direction failed at frame {frame} {side}: "
+                    f"elbow is {elbow_point.z - shoulder_point.z:.3f} m above shoulder"
+                )
+            if elbow_point.z < pose["wrists"][side].z - 0.05:
+                raise RuntimeError(
+                    f"push-up elbow direction failed at frame {frame} {side}: "
+                    f"elbow is below the planted wrist plane (elbow_z={elbow_point.z:.3f}, "
+                    f"wrist_center_z={pose['wrists'][side].z:.3f})"
                 )
             # In a near-locked top-plank position the upper arm's floor-plane
             # projection becomes ill-conditioned: tiny bone-roll changes dominate
@@ -344,6 +434,12 @@ def assert_push_up_pose(rig, frame_end):
             # while the elbow is clearly flexed, without widening that range.
             if joint_angle <= 145.0:
                 elbow_to_trunk_angles.append(arm_to_trunk)
+                if signed_outward < math.sin(math.radians(25.0)) or signed_outward > math.sin(math.radians(75.0)):
+                    raise RuntimeError(
+                        f"push-up elbow handedness failed at frame {frame} {side}: "
+                        f"signed outward component={signed_outward:.3f}; "
+                        "expected positive outward flare on the anatomical side"
+                    )
                 if arm_to_trunk < 25.0 or arm_to_trunk > 75.0:
                     print(
                         "PUSHUP_ELBOW_DEBUG "
@@ -351,7 +447,7 @@ def assert_push_up_pose(rig, frame_end):
                         f"joint={joint_angle:.1f}deg "
                         f"shoulder=({shoulder_point.x:.3f},{shoulder_point.y:.3f},{shoulder_point.z:.3f}) "
                         f"elbow=({elbow_point.x:.3f},{elbow_point.y:.3f},{elbow_point.z:.3f}) "
-                        f"wrist=({wrist_point.x:.3f},{wrist_point.y:.3f},{wrist_point.z:.3f}) "
+                        f"wrist_joint=({wrist_joint_point.x:.3f},{wrist_joint_point.y:.3f},{wrist_joint_point.z:.3f}) "
                         f"trunk=({trunk.x:.3f},{trunk.y:.3f},{trunk.z:.3f})"
                     )
                     raise RuntimeError(

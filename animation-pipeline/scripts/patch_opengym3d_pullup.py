@@ -101,22 +101,26 @@ if text.count(needle) != 1:
 text = text.replace(needle, helper + needle, 1)
 
 contact_helper = r'''def fit_pull_up_rack_to_hang_pose(rig):
-    """Fit rack height/grip to the generated model's natural hang reach."""
+    """Fit the bar to the hand/finger base while preserving the hand's shape."""
     scene = bpy.context.scene
     scene.frame_set(1)
-    # Evaluate animation/deformation before sampling the hang pose. Without this,
-    # Blender can expose the previous dependency-graph pose for the first frame,
-    # fitting the bar to stale wrist coordinates (seen as a 21 cm female miss).
     bpy.context.view_layer.update()
     hands = {}
+    wrist_heads = {}
+    hand_vectors = {}
     for side in (".L", ".R"):
         wrist = rig.pose.bones.get("wrist" + side)
         if wrist is None:
             raise RuntimeError(f"pull-up fit gate: missing wrist{side}")
-        hands[side] = rig.matrix_world @ wrist.tail
+        wrist_head = rig.matrix_world @ wrist.head
+        wrist_tail = rig.matrix_world @ wrist.tail
+        hands[side] = wrist_tail.copy()
+        wrist_heads[side] = wrist_head.copy()
+        hand_vectors[side] = wrist_tail - wrist_head
 
-    # Keep the same small wrist-to-bar offset as the original validated male rig,
-    # while adapting for narrower shoulders and different reach in the female rig.
+    # The bar contacts the distal palm/knuckle region, not the middle of the palm.
+    # Keep the small clearance used by the source rig so the cylinder does not
+    # visibly pass through the mesh.
     bar_z = (hands[".L"].z + hands[".R"].z) / 2.0 + 0.037
     bar_y = (hands[".L"].y + hands[".R"].y) / 2.0
     bar = bpy.data.objects.get("PullUpBar")
@@ -125,7 +129,6 @@ contact_helper = r'''def fit_pull_up_rack_to_hang_pose(rig):
     bar.location.z = bar_z
     bar.location.y = bar_y
 
-    # Adjustable posts stay connected to the fitted bar; feet remain at floor level.
     for side in ("L", "R"):
         post = bpy.data.objects.get("PullUpPost_" + side)
         foot = bpy.data.objects.get("PullUpBase_" + side)
@@ -139,18 +142,72 @@ contact_helper = r'''def fit_pull_up_rack_to_hang_pose(rig):
     bpy.context.view_layer.update()
     targets = {}
     for side in (".L", ".R"):
-        point = hands[side]
-        targets[side] = (point.x, bar_y, bar_z)
+        # Keep the fingertips at the bar contact zone and solve only for the wrist
+        # joint. Copy-rotation later preserves this measured hand orientation.
+        desired_hand_tail = Vector((hands[side].x, bar_y, bar_z - 0.037))
+        targets[side] = desired_hand_tail - hand_vectors[side]
     print(
-        f"RACK_FIT pull_up: bar=({bar.location.x:.3f},{bar_y:.3f},{bar_z:.3f}) "
-        f"grip_x=({targets['.L'][0]:.3f},{targets['.R'][0]:.3f})"
+        f"RACK_FIT pull_up: hand_contact=({bar.location.x:.3f},{bar_y:.3f},{bar_z:.3f}) "
+        f"grip_x=({targets['.L'].x:.3f},{targets['.R'].x:.3f})"
     )
     return targets
 
-
-def add_pull_up_ik(rig, target_positions):
-    """Solve wrist endpoints against the model-fitted fixed bar."""
+def add_pull_up_ik(rig, target_positions, frame_end):
+    """Pin the wrist joints to the bar, keep palms stable, and steer elbow poles."""
     scene = bpy.context.scene
+    view_layer = bpy.context.view_layer
+    pole_positions = {".L": {}, ".R": {}}
+    hand_rotations = {}
+    desired_hand_tails = {}
+
+    # Preserve the original stable world-space wrist orientation and target.
+    # The pull-up-specific flexion in grip_hands is responsible for wrapping the
+    # fingers under the bar; don't move the wrist target into an unreachable pose.
+    scene.frame_set(1)
+    view_layer.update()
+    for side in (".L", ".R"):
+        wrist = rig.pose.bones.get("wrist" + side)
+        if wrist is None:
+            raise RuntimeError(f"pull-up IK gate: missing wrist{side}")
+        hand_rotations[side] = (rig.matrix_world @ wrist.matrix).to_quaternion().copy()
+
+    for frame in range(1, frame_end + 1):
+        scene.frame_set(frame)
+        view_layer.update()
+        left_shoulder = rig.pose.bones.get("upperarm01.L")
+        right_shoulder = rig.pose.bones.get("upperarm01.R")
+        if left_shoulder is None or right_shoulder is None:
+            raise RuntimeError("pull-up pole gate: missing left/right shoulder bones")
+        left_x = (rig.matrix_world @ left_shoulder.head).x
+        right_x = (rig.matrix_world @ right_shoulder.head).x
+        shoulder_center_x = (left_x + right_x) * 0.5
+
+        for side in (".L", ".R"):
+            shoulder_bone = rig.pose.bones.get("upperarm01" + side)
+            if shoulder_bone is None:
+                raise RuntimeError(f"pull-up pole gate: incomplete arm chain on {side}")
+            shoulder = rig.matrix_world @ shoulder_bone.head
+            endpoint = Vector(target_positions[side])
+            axis = endpoint - shoulder
+            if axis.length < 1e-5:
+                raise RuntimeError(f"pull-up pole gate: degenerate shoulder-to-wrist axis on {side}")
+            axis.normalize()
+
+            # Do not inherit the source clip's elbow direction: its two arms can
+            # fold in opposite planes. Use a mirrored, anatomically intentional
+            # pole in the posterior/outward plane (character faces world -Y).
+            outward_sign = 1.0 if shoulder.x >= shoulder_center_x else -1.0
+            anatomical_direction = Vector((outward_sign * 0.48, 0.877, 0.0))
+            offset = anatomical_direction - axis * anatomical_direction.dot(axis)
+            if offset.length < 1e-5:
+                fallback = Vector((0.0, 1.0, 0.0))
+                offset = fallback - axis * fallback.dot(axis)
+            if offset.length < 1e-5:
+                raise RuntimeError(f"pull-up pole gate: cannot establish anatomical elbow plane on {side}")
+
+            pole_direction = offset.normalized()
+            pole_positions[side][frame] = (shoulder + endpoint) * 0.5 + pole_direction * 0.35
+
     for side in (".L", ".R"):
         target = bpy.data.objects.new("PullUpIKTarget" + side, None)
         scene.collection.objects.link(target)
@@ -159,28 +216,66 @@ def add_pull_up_ik(rig, target_positions):
         target.empty_display_size = 0.025
         target.hide_render = True
 
+        pole = bpy.data.objects.new("FitPulsePullUpElbowPole" + side, None)
+        scene.collection.objects.link(pole)
+        pole.empty_display_type = "SPHERE"
+        pole.empty_display_size = 0.02
+        pole.hide_render = True
+        for frame in range(1, frame_end + 1):
+            scene.frame_set(frame)
+            pole.location = pole_positions[side][frame]
+            pole.keyframe_insert(data_path="location", frame=frame, group="FitPulse pull-up elbow tracking")
+        if pole.animation_data and pole.animation_data.action:
+            for fcurve in pole.animation_data.action.fcurves:
+                for point in fcurve.keyframe_points:
+                    point.interpolation = "LINEAR"
+                fcurve.update()
+
+        forearm = rig.pose.bones.get("lowerarm02" + side)
         wrist = rig.pose.bones.get("wrist" + side)
-        if wrist is None:
-            raise RuntimeError(f"pull-up IK gate: missing wrist{side}")
-        constraint = wrist.constraints.new(type="IK")
-        constraint.name = "FitPulsePullUpIK" + side
-        constraint.target = target
-        constraint.chain_count = 5
-        constraint.iterations = 100
-        constraint.use_stretch = False
-        constraint.influence = 1.0
-    bpy.context.view_layer.update()
+        if forearm is None or wrist is None:
+            raise RuntimeError(f"pull-up IK gate: incomplete distal arm chain on {side}")
+        arm_ik = forearm.constraints.new(type="IK")
+        arm_ik.name = "FitPulsePullUpArmIK" + side
+        arm_ik.target = target
+        arm_ik.pole_target = pole
+        # MakeHuman's default shoulder/arm roll places the zero-angle pole
+        # branch almost orthogonal to the intended posterior-and-outward bend.
+        # Rotate the pole plane by -90 degrees; strict per-frame handedness QA
+        # below remains the acceptance gate for both profile variants.
+        arm_ik.pole_angle = -math.pi * 0.5
+        arm_ik.chain_count = 4
+        arm_ik.iterations = 100
+        arm_ik.use_stretch = False
+        arm_ik.use_tail = True
+        arm_ik.influence = 1.0
+
+        orientation = bpy.data.objects.new("FitPulsePullUpHandOrientation" + side, None)
+        scene.collection.objects.link(orientation)
+        orientation.location = target_positions[side]
+        orientation.rotation_mode = "QUATERNION"
+        orientation.rotation_quaternion = hand_rotations[side]
+        orientation.hide_render = True
+        keep_hand = wrist.constraints.new(type="COPY_ROTATION")
+        keep_hand.name = "FitPulsePullUpStablePalm" + side
+        keep_hand.target = orientation
+        keep_hand.owner_space = "WORLD"
+        keep_hand.target_space = "WORLD"
+
+    print(
+        f"PULLUP_ARM_IK PASS frames={frame_end} end_effector=wrist.head "
+        "arm_chain=lowerarm02:4 pole_target=animated_per_frame pole_angle=-90deg "
+        "palm_orientation=world_locked"
+    )
 
 
 def assert_pull_up_bar_contact(rig, frame_end):
-    """Check wrist-to-bar distance at every rendered frame."""
+    """Check palm-centre-to-bar distance at every rendered frame."""
     scene = bpy.context.scene
     bar = bpy.data.objects.get("PullUpBar")
     if bar is None:
         raise RuntimeError("pull-up contact gate: missing PullUpBar")
     bar_center = bar.matrix_world.translation.copy()
-    # Blender can report dimensions along the cylinder's local axis despite its
-    # rotation. Use the actual world-space rack-post spacing as the grip span.
     post_l = bpy.data.objects.get("PullUpPost_L")
     post_r = bpy.data.objects.get("PullUpPost_R")
     if post_l is None or post_r is None:
@@ -189,52 +284,198 @@ def assert_pull_up_bar_contact(rig, frame_end):
         0.0,
         abs(post_r.matrix_world.translation.x - post_l.matrix_world.translation.x) / 2.0 - 0.02,
     )
-    print(f"CONTACT_GATE rack_half_length={half_length:.3f} m")
     worst = 0.0
     worst_at = None
     for frame in range(1, frame_end + 1):
         scene.frame_set(frame)
-        # Force dependency-graph evaluation before sampling wrist endpoints.
-        # Otherwise the first sampled frame can expose the pre-IK pose.
         bpy.context.view_layer.update()
         for side in (".L", ".R"):
             wrist = rig.pose.bones.get("wrist" + side)
             if wrist is None:
                 raise RuntimeError(f"pull-up contact gate: missing wrist{side}")
-            point = rig.matrix_world @ wrist.tail
-            radial = math.sqrt((point.y - bar_center.y) ** 2 + (point.z - bar_center.z) ** 2)
-            beyond_bar = max(0.0, abs(point.x - bar_center.x) - half_length)
+            hand_base = rig.matrix_world @ wrist.tail
+            radial = math.sqrt((hand_base.y - bar_center.y) ** 2 + (hand_base.z - bar_center.z) ** 2)
+            beyond_bar = max(0.0, abs(hand_base.x - bar_center.x) - half_length)
             distance = math.sqrt(radial ** 2 + beyond_bar ** 2)
-            print(
-                f"CONTACT_FRAME frame={frame} side={side} "
-                f"wrist=({point.x:.3f},{point.y:.3f},{point.z:.3f}) "
-                f"bar=({bar_center.x:.3f},{bar_center.y:.3f},{bar_center.z:.3f}) "
-                f"distance={distance:.3f}"
-            )
             if distance > worst:
                 worst = distance
-                worst_at = (frame, side, tuple(round(v, 3) for v in point))
+                worst_at = (frame, side, tuple(round(v, 3) for v in hand_base))
     limit = 0.08
-    print(f"CONTACT pull_up: max wrist-to-bar distance {worst:.3f} m at {worst_at}; limit {limit:.2f} m")
+    print(f"CONTACT pull_up: max hand-base-to-bar distance {worst:.3f} m at {worst_at}; limit {limit:.2f} m")
     if worst > limit:
-        raise RuntimeError(f"pull-up hand-to-bar contact failed: {worst:.3f} m > {limit:.2f} m")
+        raise RuntimeError(f"pull-up hand-base-to-bar contact failed: {worst:.3f} m > {limit:.2f} m")
+
+
+def assert_pull_up_finger_contact(rig, frame_end):
+    """Require distal fingers to track close around the bar, not just the palm."""
+    scene = bpy.context.scene
+    view_layer = bpy.context.view_layer
+    bar = bpy.data.objects.get("PullUpBar")
+    post_l = bpy.data.objects.get("PullUpPost_L")
+    post_r = bpy.data.objects.get("PullUpPost_R")
+    if bar is None or post_l is None or post_r is None:
+        raise RuntimeError("pull-up finger-contact gate: missing bar or rack posts")
+
+    center = bar.matrix_world.translation.copy()
+    half_length = max(
+        0.0,
+        abs(post_r.matrix_world.translation.x - post_l.matrix_world.translation.x) / 2.0 - 0.02,
+    )
+    # The bar is a cylinder aligned to world X. Use the exported object's cross
+    # section rather than an assumed visual scale for the radius.
+    bar_radius = max(float(bar.dimensions.y), float(bar.dimensions.z)) * 0.5
+    if bar_radius < 0.015 or bar_radius > 0.05:
+        raise RuntimeError(
+            f"pull-up finger-contact gate: unexpected bar radius {bar_radius:.3f} m"
+        )
+
+    tolerance = 0.045
+    # Proximity alone accepted fingers lying on top of the bar. A proper overhand
+    # grip must bring distal finger tips around the lower half of the cylinder.
+    below_center_margin = max(0.005, bar_radius * 0.20)
+    required_tips = 3
+    required_frame_ratio = 0.90
+    passing_frames = {".L": 0, ".R": 0}
+    worst_count = 4
+    worst_at = None
+    max_tip_gap = 0.0
+
+    for frame in range(1, frame_end + 1):
+        scene.frame_set(frame)
+        view_layer.update()
+        for side in (".L", ".R"):
+            wrapped_tips = 0
+            gaps = []
+            for finger_number in (2, 3, 4, 5):
+                tip_bone = rig.pose.bones.get(f"finger{finger_number}-3" + side)
+                if tip_bone is None:
+                    raise RuntimeError(
+                        f"pull-up finger-contact gate: missing distal finger{finger_number}{side}"
+                    )
+                tip = rig.matrix_world @ tip_bone.tail
+                radial = math.sqrt(
+                    (tip.y - center.y) ** 2 + (tip.z - center.z) ** 2
+                )
+                surface_gap = abs(radial - bar_radius)
+                beyond_bar = max(0.0, abs(tip.x - center.x) - half_length)
+                gap = math.sqrt(surface_gap ** 2 + beyond_bar ** 2)
+                under_bar = tip.z <= center.z - below_center_margin
+                gaps.append((finger_number, gap, tip.z - center.z))
+                max_tip_gap = max(max_tip_gap, gap)
+                if gap <= tolerance and under_bar:
+                    wrapped_tips += 1
+
+            if wrapped_tips >= required_tips:
+                passing_frames[side] += 1
+            if wrapped_tips < worst_count:
+                worst_count = wrapped_tips
+                worst_at = (
+                    frame, side,
+                    sorted((n, round(g, 3), round(dz, 3)) for n, g, dz in gaps),
+                )
+
+    frame_ratio = min(passing_frames.values()) / max(1, frame_end)
+    print(
+        "GRIP_CONTACT pull_up: "
+        f"left={passing_frames['.L']}/{frame_end} "
+        f"right={passing_frames['.R']}/{frame_end} "
+        f"required={required_tips}/4 distal tips within {tolerance:.3f} m "
+        f"of bar surface and at least {below_center_margin:.3f} m below bar centre "
+        f"for {required_frame_ratio:.0%} frames; "
+        f"worst_tips={worst_count}/4 at {worst_at}; max_tip_gap={max_tip_gap:.3f} m"
+    )
+    if frame_ratio < required_frame_ratio:
+        raise RuntimeError(
+            "pull-up finger-wrap failed: at least 3 of 4 distal fingertips per hand "
+            f"must stay within {tolerance:.3f} m of the bar surface and at least "
+            f"{below_center_margin:.3f} m below its centre in "
+            f"{required_frame_ratio:.0%} of frames; left={passing_frames['.L']}/{frame_end}, "
+            f"right={passing_frames['.R']}/{frame_end}; worst={worst_at}"
+        )
 
 
 def assert_pull_up_body_pose(rig, frame_end):
-    """Require feet to stay clear of the floor and the head to clear the bar."""
+    """Check clearance and reject upward-folded elbows throughout the rep."""
     scene = bpy.context.scene
     min_foot_z = float("inf")
     min_foot_at = None
+    elbow_angles = []
+    max_elbow_above_wrist = float("-inf")
     for frame in range(1, frame_end + 1):
         scene.frame_set(frame)
+        bpy.context.view_layer.update()
+        frame_elbow_angles = {}
         for side in (".L", ".R"):
             foot = rig.pose.bones.get("foot" + side)
-            if foot is None:
-                raise RuntimeError(f"pull-up clearance gate: missing foot{side}")
-            point = rig.matrix_world @ foot.tail
-            if point.z < min_foot_z:
-                min_foot_z = point.z
-                min_foot_at = (frame, side, tuple(round(v, 3) for v in point))
+            upper = rig.pose.bones.get("upperarm01" + side)
+            elbow_bone = rig.pose.bones.get("lowerarm01" + side)
+            wrist = rig.pose.bones.get("wrist" + side)
+            if any(pb is None for pb in (foot, upper, elbow_bone, wrist)):
+                raise RuntimeError(f"pull-up joint-integrity gate: missing required bone on {side}")
+            foot_point = rig.matrix_world @ foot.tail
+            min_foot_z = min(min_foot_z, foot_point.z)
+            if foot_point.z == min_foot_z:
+                min_foot_at = (frame, side, tuple(round(v, 3) for v in foot_point))
+
+            shoulder = rig.matrix_world @ upper.head
+            elbow = rig.matrix_world @ elbow_bone.head
+            wrist_joint = rig.matrix_world @ wrist.head
+            upper_vec = shoulder - elbow
+            forearm_vec = wrist_joint - elbow
+            if upper_vec.length < 1e-5 or forearm_vec.length < 1e-5:
+                raise RuntimeError(f"pull-up joint-integrity gate: collapsed arm segment at frame {frame} {side}")
+            cosine = max(-1.0, min(1.0, upper_vec.normalized().dot(forearm_vec.normalized())))
+            elbow_angle = math.degrees(math.acos(cosine))
+            elbow_angles.append(elbow_angle)
+            frame_elbow_angles[side] = elbow_angle
+            # Full-range pull-ups can reach a deep but still plausible bend.
+            # Reject joint collapse, not normal peak contraction at ~30 degrees.
+            minimum_elbow_angle = 25.0
+            if elbow_angle < minimum_elbow_angle:
+                raise RuntimeError(
+                    f"pull-up elbow flexion failed at frame {frame} {side}: "
+                    f"{elbow_angle:.1f} degrees < {minimum_elbow_angle:.1f} degrees"
+                )
+            if elbow_angle < 155.0:
+                arm_axis = wrist_joint - shoulder
+                arm_axis.normalize()
+                elbow_projection = shoulder + arm_axis * (elbow - shoulder).dot(arm_axis)
+                observed_bend = elbow - elbow_projection
+                shoulder_center_x = (
+                    (rig.matrix_world @ rig.pose.bones["upperarm01.L"].head).x
+                    + (rig.matrix_world @ rig.pose.bones["upperarm01.R"].head).x
+                ) * 0.5
+                outward_sign = 1.0 if shoulder.x >= shoulder_center_x else -1.0
+                expected_bend = Vector((outward_sign * 0.48, 0.877, 0.0))
+                expected_bend -= arm_axis * expected_bend.dot(arm_axis)
+                if observed_bend.length < 0.02 or expected_bend.length < 1e-5:
+                    raise RuntimeError(
+                        f"pull-up elbow plane failed at frame {frame} {side}: "
+                        "cannot establish a stable bend direction"
+                    )
+                bend_alignment = observed_bend.normalized().dot(expected_bend.normalized())
+                if bend_alignment < 0.20:
+                    raise RuntimeError(
+                        f"pull-up elbow handedness failed at frame {frame} {side}: "
+                        f"bend-plane alignment={bend_alignment:.3f} < 0.20; "
+                        "expected posterior-and-outward elbow flexion"
+                    )
+
+            above_wrist = elbow.z - wrist_joint.z
+            max_elbow_above_wrist = max(max_elbow_above_wrist, above_wrist)
+            if above_wrist > 0.08:
+                raise RuntimeError(
+                    f"pull-up elbow direction failed at frame {frame} {side}: "
+                    f"elbow is {above_wrist:.3f} m above the wrist joint; expected elbow-down flexion"
+                )
+        if len(frame_elbow_angles) == 2:
+            bilateral_delta = abs(frame_elbow_angles[".L"] - frame_elbow_angles[".R"])
+            if bilateral_delta > 35.0:
+                raise RuntimeError(
+                    f"pull-up elbow symmetry failed at frame {frame}: "
+                    f"left/right flexion differs by {bilateral_delta:.1f} degrees > 35 degrees"
+                )
+
     min_clearance = 0.18
     print(f"CLEARANCE pull_up: min foot height {min_foot_z:.3f} m at {min_foot_at}; limit {min_clearance:.2f} m")
     if min_foot_z < min_clearance:
@@ -249,8 +490,6 @@ def assert_pull_up_body_pose(rig, frame_end):
         raise RuntimeError("pull-up top-position gate: missing head bone or PullUpBar")
     head_base_z = (rig.matrix_world @ head.head).z
     head_top_z = (rig.matrix_world @ head.tail).z
-    # The rack crossbar is rotated onto the X axis; object-space dimensions.z
-    # is not its vertical thickness. Use the actual cylinder radius instead.
     bar_top_z = bar.location.z + 0.028
     minimum_head_top_z = bar_top_z + 0.03
     maximum_head_base_drop = 0.18
@@ -265,6 +504,13 @@ def assert_pull_up_body_pose(rig, frame_end):
             f"does not clear bar top {bar_top_z:.3f} m while keeping the base within "
             f"{maximum_head_base_drop:.2f} m below bar center"
         )
+    print(
+        f"PULLUP_ARM_QA PASS frames={frame_end} "
+        f"elbow_angle=[{min(elbow_angles):.1f},{max(elbow_angles):.1f}]deg min=25deg "
+        f"max_elbow_above_wrist={max_elbow_above_wrist:.3f}m "
+        "hand_end_effector=wrist.head"
+    )
+
 
 
 '''
@@ -330,8 +576,43 @@ def assert_pull_up_body_pose(rig, frame_end):
         raise RuntimeError(f"pull-up top-position failed: head-base proxy {head_base_z:.3f} m does not clear bar top {bar_top_z:.3f} m by 0.03 m")
 
 
+
+
 '''
 text = text.replace(needle, contact_helper + needle, 1)
+
+grip_bake_helper = r'''def apply_pull_up_grip_every_frame(rig, prop_objs, frame_end):
+    """Bake the same calibrated pull-up finger grip at every output frame."""
+    if not any(obj.name == "PullUpBar" for obj, _ in prop_objs):
+        return
+    scene = bpy.context.scene
+    for frame in range(1, frame_end + 1):
+        scene.frame_set(frame)
+        bpy.context.view_layer.update()
+        # grip_hands restores the cached local phalanx pose, then reapplies the
+        # signed curl and inserts keys at this exact frame.
+        grip_hands(rig, prop_objs, frame)
+
+    action = rig.animation_data.action if rig.animation_data else None
+    if action is None:
+        raise RuntimeError("pull-up grip bake failed: rig has no animation action")
+    baked_keys = 0
+    for fcurve in action.fcurves:
+        if "finger" not in fcurve.data_path or "rotation_quaternion" not in fcurve.data_path:
+            continue
+        for point in fcurve.keyframe_points:
+            point.interpolation = "LINEAR"
+        fcurve.update()
+        baked_keys += len(fcurve.keyframe_points)
+    print(
+        f"PULLUP_GRIP_BAKED frames={frame_end} "
+        f"finger_rotation_keypoints={baked_keys} interpolation=LINEAR"
+    )
+'''
+main_marker = "def main():\n"
+if text.count(main_marker) != 1:
+    raise SystemExit("Expected exactly one upstream main function marker for the full-frame grip helper")
+text = text.replace(main_marker, grip_bake_helper + main_marker, 1)
 
 main_old = '        prop_objs = build_props(spec)\n        if mocap and mocap_kind == "video":'
 main_new = '        prop_objs = build_props(spec)\n        if spec.get("id") == "pull_up":\n            prop_objs.extend((obj, "static") for obj in build_pull_up_rig())\n        if mocap and mocap_kind == "video":'
@@ -340,7 +621,7 @@ if text.count(main_old) != 1:
 text = text.replace(main_old, main_new, 1)
 
 anim_old = '            animate(driver, rig, spec, frame_end, prop_objs)\n        bpy.data.objects.remove(driver, do_unlink=True)'
-anim_new = '            animate(driver, rig, spec, frame_end, prop_objs)\n            if spec.get("id") == "pull_up":\n                hand_targets = fit_pull_up_rack_to_hang_pose(rig)\n                add_pull_up_ik(rig, hand_targets)\n                assert_pull_up_bar_contact(rig, frame_end)\n                assert_pull_up_body_pose(rig, frame_end)\n        bpy.data.objects.remove(driver, do_unlink=True)'
+anim_new = '            animate(driver, rig, spec, frame_end, prop_objs)\n            if spec.get("id") == "pull_up":\n                hand_targets = fit_pull_up_rack_to_hang_pose(rig)\n                add_pull_up_ik(rig, hand_targets, frame_end)\n                # Bake finger curl after IK; otherwise the wrist constraint changes\n                # the parent transform after the child-finger keys are authored.\n                apply_pull_up_grip_every_frame(rig, prop_objs, frame_end)\n                assert_pull_up_bar_contact(rig, frame_end)\n                assert_pull_up_finger_contact(rig, frame_end)\n                assert_pull_up_body_pose(rig, frame_end)\n        bpy.data.objects.remove(driver, do_unlink=True)'
 if text.count(anim_old) != 1:
     raise SystemExit("Unexpected upstream animation block; refusing an unsafe contact-check patch")
 text = text.replace(anim_old, anim_new, 1)
@@ -704,27 +985,150 @@ grip_new = '''# FitPulse pull-up must not re-guess curl direction at every keyfr
 # first dead-hang pose for the entire fixed-bar cycle. Other exercise grips keep
 # the upstream per-keyframe behavior.
 FITPULSE_PULLUP_GRIP_SIGNS = None
+FITPULSE_PULLUP_FINGER_BASE_POSES = None
+FITPULSE_PULLUP_FINGER_CURL = {1: 58, 2: 75, 3: 58}
+FITPULSE_PULLUP_THUMB_CURL = {1: 18, 2: 30, 3: 25}
+
+
+def _fitpulse_reset_pullup_fingers(rig, side):
+    """Restore the measured uncurled baseline before evaluating one curl direction."""
+    for finger_number in range(2, 6):
+        for segment_number in (1, 2, 3):
+            key = (finger_number, segment_number, side)
+            pb = rig.pose.bones.get(f"finger{finger_number}-{segment_number}" + side)
+            base_pose = FITPULSE_PULLUP_FINGER_BASE_POSES.get(key)
+            if pb is None or base_pose is None:
+                raise RuntimeError(f"pull-up grip calibration: missing baseline finger bone {key}")
+            pb.matrix_basis = base_pose.copy()
+    bpy.context.view_layer.update()
+
+
+def _fitpulse_choose_pullup_curl_sign(rig, side, held_object, axis):
+    """Test both curl signs on evaluated distal tips; choose the real bar wrap."""
+    bar_center = held_object.matrix_world.translation.copy()
+    bar_radius = max(float(held_object.dimensions.y), float(held_object.dimensions.z)) * 0.5
+    half_length = 0.0
+    post_l = bpy.data.objects.get("PullUpPost_L")
+    post_r = bpy.data.objects.get("PullUpPost_R")
+    if post_l is not None and post_r is not None:
+        half_length = max(0.0, abs(post_r.matrix_world.translation.x - post_l.matrix_world.translation.x) * 0.5 - 0.02)
+    below_center = max(0.005, bar_radius * 0.20)
+    candidates = []
+
+    for candidate_sign in (1, -1):
+        _fitpulse_reset_pullup_fingers(rig, side)
+        for finger_number in range(2, 6):
+            for segment_number in (1, 2, 3):
+                pb = rig.pose.bones[f"finger{finger_number}-{segment_number}" + side]
+                angle = FITPULSE_PULLUP_FINGER_CURL[segment_number]
+                q = Quaternion(axis, math.radians(candidate_sign * angle))
+                location = pb.matrix.to_translation()
+                rotation = pb.matrix.to_quaternion()
+                pb.rotation_mode = "QUATERNION"
+                pb.matrix = Matrix.Translation(location) @ (q @ rotation).to_matrix().to_4x4()
+                bpy.context.view_layer.update()
+
+        wrapped = 0
+        total_gap = 0.0
+        tip_report = []
+        for finger_number in range(2, 6):
+            tip_bone = rig.pose.bones.get(f"finger{finger_number}-3" + side)
+            if tip_bone is None:
+                raise RuntimeError(f"pull-up grip calibration: missing finger{finger_number}-3{side}")
+            tip = rig.matrix_world @ tip_bone.tail
+            radial = math.sqrt((tip.y - bar_center.y) ** 2 + (tip.z - bar_center.z) ** 2)
+            surface_gap = abs(radial - bar_radius)
+            beyond_bar = max(0.0, abs(tip.x - bar_center.x) - half_length)
+            gap = math.sqrt(surface_gap ** 2 + beyond_bar ** 2)
+            under_bar = tip.z <= bar_center.z - below_center
+            if gap <= 0.045 and under_bar:
+                wrapped += 1
+            total_gap += gap
+            tip_report.append((finger_number, round(gap, 3), round(tip.z - bar_center.z, 3)))
+        candidates.append((wrapped, -total_gap, candidate_sign, tip_report))
+
+    _fitpulse_reset_pullup_fingers(rig, side)
+    best = max(candidates, key=lambda candidate: (candidate[0], candidate[1]))
+    print(
+        f"FITPULSE_PULLUP_CURL_CALIBRATION side={side} "
+        f"positive={candidates[0][0]}/4 negative={candidates[1][0]}/4 "
+        f"chosen={best[2]} tips={best[3]}"
+    )
+    return best[2]
 
 
 def grip_hands(rig, prop_objs, frame):
     """Close fingers around a held implement; stabilize signs for the pull-up."""
-    global FITPULSE_PULLUP_GRIP_SIGNS
+    global FITPULSE_PULLUP_GRIP_SIGNS, FITPULSE_PULLUP_FINGER_BASE_POSES
     if not prop_objs:
         return
     held_object = prop_objs[0][0]
     is_fitpulse_pull_up = held_object.name == "PullUpBar"
     axis = (held_object.matrix_world.to_3x3() @ Vector((1, 0, 0))).normalized()
 
-    if is_fitpulse_pull_up and (frame == 1 or FITPULSE_PULLUP_GRIP_SIGNS is None):
+    if is_fitpulse_pull_up and (
+        FITPULSE_PULLUP_GRIP_SIGNS is None
+        or FITPULSE_PULLUP_FINGER_BASE_POSES is None
+    ):
         FITPULSE_PULLUP_GRIP_SIGNS = {}
+        FITPULSE_PULLUP_FINGER_BASE_POSES = {}
+
+        # Capture every finger's source pose first. Geometry-based sign selection
+        # restores this baseline for each candidate, so it must exist for both hands.
+        for side_to_cache in (".L", ".R"):
+            for finger_number in range(1, 6):
+                for segment_number in (1, 2, 3):
+                    key = (finger_number, segment_number, side_to_cache)
+                    finger_bone = rig.pose.bones.get(
+                        f"finger{finger_number}-{segment_number}" + side_to_cache
+                    )
+                    if finger_bone is not None:
+                        FITPULSE_PULLUP_FINGER_BASE_POSES[key] = finger_bone.matrix_basis.copy()
+        if len(FITPULSE_PULLUP_FINGER_BASE_POSES) < 30:
+            raise RuntimeError(
+                "pull-up finger pose capture failed: expected 30 baseline finger bones, "
+                f"got {len(FITPULSE_PULLUP_FINGER_BASE_POSES)}"
+            )
+        print(
+            f"FITPULSE_PULLUP_FINGER_BASE_POSES captured "
+            f"bones={len(FITPULSE_PULLUP_FINGER_BASE_POSES)} frame={frame}"
+        )
+
+        # Only now can both signs be tested against real evaluated fingertip positions.
         for side in (".L", ".R"):
             center = rig.matrix_world @ rig.pose.bones["wrist" + side].tail
-            FITPULSE_PULLUP_GRIP_SIGNS[side] = (
-                _curl_sign(rig, "finger2-1" + side, axis, 50, center),
-                _curl_sign(rig, "finger1-1" + side, axis, 30, center),
+            finger_sign = _fitpulse_choose_pullup_curl_sign(rig, side, held_object, axis)
+            thumb_sign = _curl_sign(rig, "finger1-1" + side, axis, 30, center)
+            FITPULSE_PULLUP_GRIP_SIGNS[side] = (finger_sign, thumb_sign)
+        print(
+            "FITPULSE_PULLUP_GRIP_SIGNS locked from measured bar wrap: "
+            + repr(FITPULSE_PULLUP_GRIP_SIGNS)
+        )
+
+    # Source mocap animates the fingers at each exercise keyframe. Restore the
+    # same baseline local pose before applying pull-up curls, so interpolation
+    # cannot alternately open and close the hand as the wrist moves.
+    if is_fitpulse_pull_up:
+        missing_bones = []
+        for side in (".L", ".R"):
+            for finger_number in range(1, 6):
+                for segment_number in (1, 2, 3):
+                    key = (finger_number, segment_number, side)
+                    finger_bone = rig.pose.bones.get(
+                        f"finger{finger_number}-{segment_number}" + side
+                    )
+                    base_pose = FITPULSE_PULLUP_FINGER_BASE_POSES.get(key)
+                    if finger_bone is None or base_pose is None:
+                        missing_bones.append(key)
+                        continue
+                    finger_bone.matrix_basis = base_pose.copy()
+        bpy.context.view_layer.update()
+        if missing_bones:
+            raise RuntimeError(
+                "pull-up finger pose reset failed: missing baseline bones "
+                f"{missing_bones}"
             )
-        print("FITPULSE_PULLUP_GRIP_SIGNS locked from first dead-hang pose: "
-              + repr(FITPULSE_PULLUP_GRIP_SIGNS))
+        print(f"FITPULSE_PULLUP_FINGER_BASE_POSES restored frame={frame}")
 
     for side in (".L", ".R"):
         center = rig.matrix_world @ rig.pose.bones["wrist" + side].tail
@@ -735,7 +1139,10 @@ def grip_hands(rig, prop_objs, frame):
             thumb_sign = _curl_sign(rig, "finger1-1" + side, axis, 30, center)
         applied = 0
         for f in range(1, 6):
-            curls = THUMB_CURL if f == 1 else FINGER_CURL
+            if is_fitpulse_pull_up:
+                curls = FITPULSE_PULLUP_THUMB_CURL if f == 1 else FITPULSE_PULLUP_FINGER_CURL
+            else:
+                curls = THUMB_CURL if f == 1 else FINGER_CURL
             sign = thumb_sign if f == 1 else finger_sign
             if sign is None:
                 continue
