@@ -252,14 +252,19 @@ def assert_push_up_pose(rig, frame_end):
             side: bone_point("upperarm01" + side, "head")
             for side in (".L", ".R")
         }
-        hands = {
+        wrist_joints = {
+            side: bone_point("wrist" + side, "head")
+            for side in (".L", ".R")
+        }
+        hand_tips = {
             side: bone_point("wrist" + side, "tail")
             for side in (".L", ".R")
         }
         return {
-            "wrists": wrists, "toes": toes, "shoulders": shoulders,
+            "wrists": wrists, "wrist_joints": wrist_joints, "hand_tips": hand_tips,
+            "toes": toes, "shoulders": shoulders,
             "hips": hips, "ankles": ankles, "knees": knees,
-            "elbows": elbows, "elbow_bases": elbows_outer, "hands": hands,
+            "elbows": elbows, "elbow_bases": elbows_outer,
         }
 
     wrist_min = float("inf")
@@ -335,12 +340,13 @@ def assert_push_up_pose(rig, frame_end):
         for side in (".L", ".R"):
             shoulder_point = pose["elbow_bases"][side]
             elbow_point = pose["elbows"][side]
-            wrist_point = pose["hands"][side]
-            # Internal elbow angle uses both vectors pointing away from the elbow:
-            # elbow->shoulder and elbow->wrist. Using shoulder->elbow here would
-            # report 0 degrees for a locked straight arm and invert the acceptance test.
+            wrist_joint_point = pose["wrist_joints"][side]
+            hand_tip_point = pose["hand_tips"][side]
+            # Measure the elbow at the actual wrist joint, not the fingertips.
+            # Using wrist.tail folds hand length and wrist bend into the elbow
+            # angle and can falsely accept a backward-folded hand as a valid elbow.
             upper = shoulder_point - elbow_point
-            forearm = wrist_point - elbow_point
+            forearm = wrist_joint_point - elbow_point
             trunk = hip - shoulder
             joint_angle = angle_degrees(upper, forearm)
             # Elbow flare is assessed in the horizontal/top-down plane, not by
@@ -361,6 +367,50 @@ def assert_push_up_pose(rig, frame_end):
             lateral_axis = Vector((trunk_axis.y, -trunk_axis.x, 0.0))
             side_sign = 1.0 if side == ".L" else -1.0
             signed_outward = arm_horizontal.normalized().dot(lateral_axis) * side_sign
+
+            # A valid elbow path must bend toward the feet and out from the torso,
+            # not through the head/forward side. Project the elbow off the direct
+            # shoulder-to-wrist-joint line and check the signed 3D bend direction.
+            shoulder_to_wrist = wrist_joint_point - shoulder_point
+            if shoulder_to_wrist.length < 1e-5:
+                raise RuntimeError(f"push-up QA: degenerate shoulder-to-wrist axis at frame {frame} {side}")
+            arm_axis = shoulder_to_wrist.normalized()
+            projection_t = max(0.0, min(1.0,
+                (elbow_point - shoulder_point).dot(shoulder_to_wrist) /
+                shoulder_to_wrist.length_squared))
+            elbow_offset = elbow_point - (shoulder_point + shoulder_to_wrist * projection_t)
+            preferred_bend = trunk_axis + lateral_axis * side_sign
+            expected_bend = preferred_bend - arm_axis * preferred_bend.dot(arm_axis)
+            if joint_angle <= 145.0:
+                if elbow_offset.length < 0.015:
+                    raise RuntimeError(
+                        f"push-up elbow bend direction failed at frame {frame} {side}: "
+                        f"flexed elbow has only {elbow_offset.length:.3f} m offset from arm axis"
+                    )
+                if expected_bend.length < 1e-5:
+                    raise RuntimeError(f"push-up QA: degenerate expected elbow plane at frame {frame} {side}")
+                bend_alignment = elbow_offset.normalized().dot(expected_bend.normalized())
+                if bend_alignment < 0.20:
+                    raise RuntimeError(
+                        f"push-up elbow bend direction failed at frame {frame} {side}: "
+                        f"signed alignment={bend_alignment:.3f}; expected bend toward feet and out"
+                    )
+
+            # The fingertips are separate from the wrist joint; keep them close to
+            # the support plane so a valid joint angle cannot hide a folded/embedded hand.
+            if hand_tip_point.z < -0.05 or hand_tip_point.z > 0.10:
+                raise RuntimeError(
+                    f"push-up fingertip-floor contact failed at frame {frame} {side}: "
+                    f"tip z={hand_tip_point.z:.3f} m; expected [-0.05, 0.10] m"
+                )
+            hand_axis = hand_tip_point - wrist_joint_point
+            if hand_axis.length < 1e-5 or abs(hand_axis.normalized().z) > math.sin(math.radians(30.0)):
+                raise RuntimeError(
+                    f"push-up palm-plane alignment failed at frame {frame} {side}: "
+                    f"hand axis z-ratio={abs(hand_axis.normalized().z) if hand_axis.length >= 1e-5 else 1.0:.3f}; "
+                    "expected the hand/finger axis within 30 degrees of the floor plane"
+                )
+
             elbow_angles.append(joint_angle)
             if joint_angle < 45.0 or joint_angle > 180.0:
                 raise RuntimeError(
@@ -397,7 +447,7 @@ def assert_push_up_pose(rig, frame_end):
                         f"joint={joint_angle:.1f}deg "
                         f"shoulder=({shoulder_point.x:.3f},{shoulder_point.y:.3f},{shoulder_point.z:.3f}) "
                         f"elbow=({elbow_point.x:.3f},{elbow_point.y:.3f},{elbow_point.z:.3f}) "
-                        f"wrist=({wrist_point.x:.3f},{wrist_point.y:.3f},{wrist_point.z:.3f}) "
+                        f"wrist_joint=({wrist_joint_point.x:.3f},{wrist_joint_point.y:.3f},{wrist_joint_point.z:.3f}) "
                         f"trunk=({trunk.x:.3f},{trunk.y:.3f},{trunk.z:.3f})"
                     )
                     raise RuntimeError(
