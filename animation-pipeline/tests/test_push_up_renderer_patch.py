@@ -86,6 +86,17 @@ class PushUpRendererPatchTests(unittest.TestCase):
         self.assertIn("positive={candidates[0][0]}/4 negative={candidates[1][0]}/4", self.shared_source)
         self.assertIn("tip_bone = rig.pose.bones.get(f\"finger{finger_number}-3\" + side)", self.shared_source)
         self.assertIn("_fitpulse_reset_pullup_fingers(rig, side)", self.shared_source)
+        baseline_capture = self.shared_source.index(
+            "FITPULSE_PULLUP_FINGER_BASE_POSES[key] = finger_bone.matrix_basis.copy()"
+        )
+        first_candidate_call = self.shared_source.index(
+            "finger_sign = _fitpulse_choose_pullup_curl_sign(rig, side, held_object, axis)"
+        )
+        self.assertLess(
+            baseline_capture,
+            first_candidate_call,
+            "capture all source finger poses before candidate curl calibration",
+        )
         self.assertNotIn("-finger_sign if finger_sign is not None else None", self.shared_source)
         self.assertNotIn("-thumb_sign if thumb_sign is not None else None", self.shared_source)
         self.assertIn("assert_pull_up_finger_contact(rig, frame_end)", self.shared_source)
