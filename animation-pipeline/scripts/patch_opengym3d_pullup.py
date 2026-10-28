@@ -205,34 +205,6 @@ def add_pull_up_ik(rig, target_positions, frame_end):
                 raise RuntimeError(f"pull-up palm-orientation gate: degenerate forearm axis on {side}")
             hand_rotation = Quaternion(forearm_axis.normalized(), math.pi) @ hand_rotation
         hand_rotations[side] = hand_rotation
-        if flipped:
-            # Wrist pronation reverses the world-space direction in which the
-            # already-selected finger/thumb curls wrap around the bar. Mirror
-            # both cached curl signs for this hand so the digits still wrap
-            # under the bar after the palm correction.
-            cached_signs = globals().get("FITPULSE_PULLUP_GRIP_SIGNS")
-            if cached_signs is not None and side in cached_signs:
-                finger_sign, thumb_sign = cached_signs[side]
-                if finger_sign is not None:
-                    finger_sign = -finger_sign
-                if thumb_sign is not None:
-                    thumb_sign = -thumb_sign
-                cached_signs[side] = (finger_sign, thumb_sign)
-                angle_bonuses = globals().get("FITPULSE_PULLUP_GRIP_ANGLE_BONUS")
-                if angle_bonuses is not None:
-                    # The changed palm orientation leaves the index/middle tips
-                    # just above the bar centre. Reduce the curl angle
-                    # only on the corrected hand: this rig's negative curl axis
-                    # moves the distal tips below the bar in the evaluated pose.
-                    angle_bonuses[side] = -8.0
-                print(
-                    f"PULLUP_GRIP_SIGN_FLIPPED side={side} "
-                    f"finger={finger_sign} thumb={thumb_sign} after_palm_correction=true"
-                )
-                print(
-                    f"PULLUP_GRIP_CURL_BOOST side={side} "
-                    f"per_segment_degrees={angle_bonuses[side] if angle_bonuses else 0.0}"
-                )
         print(
             f"PULLUP_PALM_ORIENTATION side={side} flipped={str(flipped).lower()} "
             f"dot_before={facing_dot:.3f} dot_after={abs(facing_dot):.3f} desired_front=-Y "
@@ -329,6 +301,29 @@ def add_pull_up_ik(rig, target_positions, frame_end):
         keep_hand.target = orientation
         keep_hand.owner_space = "WORLD"
         keep_hand.target_space = "WORLD"
+
+    # Palm-rotation constraints now establish the final world-space hand
+    # orientation. Recalibrate finger and thumb curl signs against evaluated
+    # fingertip-to-bar distances AFTER those constraints exist; choosing signs
+    # from the uncorrected source pose caused the corrected hand to miss the bar.
+    bar = bpy.data.objects.get("PullUpBar")
+    if bar is None:
+        raise RuntimeError("pull-up grip recalibration: missing PullUpBar")
+    grip_axis = (bar.matrix_world.to_3x3() @ Vector((1, 0, 0))).normalized()
+    scene.frame_set(1)
+    view_layer.update()
+    for side in (".L", ".R"):
+        center = rig.matrix_world @ rig.pose.bones["wrist" + side].tail
+        finger_sign = _fitpulse_choose_pullup_curl_sign(rig, side, bar, grip_axis)
+        thumb_sign = _curl_sign(rig, "finger1-1" + side, grip_axis, 30, center)
+        FITPULSE_PULLUP_GRIP_SIGNS[side] = (finger_sign, thumb_sign)
+        print(
+            f"PULLUP_GRIP_POST_ORIENTATION_CALIBRATION side={side} "
+            f"finger={finger_sign} thumb={thumb_sign} "
+            "based_on_evaluated_palm_constraint=true"
+        )
+        scene.frame_set(1)
+        view_layer.update()
 
     print(
         f"PULLUP_ARM_IK PASS frames={frame_end} end_effector=wrist.head "
@@ -1054,7 +1049,6 @@ grip_new = '''# FitPulse pull-up must not re-guess curl direction at every keyfr
 # the upstream per-keyframe behavior.
 FITPULSE_PULLUP_GRIP_SIGNS = None
 FITPULSE_PULLUP_FINGER_BASE_POSES = None
-FITPULSE_PULLUP_GRIP_ANGLE_BONUS = {".L": 0.0, ".R": 0.0}
 FITPULSE_PULLUP_FINGER_CURL = {1: 58, 2: 75, 3: 58}
 FITPULSE_PULLUP_THUMB_CURL = {1: 18, 2: 30, 3: 25}
 
@@ -1219,10 +1213,7 @@ def grip_hands(rig, prop_objs, frame):
                 pb = rig.pose.bones.get(f"finger{f}-{seg}{side}")
                 if pb is None:
                     continue
-                angle = curls[seg]
-                if is_fitpulse_pull_up and f != 1:
-                    angle += FITPULSE_PULLUP_GRIP_ANGLE_BONUS.get(side, 0.0)
-                q = Quaternion(axis, math.radians(sign * angle))
+                q = Quaternion(axis, math.radians(sign * curls[seg]))
                 _rotate_bone_world(pb, q, frame)
                 applied += 1
         print(f"GRIP {side}: {applied} finger bones, sign={finger_sign}/{thumb_sign}"
@@ -1240,4 +1231,4 @@ if text.count(grip_old) != 1:
 text = text.replace(grip_old, grip_new, 1)
 
 source.write_text(text)
-print("Patched upstream renderer: stable pull-up grip signs, male/female profile selection, render profile, and bounded MPFB download.")
+print("Patched upstream renderer: post-orientation pull-up grip calibration, male/female profile selection, render profile, and bounded MPFB download.")
