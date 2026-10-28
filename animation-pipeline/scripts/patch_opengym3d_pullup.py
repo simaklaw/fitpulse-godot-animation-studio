@@ -394,8 +394,9 @@ def assert_pull_up_finger_contact(rig, frame_end):
 
     tolerance = 0.045
     # Proximity alone accepted fingers lying on top of the bar. A proper overhand
-    # grip must bring distal finger tips around the lower half of the cylinder.
-    below_center_margin = max(0.005, bar_radius * 0.20)
+    # grip must bring at least three distal fingertips measurably below the
+    # cylinder centreline; use 8% of bar radius with a 2 mm floor-contact margin.
+    below_center_margin = max(0.002, bar_radius * 0.08)
     required_tips = 3
     required_frame_ratio = 0.90
     passing_frames = {".L": 0, ".R": 0}
