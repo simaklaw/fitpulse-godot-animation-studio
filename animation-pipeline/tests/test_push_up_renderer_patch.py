@@ -209,5 +209,32 @@ class PushUpRendererPatchTests(unittest.TestCase):
         self.assertIn("push-up body-line angle failed", self.source)
 
 
+
+    def test_skin_palette_uses_warm_muscle_tones_without_green_skin_tint(self):
+        self.assertIn('"PRIMARY_COLOR = (0.95, 0.16, 0.03, 1.0)"', self.shared_source)
+        self.assertIn('"PRIMARY_COLOR = (0.72, 0.39, 0.29, 1.0)"', self.shared_source)
+        self.assertIn('"SECONDARY_COLOR = (0.43, 0.25, 0.21, 1.0)"', self.shared_source)
+        self.assertIn("Teal remains on the separate tank-top material", self.shared_source)
+
+    def test_pullup_corrects_inverted_overhand_palm_around_forearm_axis(self):
+        self.assertIn("desired_palm_normal = Vector((0.0, -1.0, 0.0))", self.shared_source)
+        self.assertIn("hand_width = pinky_base - thumb_base", self.shared_source)
+        self.assertIn("Quaternion(forearm_axis.normalized(), math.pi) @ hand_rotation", self.shared_source)
+        self.assertIn("PULLUP_PALM_ORIENTATION", self.shared_source)
+        self.assertIn("correction_axis=forearm", self.shared_source)
+        self.assertNotIn("Quaternion(bar_axis, math.pi)", self.shared_source)
+
+    def test_pushup_legs_use_a_floor_side_knee_pole_and_stricter_body_line(self):
+        self.assertIn("leg_pole_targets = {side: {} for side in sides}", self.source)
+        self.assertIn('leg_pole.keyframe_insert(data_path="location", frame=frame, group="FitPulse knee tracking")', self.source)
+        self.assertIn("leg_ik.pole_target = leg_pole", self.source)
+        self.assertIn("leg_ik.pole_angle = -math.pi * 0.5", self.source)
+        self.assertIn("leg_ik.chain_count = 5", self.source)
+        self.assertIn('bpy.data.objects.new("FitPulsePushUpKneePole" + side, None)', self.source)
+        self.assertIn("if body_angle > 18.0:", self.source)
+        self.assertIn("if hip_dev > 0.12:", self.source)
+        self.assertIn("if knee_dev > 0.12:", self.source)
+        self.assertNotIn("if knee_dev > 0.25:", self.source)
+
 if __name__ == "__main__":
     unittest.main()
