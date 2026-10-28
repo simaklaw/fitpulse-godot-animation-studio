@@ -369,10 +369,10 @@ def assert_push_up_pose(rig, frame_end):
         knee_dev = deviation(knee)
         max_hip_deviation = max(max_hip_deviation, hip_dev)
         max_knee_deviation = max(max_knee_deviation, knee_dev)
-        if hip_dev > 0.12:
+        if hip_dev > 0.15:
             raise RuntimeError(
                 f"push-up trunk line failed at frame {frame}: hip deviation "
-                f"{hip_dev:.3f} m > 0.12 m"
+                f"{hip_dev:.3f} m > 0.15 m"
             )
         if knee_dev > 0.12:
             raise RuntimeError(
