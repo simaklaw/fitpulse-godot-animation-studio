@@ -232,7 +232,7 @@ class PushUpRendererPatchTests(unittest.TestCase):
         self.assertIn("leg_ik.pole_angle = -math.pi * 0.5", self.source)
         self.assertIn("leg_ik.chain_count = 5", self.source)
         self.assertIn('bpy.data.objects.new("FitPulsePushUpKneePole" + side, None)', self.source)
-        self.assertIn("if body_angle > 18.0:", self.source)
+        self.assertIn("if body_angle > 21.0:", self.source)
         self.assertIn("if hip_dev > 0.12:", self.source)
         self.assertIn("if knee_dev > 0.12:", self.source)
         self.assertNotIn("if knee_dev > 0.25:", self.source)
