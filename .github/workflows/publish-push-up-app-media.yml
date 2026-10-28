@@ -195,6 +195,11 @@ jobs:
           echo "Prepared verified push-up payload:"
           du -h assets/fitpulse/push-up/male/* assets/fitpulse/push-up/female/*
 
+      # Keep only the intended publication payload under assets/fitpulse.
+      # The downloaded renderer artifact also contains hundreds of intermediate frames and logs.
+      - name: Remove temporary renderer files before staging the publication PR
+        run: rm -rf downloaded output
+
       - name: Open or update a PR with the verified media
         uses: peter-evans/create-pull-request@v7
         with:
