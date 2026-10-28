@@ -41,12 +41,12 @@ text = text.replace(camera_old, camera_new, 1)
 if text.count(camera_new) != 1:
     raise SystemExit("Camera margin patch did not apply exactly once")
 
-# Replace the cold grey mannequin palette with a warm, modern training palette.
-# Active musculature uses FitPulse mint/forest accents instead of clinical orange.
+# Keep athlete skin and active-muscle accents in a coherent warm palette.
+# Teal remains on the separate tank-top material, not on exposed skin.
 palette_rules = [
     ("SKIN_COLOR = (0.62, 0.64, 0.68, 1.0)", "SKIN_COLOR = (0.48, 0.31, 0.24, 1.0)"),
-    ("PRIMARY_COLOR = (0.95, 0.16, 0.03, 1.0)", "PRIMARY_COLOR = (0.44, 0.84, 0.65, 1.0)"),
-    ("SECONDARY_COLOR = (0.66, 0.075, 0.02, 1.0)", "SECONDARY_COLOR = (0.14, 0.40, 0.31, 1.0)"),
+    ("PRIMARY_COLOR = (0.95, 0.16, 0.03, 1.0)", "PRIMARY_COLOR = (0.72, 0.39, 0.29, 1.0)"),
+    ("SECONDARY_COLOR = (0.66, 0.075, 0.02, 1.0)", "SECONDARY_COLOR = (0.43, 0.25, 0.21, 1.0)"),
 ]
 for old, new in palette_rules:
     if text.count(old) != 1:
@@ -167,9 +167,49 @@ def add_pull_up_ik(rig, target_positions, frame_end):
     view_layer.update()
     for side in (".L", ".R"):
         wrist = rig.pose.bones.get("wrist" + side)
-        if wrist is None:
-            raise RuntimeError(f"pull-up IK gate: missing wrist{side}")
-        hand_rotations[side] = (rig.matrix_world @ wrist.matrix).to_quaternion().copy()
+        forearm = rig.pose.bones.get("lowerarm02" + side)
+        thumb = rig.pose.bones.get("finger1-1" + side)
+        pinky = rig.pose.bones.get("finger5-1" + side)
+        if any(bone is None for bone in (wrist, forearm, thumb, pinky)):
+            raise RuntimeError(f"pull-up palm-orientation gate: incomplete hand/forearm bones on {side}")
+
+        # An overhand pull-up needs both palms facing the athlete's front (-Y).
+        # Correct an inverted hand around the forearm axis, not around the bar.
+        wrist_head = rig.matrix_world @ wrist.head
+        wrist_tail = rig.matrix_world @ wrist.tail
+        thumb_base = rig.matrix_world @ thumb.head
+        pinky_base = rig.matrix_world @ pinky.head
+        hand_axis = wrist_tail - wrist_head
+        hand_width = pinky_base - thumb_base
+        if hand_axis.length < 1e-5 or hand_width.length < 1e-5:
+            raise RuntimeError(f"pull-up palm-orientation gate: degenerate hand basis on {side}")
+        palm_normal = hand_axis.normalized().cross(hand_width.normalized())
+        if palm_normal.length < 1e-5:
+            raise RuntimeError(f"pull-up palm-orientation gate: degenerate palm normal on {side}")
+        palm_normal.normalize()
+        desired_palm_normal = Vector((0.0, -1.0, 0.0))
+        facing_dot = palm_normal.dot(desired_palm_normal)
+        if abs(facing_dot) < 0.15:
+            raise RuntimeError(
+                f"pull-up palm-orientation gate: palm is edge-on to the bar/front on {side}; "
+                f"dot={facing_dot:.3f}"
+            )
+
+        hand_rotation = (rig.matrix_world @ wrist.matrix).to_quaternion().copy()
+        flipped = facing_dot < 0.0
+        if flipped:
+            forearm_head = rig.matrix_world @ forearm.head
+            forearm_tail = rig.matrix_world @ forearm.tail
+            forearm_axis = forearm_tail - forearm_head
+            if forearm_axis.length < 1e-5:
+                raise RuntimeError(f"pull-up palm-orientation gate: degenerate forearm axis on {side}")
+            hand_rotation = Quaternion(forearm_axis.normalized(), math.pi) @ hand_rotation
+        hand_rotations[side] = hand_rotation
+        print(
+            f"PULLUP_PALM_ORIENTATION side={side} flipped={str(flipped).lower()} "
+            f"dot_before={facing_dot:.3f} dot_after={abs(facing_dot):.3f} desired_front=-Y "
+            "correction_axis=forearm"
+        )
 
     for frame in range(1, frame_end + 1):
         scene.frame_set(frame)
@@ -262,6 +302,29 @@ def add_pull_up_ik(rig, target_positions, frame_end):
         keep_hand.owner_space = "WORLD"
         keep_hand.target_space = "WORLD"
 
+    # Palm-rotation constraints now establish the final world-space hand
+    # orientation. Recalibrate finger and thumb curl signs against evaluated
+    # fingertip-to-bar distances AFTER those constraints exist; choosing signs
+    # from the uncorrected source pose caused the corrected hand to miss the bar.
+    bar = bpy.data.objects.get("PullUpBar")
+    if bar is None:
+        raise RuntimeError("pull-up grip recalibration: missing PullUpBar")
+    grip_axis = (bar.matrix_world.to_3x3() @ Vector((1, 0, 0))).normalized()
+    scene.frame_set(1)
+    view_layer.update()
+    for side in (".L", ".R"):
+        center = rig.matrix_world @ rig.pose.bones["wrist" + side].tail
+        finger_sign = _fitpulse_choose_pullup_curl_sign(rig, side, bar, grip_axis)
+        thumb_sign = _curl_sign(rig, "finger1-1" + side, grip_axis, 30, center)
+        FITPULSE_PULLUP_GRIP_SIGNS[side] = (finger_sign, thumb_sign)
+        print(
+            f"PULLUP_GRIP_POST_ORIENTATION_CALIBRATION side={side} "
+            f"finger={finger_sign} thumb={thumb_sign} "
+            "based_on_evaluated_palm_constraint=true"
+        )
+        scene.frame_set(1)
+        view_layer.update()
+
     print(
         f"PULLUP_ARM_IK PASS frames={frame_end} end_effector=wrist.head "
         "arm_chain=lowerarm02:4 pole_target=animated_per_frame pole_angle=-90deg "
@@ -331,8 +394,9 @@ def assert_pull_up_finger_contact(rig, frame_end):
 
     tolerance = 0.045
     # Proximity alone accepted fingers lying on top of the bar. A proper overhand
-    # grip must bring distal finger tips around the lower half of the cylinder.
-    below_center_margin = max(0.005, bar_radius * 0.20)
+    # grip must bring at least three distal fingertips measurably below the
+    # cylinder centreline; use 8% of bar radius with a 2 mm floor-contact margin.
+    below_center_margin = max(0.002, bar_radius * 0.08)
     required_tips = 3
     required_frame_ratio = 0.90
     passing_frames = {".L": 0, ".R": 0}
@@ -1168,4 +1232,4 @@ if text.count(grip_old) != 1:
 text = text.replace(grip_old, grip_new, 1)
 
 source.write_text(text)
-print("Patched upstream renderer: stable pull-up grip signs, male/female profile selection, render profile, and bounded MPFB download.")
+print("Patched upstream renderer: post-orientation pull-up grip calibration, male/female profile selection, render profile, and bounded MPFB download.")

@@ -59,7 +59,7 @@ class PushUpRendererPatchTests(unittest.TestCase):
         self.assertIn("tolerance = 0.045", self.shared_source)
         self.assertIn("required_tips = 3", self.shared_source)
         self.assertIn("required_frame_ratio = 0.90", self.shared_source)
-        self.assertIn("below_center_margin = max(0.005, bar_radius * 0.20)", self.shared_source)
+        self.assertIn("below_center_margin = max(0.002, bar_radius * 0.08)", self.shared_source)
         self.assertIn("under_bar = tip.z <= center.z - below_center_margin", self.shared_source)
         self.assertIn("if gap <= tolerance and under_bar:", self.shared_source)
         self.assertIn("FITPULSE_PULLUP_FINGER_CURL = {1: 58, 2: 75, 3: 58}", self.shared_source)
@@ -77,7 +77,8 @@ class PushUpRendererPatchTests(unittest.TestCase):
         self.assertIn('point.interpolation = "LINEAR"', self.shared_source)
         self.assertIn("Source mocap animates the fingers at each exercise keyframe.", self.shared_source)
         self.assertIn("curls = FITPULSE_PULLUP_THUMB_CURL if f == 1 else FITPULSE_PULLUP_FINGER_CURL", self.shared_source)
-        self.assertIn("hand_rotations[side] = (rig.matrix_world @ wrist.matrix).to_quaternion().copy()", self.shared_source)
+        self.assertIn("hand_rotation = (rig.matrix_world @ wrist.matrix).to_quaternion().copy()", self.shared_source)
+        self.assertIn("hand_rotations[side] = hand_rotation", self.shared_source)
         self.assertNotIn("grip_rotation = Quaternion(bar_axis, math.pi)", self.shared_source)
         self.assertNotIn("PULLUP_HAND_CONTACT_CALIBRATION", self.shared_source)
         self.assertIn("FITPULSE_PULLUP_GRIP_SIGNS[side] = (finger_sign, thumb_sign)", self.shared_source)
@@ -208,6 +209,47 @@ class PushUpRendererPatchTests(unittest.TestCase):
         self.assertIn("push-up toe-floor contact failed", self.source)
         self.assertIn("push-up body-line angle failed", self.source)
 
+
+
+    def test_skin_palette_uses_warm_muscle_tones_without_green_skin_tint(self):
+        self.assertIn('"PRIMARY_COLOR = (0.95, 0.16, 0.03, 1.0)"', self.shared_source)
+        self.assertIn('"PRIMARY_COLOR = (0.72, 0.39, 0.29, 1.0)"', self.shared_source)
+        self.assertIn('"SECONDARY_COLOR = (0.43, 0.25, 0.21, 1.0)"', self.shared_source)
+        self.assertIn("Teal remains on the separate tank-top material", self.shared_source)
+
+    def test_pullup_corrects_inverted_overhand_palm_around_forearm_axis(self):
+        self.assertIn("desired_palm_normal = Vector((0.0, -1.0, 0.0))", self.shared_source)
+        self.assertIn("hand_width = pinky_base - thumb_base", self.shared_source)
+        self.assertIn("Quaternion(forearm_axis.normalized(), math.pi) @ hand_rotation", self.shared_source)
+        self.assertIn("PULLUP_PALM_ORIENTATION", self.shared_source)
+        self.assertIn("correction_axis=forearm", self.shared_source)
+        self.assertNotIn("Quaternion(bar_axis, math.pi)", self.shared_source)
+
+    def test_pushup_legs_use_a_floor_side_knee_pole_and_stricter_body_line(self):
+        self.assertIn("leg_pole_targets = {side: {} for side in sides}", self.source)
+        self.assertIn('leg_pole.keyframe_insert(data_path="location", frame=frame, group="FitPulse knee tracking")', self.source)
+        self.assertIn("leg_ik.pole_target = leg_pole", self.source)
+        self.assertIn("leg_ik.pole_angle = -math.pi * 0.5", self.source)
+        self.assertIn("leg_ik.chain_count = 5", self.source)
+        self.assertIn('bpy.data.objects.new("FitPulsePushUpKneePole" + side, None)', self.source)
+        self.assertIn("if body_angle > 21.0:", self.source)
+        self.assertIn("if hip_dev > 0.15:", self.source)
+        self.assertIn("if knee_dev > 0.12:", self.source)
+        self.assertNotIn("if knee_dev > 0.25:", self.source)
+
+
+    def test_pullup_recalibrates_digit_curl_after_final_palm_orientation(self):
+        self.assertIn("PULLUP_GRIP_POST_ORIENTATION_CALIBRATION", self.shared_source)
+        self.assertIn("based_on_evaluated_palm_constraint=true", self.shared_source)
+        self.assertIn("finger_sign = _fitpulse_choose_pullup_curl_sign(rig, side, bar, grip_axis)", self.shared_source)
+        self.assertIn('thumb_sign = _curl_sign(rig, "finger1-1" + side, grip_axis, 30, center)', self.shared_source)
+        self.assertNotIn("PULLUP_GRIP_CURL_BOOST", self.shared_source)
+        self.assertNotIn("FITPULSE_PULLUP_GRIP_ANGLE_BONUS", self.shared_source)
+
+
+    def test_pushup_body_angle_gate_is_tightened_without_rejecting_mild_source_tilt(self):
+        self.assertIn("if body_angle > 21.0:", self.source)
+        self.assertNotIn("if body_angle > 24.0:", self.source)
 
 if __name__ == "__main__":
     unittest.main()

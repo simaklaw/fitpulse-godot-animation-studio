@@ -31,6 +31,7 @@ def apply_push_up_contact_ik(rig):
     hand_orientations = {}
     toe_targets = {}
     pole_targets = {side: {} for side in sides}
+    leg_pole_targets = {side: {} for side in sides}
     frame_range = list(range(scene.frame_start, scene.frame_end + 1))
     # The pole target itself follows the desired elbow plane on every frame.
     # The rig's pole-angle response is circular: +90 degrees selects the
@@ -115,6 +116,28 @@ def apply_push_up_contact_ik(rig):
             pole_position = shoulder_point + arm_axis * 0.25 + pole_offset.normalized() * 0.35
             pole_targets[side][frame] = pole_position
 
+            # Steer the complete hip-to-toe chain in a controlled floor-side
+            # plane instead of inheriting the source clip's bowed knee path.
+            thigh = rig.pose.bones.get("upperleg01" + side)
+            if thigh is None:
+                raise RuntimeError(f"push-up leg IK: missing thigh bone on {side}")
+            hip_anchor = rig.matrix_world @ thigh.head
+            leg_axis = toe_targets[side] - hip_anchor
+            if leg_axis.length < 1e-5:
+                raise RuntimeError(f"push-up leg IK: degenerate hip-to-toe axis on {side}")
+            leg_axis.normalize()
+            floor_direction = Vector((0.0, 0.0, -1.0))
+            knee_bend_plane = floor_direction - leg_axis * floor_direction.dot(leg_axis)
+            if knee_bend_plane.length < 1e-5:
+                lateral_fallback = Vector((1.0, 0.0, 0.0))
+                knee_bend_plane = lateral_fallback - leg_axis * lateral_fallback.dot(leg_axis)
+            if knee_bend_plane.length < 1e-5:
+                raise RuntimeError(f"push-up leg IK: cannot establish knee plane on {side}")
+            leg_pole_targets[side][frame] = (
+                (hip_anchor + toe_targets[side]) * 0.5
+                + knee_bend_plane.normalized() * 0.25
+            )
+
             # The animated pole target tracks this desired elbow plane directly.
             # Keep the IK roll offset fixed; elbow-path QA validates the resulting pose.
 
@@ -187,11 +210,30 @@ def apply_push_up_contact_ik(rig):
         toe_target.empty_display_size = 0.02
         toe_target.hide_render = True
 
+        # A three-bone ankle-only solve cannot correct the bowed thigh/knee
+        # path: include the entire leg and track a floor-side knee pole per frame.
+        leg_pole = bpy.data.objects.new("FitPulsePushUpKneePole" + side, None)
+        scene.collection.objects.link(leg_pole)
+        leg_pole.empty_display_type = "SPHERE"
+        leg_pole.empty_display_size = 0.025
+        leg_pole.hide_render = True
+        for frame in frame_range:
+            scene.frame_set(frame)
+            leg_pole.location = leg_pole_targets[side][frame]
+            leg_pole.keyframe_insert(data_path="location", frame=frame, group="FitPulse knee tracking")
+        if leg_pole.animation_data and leg_pole.animation_data.action:
+            for fcurve in leg_pole.animation_data.action.fcurves:
+                for point in fcurve.keyframe_points:
+                    point.interpolation = "LINEAR"
+                fcurve.update()
+
         foot = rig.pose.bones["foot" + side]
         leg_ik = foot.constraints.new(type="IK")
         leg_ik.name = "FitPulsePushUpToeIK" + side
         leg_ik.target = toe_target
-        leg_ik.chain_count = 3
+        leg_ik.pole_target = leg_pole
+        leg_ik.pole_angle = -math.pi * 0.5
+        leg_ik.chain_count = 5
         leg_ik.iterations = 100
         leg_ik.use_stretch = False
         leg_ik.influence = 1.0
@@ -203,7 +245,8 @@ def apply_push_up_contact_ik(rig):
         f"hand_z=({hand_targets['.L'].z:.3f},{hand_targets['.R'].z:.3f})m "
         f"toe_targets_z=({toe_targets['.L'].z:.3f},{toe_targets['.R'].z:.3f})m "
         f"elbow_pole_target=animated_per_frame pole_angle=-90deg frames={len(frame_range)} "
-        "target_flare=45deg pole_basis=desired_elbow chain_arm=4 wrist_joint_contact=on chain_leg=3"
+        "target_flare=45deg pole_basis=desired_elbow chain_arm=4 wrist_joint_contact=on "
+        "chain_leg=5 knee_pole=animated_per_frame pole_angle=-90deg"
     )
 
 
@@ -309,10 +352,10 @@ def assert_push_up_pose(rig, frame_end):
         horizontal_span = math.sqrt(body_axis.x ** 2 + body_axis.y ** 2)
         body_angle = math.degrees(math.atan2(abs(body_axis.z), max(horizontal_span, 1e-7)))
         max_body_angle = max(max_body_angle, body_angle)
-        if body_angle > 24.0:
+        if body_angle > 21.0:
             raise RuntimeError(
                 f"push-up body-line angle failed at frame {frame}: "
-                f"{body_angle:.1f} degrees > 24 degrees"
+                f"{body_angle:.1f} degrees > 21 degrees"
             )
 
         line_sq = body_axis.length_squared
@@ -326,15 +369,15 @@ def assert_push_up_pose(rig, frame_end):
         knee_dev = deviation(knee)
         max_hip_deviation = max(max_hip_deviation, hip_dev)
         max_knee_deviation = max(max_knee_deviation, knee_dev)
-        if hip_dev > 0.20:
+        if hip_dev > 0.15:
             raise RuntimeError(
                 f"push-up trunk line failed at frame {frame}: hip deviation "
-                f"{hip_dev:.3f} m > 0.20 m"
+                f"{hip_dev:.3f} m > 0.15 m"
             )
-        if knee_dev > 0.25:
+        if knee_dev > 0.12:
             raise RuntimeError(
                 f"push-up leg line failed at frame {frame}: knee deviation "
-                f"{knee_dev:.3f} m > 0.25 m"
+                f"{knee_dev:.3f} m > 0.12 m"
             )
 
         for side in (".L", ".R"):
