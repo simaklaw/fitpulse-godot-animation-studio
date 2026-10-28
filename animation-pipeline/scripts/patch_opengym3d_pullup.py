@@ -218,9 +218,19 @@ def add_pull_up_ik(rig, target_positions, frame_end):
                 if thumb_sign is not None:
                     thumb_sign = -thumb_sign
                 cached_signs[side] = (finger_sign, thumb_sign)
+                angle_bonuses = globals().get("FITPULSE_PULLUP_GRIP_ANGLE_BONUS")
+                if angle_bonuses is not None:
+                    # The changed palm orientation leaves the index/middle tips
+                    # just above the bar centre. Add a small joint-level curl
+                    # only to the corrected hand, after the sign flip.
+                    angle_bonuses[side] = 8.0
                 print(
                     f"PULLUP_GRIP_SIGN_FLIPPED side={side} "
                     f"finger={finger_sign} thumb={thumb_sign} after_palm_correction=true"
+                )
+                print(
+                    f"PULLUP_GRIP_CURL_BOOST side={side} "
+                    f"per_segment_degrees={angle_bonuses[side] if angle_bonuses else 0.0}"
                 )
         print(
             f"PULLUP_PALM_ORIENTATION side={side} flipped={str(flipped).lower()} "
@@ -1043,6 +1053,7 @@ grip_new = '''# FitPulse pull-up must not re-guess curl direction at every keyfr
 # the upstream per-keyframe behavior.
 FITPULSE_PULLUP_GRIP_SIGNS = None
 FITPULSE_PULLUP_FINGER_BASE_POSES = None
+FITPULSE_PULLUP_GRIP_ANGLE_BONUS = {".L": 0.0, ".R": 0.0}
 FITPULSE_PULLUP_FINGER_CURL = {1: 58, 2: 75, 3: 58}
 FITPULSE_PULLUP_THUMB_CURL = {1: 18, 2: 30, 3: 25}
 
@@ -1207,7 +1218,10 @@ def grip_hands(rig, prop_objs, frame):
                 pb = rig.pose.bones.get(f"finger{f}-{seg}{side}")
                 if pb is None:
                     continue
-                q = Quaternion(axis, math.radians(sign * curls[seg]))
+                angle = curls[seg]
+                if is_fitpulse_pull_up and f != 1:
+                    angle += FITPULSE_PULLUP_GRIP_ANGLE_BONUS.get(side, 0.0)
+                q = Quaternion(axis, math.radians(sign * angle))
                 _rotate_bone_world(pb, q, frame)
                 applied += 1
         print(f"GRIP {side}: {applied} finger bones, sign={finger_sign}/{thumb_sign}"
