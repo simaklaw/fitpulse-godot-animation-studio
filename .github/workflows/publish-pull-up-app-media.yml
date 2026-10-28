@@ -193,6 +193,11 @@ jobs:
           echo "Published payload candidate:"
           du -h assets/fitpulse/pull-up/male/* assets/fitpulse/pull-up/female/*
 
+      # Keep only the intended publication payload under assets/fitpulse.
+      # The downloaded renderer artifact also contains hundreds of intermediate frames and logs.
+      - name: Remove temporary renderer files before staging the publication PR
+        run: rm -rf downloaded output
+
       - name: Open or update a PR with the verified media
         uses: peter-evans/create-pull-request@v7
         with:
