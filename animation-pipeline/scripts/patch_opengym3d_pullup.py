@@ -221,9 +221,10 @@ def add_pull_up_ik(rig, target_positions, frame_end):
                 angle_bonuses = globals().get("FITPULSE_PULLUP_GRIP_ANGLE_BONUS")
                 if angle_bonuses is not None:
                     # The changed palm orientation leaves the index/middle tips
-                    # just above the bar centre. Add a small joint-level curl
-                    # only to the corrected hand, after the sign flip.
-                    angle_bonuses[side] = 8.0
+                    # just above the bar centre. Reduce the curl angle
+                    # only on the corrected hand: this rig's negative curl axis
+                    # moves the distal tips below the bar in the evaluated pose.
+                    angle_bonuses[side] = -8.0
                 print(
                     f"PULLUP_GRIP_SIGN_FLIPPED side={side} "
                     f"finger={finger_sign} thumb={thumb_sign} after_palm_correction=true"
