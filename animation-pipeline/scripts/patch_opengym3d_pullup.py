@@ -205,6 +205,23 @@ def add_pull_up_ik(rig, target_positions, frame_end):
                 raise RuntimeError(f"pull-up palm-orientation gate: degenerate forearm axis on {side}")
             hand_rotation = Quaternion(forearm_axis.normalized(), math.pi) @ hand_rotation
         hand_rotations[side] = hand_rotation
+        if flipped:
+            # Wrist pronation reverses the world-space direction in which the
+            # already-selected finger/thumb curls wrap around the bar. Mirror
+            # both cached curl signs for this hand so the digits still wrap
+            # under the bar after the palm correction.
+            cached_signs = globals().get("FITPULSE_PULLUP_GRIP_SIGNS")
+            if cached_signs is not None and side in cached_signs:
+                finger_sign, thumb_sign = cached_signs[side]
+                if finger_sign is not None:
+                    finger_sign = -finger_sign
+                if thumb_sign is not None:
+                    thumb_sign = -thumb_sign
+                cached_signs[side] = (finger_sign, thumb_sign)
+                print(
+                    f"PULLUP_GRIP_SIGN_FLIPPED side={side} "
+                    f"finger={finger_sign} thumb={thumb_sign} after_palm_correction=true"
+                )
         print(
             f"PULLUP_PALM_ORIENTATION side={side} flipped={str(flipped).lower()} "
             f"dot_before={facing_dot:.3f} dot_after={abs(facing_dot):.3f} desired_front=-Y "
