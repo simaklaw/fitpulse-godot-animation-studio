@@ -1,0 +1,4 @@
+# Temporary files produced by GitHub Actions media publishers and local renders.
+# The publish workflows copy only verified videos, posters and manifests into assets/.
+/downloaded/
+/output/
