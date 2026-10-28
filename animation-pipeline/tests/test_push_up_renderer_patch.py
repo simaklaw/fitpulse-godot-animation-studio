@@ -237,5 +237,16 @@ class PushUpRendererPatchTests(unittest.TestCase):
         self.assertIn("if knee_dev > 0.12:", self.source)
         self.assertNotIn("if knee_dev > 0.25:", self.source)
 
+
+    def test_pullup_inverts_cached_digit_curl_when_palm_is_corrected(self):
+        self.assertIn('cached_signs = globals().get("FITPULSE_PULLUP_GRIP_SIGNS")', self.shared_source)
+        self.assertIn("finger_sign = -finger_sign", self.shared_source)
+        self.assertIn("thumb_sign = -thumb_sign", self.shared_source)
+        self.assertIn("PULLUP_GRIP_SIGN_FLIPPED", self.shared_source)
+
+    def test_pushup_body_angle_gate_is_tightened_without_rejecting_mild_source_tilt(self):
+        self.assertIn("if body_angle > 21.0:", self.source)
+        self.assertNotIn("if body_angle > 24.0:", self.source)
+
 if __name__ == "__main__":
     unittest.main()
