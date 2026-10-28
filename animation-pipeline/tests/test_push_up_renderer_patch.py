@@ -233,7 +233,7 @@ class PushUpRendererPatchTests(unittest.TestCase):
         self.assertIn("leg_ik.chain_count = 5", self.source)
         self.assertIn('bpy.data.objects.new("FitPulsePushUpKneePole" + side, None)', self.source)
         self.assertIn("if body_angle > 21.0:", self.source)
-        self.assertIn("if hip_dev > 0.12:", self.source)
+        self.assertIn("if hip_dev > 0.15:", self.source)
         self.assertIn("if knee_dev > 0.12:", self.source)
         self.assertNotIn("if knee_dev > 0.25:", self.source)
 
@@ -242,6 +242,9 @@ class PushUpRendererPatchTests(unittest.TestCase):
         self.assertIn('cached_signs = globals().get("FITPULSE_PULLUP_GRIP_SIGNS")', self.shared_source)
         self.assertIn("finger_sign = -finger_sign", self.shared_source)
         self.assertIn("thumb_sign = -thumb_sign", self.shared_source)
+        self.assertIn("FITPULSE_PULLUP_GRIP_ANGLE_BONUS = {\".L\": 0.0, \".R\": 0.0}", self.shared_source)
+        self.assertIn("angle_bonuses[side] = 8.0", self.shared_source)
+        self.assertIn("PULLUP_GRIP_CURL_BOOST", self.shared_source)
         self.assertIn("PULLUP_GRIP_SIGN_FLIPPED", self.shared_source)
 
     def test_pushup_body_angle_gate_is_tightened_without_rejecting_mild_source_tilt(self):
