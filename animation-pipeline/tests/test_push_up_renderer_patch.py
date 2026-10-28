@@ -59,7 +59,7 @@ class PushUpRendererPatchTests(unittest.TestCase):
         self.assertIn("tolerance = 0.045", self.shared_source)
         self.assertIn("required_tips = 3", self.shared_source)
         self.assertIn("required_frame_ratio = 0.90", self.shared_source)
-        self.assertIn("below_center_margin = max(0.005, bar_radius * 0.20)", self.shared_source)
+        self.assertIn("below_center_margin = max(0.002, bar_radius * 0.08)", self.shared_source)
         self.assertIn("under_bar = tip.z <= center.z - below_center_margin", self.shared_source)
         self.assertIn("if gap <= tolerance and under_bar:", self.shared_source)
         self.assertIn("FITPULSE_PULLUP_FINGER_CURL = {1: 58, 2: 75, 3: 58}", self.shared_source)
