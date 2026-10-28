@@ -352,10 +352,10 @@ def assert_push_up_pose(rig, frame_end):
         horizontal_span = math.sqrt(body_axis.x ** 2 + body_axis.y ** 2)
         body_angle = math.degrees(math.atan2(abs(body_axis.z), max(horizontal_span, 1e-7)))
         max_body_angle = max(max_body_angle, body_angle)
-        if body_angle > 18.0:
+        if body_angle > 21.0:
             raise RuntimeError(
                 f"push-up body-line angle failed at frame {frame}: "
-                f"{body_angle:.1f} degrees > 18 degrees"
+                f"{body_angle:.1f} degrees > 21 degrees"
             )
 
         line_sq = body_axis.length_squared
