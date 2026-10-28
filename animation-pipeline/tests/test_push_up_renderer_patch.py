@@ -243,7 +243,7 @@ class PushUpRendererPatchTests(unittest.TestCase):
         self.assertIn("finger_sign = -finger_sign", self.shared_source)
         self.assertIn("thumb_sign = -thumb_sign", self.shared_source)
         self.assertIn("FITPULSE_PULLUP_GRIP_ANGLE_BONUS = {\".L\": 0.0, \".R\": 0.0}", self.shared_source)
-        self.assertIn("angle_bonuses[side] = 8.0", self.shared_source)
+        self.assertIn("angle_bonuses[side] = -8.0", self.shared_source)
         self.assertIn("PULLUP_GRIP_CURL_BOOST", self.shared_source)
         self.assertIn("PULLUP_GRIP_SIGN_FLIPPED", self.shared_source)
 
