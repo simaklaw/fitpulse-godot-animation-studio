@@ -3,8 +3,8 @@
   "exerciseId": "pull_up",
   "generatedFrom": {
     "repository": "simaklaw/fitpulse-godot-animation-studio",
-    "commit": "ad778c3637192c2e7c0cd7504d864c93ef257db2",
-    "workflowRunId": 40461983918
+    "commit": "1c67e67b7d464122c904a25dacf462d17206f768",
+    "workflowRunId": 40668509852
   },
   "video": {
     "width": 720,
@@ -49,18 +49,18 @@
     "male": {
       "video": "assets/fitpulse/pull-up/male/pull_up.mp4",
       "poster": "assets/fitpulse/pull-up/male/poster.png",
-      "videoSha256": "00a9bffeb102b3a201e0ff77c04a2157bf3c834a17c6f2f33243d72bdfd1d638",
-      "posterSha256": "0383e0c10a4e0773c42eaa66202b71637b7c5205d9666b527c0523afeb0f7b01",
-      "videoBytes": 76357,
-      "loopSeamMeanAbsoluteRgbDifference": 0.2947
+      "videoSha256": "eac6509366fc732002f67c610b80f9d07c19a6cd28f2739a07f8fca55e21c82d",
+      "posterSha256": "46c6c9b99a09b50ba23db16a9ce8feeab75526fedc36f4df495ff8c4ede72548",
+      "videoBytes": 76840,
+      "loopSeamMeanAbsoluteRgbDifference": 0.2626
     },
     "female": {
       "video": "assets/fitpulse/pull-up/female/pull_up.mp4",
       "poster": "assets/fitpulse/pull-up/female/poster.png",
-      "videoSha256": "668bd8e5431e46423a4e25a986f24ad280e08befecd9434fb9a63a6efd2256ad",
-      "posterSha256": "f1c161ffc8eab01c0826e485302cac38733141b9ca6e57f3b7ae90460b0d9b0b",
-      "videoBytes": 69146,
-      "loopSeamMeanAbsoluteRgbDifference": 0.2541
+      "videoSha256": "3376822e1158c8a0caf824bd77cf7212db29a22507ad8f786c97fe26ba3a9ff6",
+      "posterSha256": "6ba2f17a4bce0196d6990c4cc435821c527f0f16a5e73642e301bce9d82271c3",
+      "videoBytes": 69899,
+      "loopSeamMeanAbsoluteRgbDifference": 0.2532
     }
   }
 }
