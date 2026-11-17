@@ -1,0 +1,27 @@
+[gd_scene format=3 uid="uid://cjgli22fesach"]
+
+[ext_resource type="Script" uid="uid://bl3b6n5ys71c1" path="res://scripts/demo/mocap_player.gd" id="1_player"]
+
+[node name="MocapPlayer" type="Node3D" unique_id=303628129]
+visible = false
+script = ExtResource("1_player")
+play_speed = null
+
+[node name="Squat" type="Node3D" parent="." unique_id=2052863570]
+
+[node name="PushUp" type="Node3D" parent="." unique_id=1315110972]
+
+[node name="Twist" type="Node3D" parent="." unique_id=1721160026]
+
+[node name="PullUp" type="Node3D" parent="." unique_id=494964297]
+
+[node name="Node" type="Node" parent="PullUp" unique_id=1820749172]
+
+[node name="Camera3D" type="Camera3D" parent="." unique_id=1987590408]
+current = true
+fov = 40.0
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=1028828295]
+transform = Transform3D(0.81915206, 0.43938506, -0.36868784, 0, 0.64278764, 0.76604444, 0.57357645, -0.62750685, 0.5265408, 0, 0, 0)
+light_energy = 1.2
+shadow_enabled = true
