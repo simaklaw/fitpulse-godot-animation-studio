@@ -1,0 +1,10 @@
+import {buildAtlas,encodePNG} from './tex.mjs';
+import fs from 'node:fs';
+const a=buildAtlas();
+console.log('atlas',a.size,a.albedo.length);
+const png=encodePNG(a.albedo,a.size,a.size);
+fs.writeFileSync('/storage/emulated/0/Documents/fitpulse/assets/previews/tex_albedo.png',png);
+console.log('albedo png',png.length);
+const n=encodePNG(a.normal,a.size,a.size);
+fs.writeFileSync('/storage/emulated/0/Documents/fitpulse/assets/previews/tex_normal.png',n);
+console.log('normal png',n.length);
