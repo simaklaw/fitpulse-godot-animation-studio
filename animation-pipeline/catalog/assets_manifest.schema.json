@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fitpulse.example/schemas/assets-manifest-v1.json",
+  "title": "FitPulse Animation Studio Assets Manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "updated", "assets"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "updated": { "type": "string", "minLength": 1 },
+    "notes_ru": { "type": "string" },
+    "assets": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/asset" }
+    }
+  },
+  "$defs": {
+    "asset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "path", "source", "license", "sha256"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "godot_import_cache",
+            "pack_animation_glb",
+            "retarget_glb",
+            "character_gltf",
+            "texture",
+            "other"
+          ]
+        },
+        "path": { "type": "string", "minLength": 1 },
+        "r2_key": { "type": ["string", "null"] },
+        "source": { "type": "string", "minLength": 1 },
+        "license": { "type": "string", "minLength": 1 },
+        "license_tier": { "type": ["string", "null"] },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$|^unknown$"
+        },
+        "bytes": { "type": ["integer", "null"], "minimum": 0 },
+        "skeleton": { "type": ["string", "null"] },
+        "animation_name": { "type": ["string", "null"] },
+        "duration_sec": { "type": ["number", "null"], "minimum": 0 },
+        "fps": { "type": ["number", "null"], "minimum": 0 },
+        "maps_to_exercise": { "type": ["string", "null"] },
+        "notes_ru": { "type": "string" }
+      }
+    }
+  }
+}
