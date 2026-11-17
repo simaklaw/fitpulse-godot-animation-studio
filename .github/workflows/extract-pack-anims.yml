@@ -1,7 +1,6 @@
 name: Extract pack animations (.scn → GLB)
 
-# T1.1 — черновик. Godot image: 4.3 (barichello) как в validate-exercise-catalog;
-# при наличии 4.7.x image — заменить и отчитаться.
+# T1.1 — черновик. Godot image: barichello/godot-ci:4.7.2 (совпадает с редактором владельца).
 on:
   workflow_dispatch:
     inputs:
@@ -25,7 +24,7 @@ jobs:
   extract:
     runs-on: ubuntu-latest
     container:
-      image: barichello/godot-ci:4.3
+      image: barichello/godot-ci:4.7.2
     steps:
       - uses: actions/checkout@v4
 
