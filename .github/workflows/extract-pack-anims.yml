@@ -33,6 +33,7 @@ jobs:
         run: mkdir -p out
 
       - name: Extract animation to GLB
+        shell: bash
         run: |
           set -euo pipefail
           godot --version
