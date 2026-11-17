@@ -1,0 +1,11 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "godot-mcp",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-20",
+  "vars": {
+    "GITHUB_OWNER": "simaklaw",
+    "GITHUB_REPO": "fitpulse-godot-animation-studio",
+    "GITHUB_BRANCH": "main"
+  }
+}
