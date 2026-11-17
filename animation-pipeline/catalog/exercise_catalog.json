@@ -1522,6 +1522,254 @@
       },
       "production_status": "brief_only",
       "human_review_evidence": null
+    },
+    {
+      "id": "standing_oblique_twists",
+      "name_ru": "Скручивания корпуса стоя",
+      "name_en": "Standing Oblique Twists",
+      "category": "strength",
+      "environments": [
+        "home",
+        "gym"
+      ],
+      "equipment": [],
+      "equipment_alternatives": [],
+      "difficulty": "beginner",
+      "unilateral": false,
+      "movement": {
+        "pattern": "rotation",
+        "mode": "repetition",
+        "fps": 30,
+        "duration_s": 2.4,
+        "loop": true,
+        "phases": [
+          {
+            "id": "neutral",
+            "name_ru": "Нейтральная стойка",
+            "time": 0,
+            "kind": "setup",
+            "cue_ru": "Стопы на ширине таза, таз стабилен, руки перед грудью."
+          },
+          {
+            "id": "twist_left",
+            "name_ru": "Поворот влево",
+            "time": 0.25,
+            "kind": "concentric",
+            "cue_ru": "Грудная клетка поворачивается, таз почти не уходит."
+          },
+          {
+            "id": "neutral_mid",
+            "name_ru": "Возврат в центр",
+            "time": 0.5,
+            "kind": "transition",
+            "cue_ru": "Плечи возвращаются над тазом без рывка."
+          },
+          {
+            "id": "twist_right",
+            "name_ru": "Поворот вправо",
+            "time": 0.75,
+            "kind": "concentric",
+            "cue_ru": "Та же амплитуда в другую сторону."
+          },
+          {
+            "id": "neutral_return",
+            "name_ru": "Замыкание цикла",
+            "time": 1,
+            "kind": "return",
+            "cue_ru": "Поза совпадает с началом."
+          }
+        ],
+        "renderer_adapter": "mocap_twist"
+      },
+      "primary_muscles": [
+        "obliques"
+      ],
+      "secondary_muscles": [
+        "erector_spinae"
+      ],
+      "technique": {
+        "setup_ru": "Стоя, колени мягкие, стопы прижаты. Руки собраны перед грудью или слегка разведены.",
+        "instructions_ru": [
+          "Поверни грудную клетку в одну сторону, не отрывая стоп.",
+          "Вернись в центр контролируемо.",
+          "Повтори в другую сторону с той же амплитудой.",
+          "Таз остаётся относительно неподвижным; вращение идёт выше."
+        ],
+        "cues_ru": [
+          "Стопы не крутятся по полу.",
+          "Колени не заваливаются вслед за плечами.",
+          "Шея следует корпусу, не обгоняет его."
+        ],
+        "common_errors_ru": [
+          "Вращение только руками при неподвижной грудной клетке.",
+          "Таз и стопы разворачиваются вместе с плечами.",
+          "Рывок в крайнем положении."
+        ],
+        "breathing_ru": "Выдох на повороте, вдох при возврате в центр.",
+        "safety_ru": "Амплитуда без боли в пояснице; не форсировать крайний поворот."
+      },
+      "quality_gates": [
+        "full_body_in_frame",
+        "mobile_readability",
+        "joint_continuity",
+        "loop_seam",
+        "human_technique_review",
+        "stable_trunk",
+        "side_symmetry",
+        "foot_floor_contact",
+        "transparency",
+        "male_female_distinction"
+      ],
+      "media_profiles": {
+        "male": {
+          "status": "brief_only",
+          "sprite_frames": null,
+          "poster": null,
+          "video": null,
+          "source_commit": null,
+          "sha256": null
+        },
+        "female": {
+          "status": "brief_only",
+          "sprite_frames": null,
+          "poster": null,
+          "video": null,
+          "source_commit": null,
+          "sha256": null
+        }
+      },
+      "production_status": "brief_only",
+      "human_review_evidence": null
+    },
+    {
+      "id": "hanging_leg_raises",
+      "name_ru": "Подъём ног в висе",
+      "name_en": "Hanging Leg Raises",
+      "category": "strength",
+      "environments": [
+        "gym"
+      ],
+      "equipment": [
+        "pull_up_bar"
+      ],
+      "equipment_alternatives": [
+        {
+          "name_ru": "Подъём ног лёжа",
+          "equipment": [],
+          "environment": "home",
+          "note_ru": "Домашняя замена без перекладины; не тот же контакт хвата."
+        }
+      ],
+      "difficulty": "intermediate",
+      "unilateral": false,
+      "movement": {
+        "pattern": "hanging_hip_flexion",
+        "mode": "repetition",
+        "fps": 30,
+        "duration_s": 3.0,
+        "loop": true,
+        "phases": [
+          {
+            "id": "hang",
+            "name_ru": "Вис",
+            "time": 0,
+            "kind": "setup",
+            "cue_ru": "Хват закрыт, плечи активны, ноги почти прямые."
+          },
+          {
+            "id": "raise",
+            "name_ru": "Подъём ног",
+            "time": 0.4,
+            "kind": "concentric",
+            "cue_ru": "Таз слегка подкручивается, ноги поднимаются без раскачки."
+          },
+          {
+            "id": "top",
+            "name_ru": "Верхняя точка",
+            "time": 0.55,
+            "kind": "top",
+            "cue_ru": "Амплитуда контролируемая; хват не раскрывается."
+          },
+          {
+            "id": "lower",
+            "name_ru": "Опускание",
+            "time": 0.85,
+            "kind": "eccentric",
+            "cue_ru": "Ноги опускаются без маятника."
+          },
+          {
+            "id": "hang_return",
+            "name_ru": "Возврат в вис",
+            "time": 1,
+            "kind": "return",
+            "cue_ru": "Тело снова под перекладиной, как в начале."
+          }
+        ],
+        "renderer_adapter": "mocap_bar_leg_raise"
+      },
+      "primary_muscles": [
+        "hip_flexors",
+        "rectus_abdominis"
+      ],
+      "secondary_muscles": [
+        "obliques",
+        "forearms"
+      ],
+      "technique": {
+        "setup_ru": "Вис на перекладине прямым хватом примерно на ширине плеч. Лопатки слегка опущены.",
+        "instructions_ru": [
+          "Не раскачивайся: начни движение с подкручивания таза.",
+          "Подними ноги до контролируемой высоты, сохраняя хват.",
+          "Опусти ноги медленно в исходный вис.",
+          "Плечи не проваливаются в пассивный вис на каждом повторе."
+        ],
+        "cues_ru": [
+          "Кисти остаются закрытыми на перекладине.",
+          "Корпус не превращается в маятник.",
+          "Колени могут быть слегка согнуты, если иначе нет контроля."
+        ],
+        "common_errors_ru": [
+          "Замах ногами за счёт раскачки.",
+          "Хват раскрывается в верхней точке.",
+          "Поясница сильно прогибается в висе перед стартом."
+        ],
+        "breathing_ru": "Выдох на подъёме, вдох на опускании.",
+        "safety_ru": "Остановиться при боли в плечах или пояснице. Не использовать инерцию как основной двигатель."
+      },
+      "quality_gates": [
+        "full_body_in_frame",
+        "mobile_readability",
+        "joint_continuity",
+        "loop_seam",
+        "human_technique_review",
+        "fixed_equipment",
+        "hand_contact",
+        "grip_flexion",
+        "foot_clearance",
+        "stable_trunk",
+        "transparency",
+        "male_female_distinction"
+      ],
+      "media_profiles": {
+        "male": {
+          "status": "brief_only",
+          "sprite_frames": null,
+          "poster": null,
+          "video": null,
+          "source_commit": null,
+          "sha256": null
+        },
+        "female": {
+          "status": "brief_only",
+          "sprite_frames": null,
+          "poster": null,
+          "video": null,
+          "source_commit": null,
+          "sha256": null
+        }
+      },
+      "production_status": "brief_only",
+      "human_review_evidence": null
     }
   ]
 }
