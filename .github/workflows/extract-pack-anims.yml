@@ -1,0 +1,73 @@
+name: Extract pack animations (.scn → GLB)
+
+# T1.1 — черновик. Godot image: 4.3 (barichello) как в validate-exercise-catalog;
+# при наличии 4.7.x image — заменить и отчитаться.
+on:
+  workflow_dispatch:
+    inputs:
+      scn_path:
+        description: "Path to .scn under assets sport/"
+        required: true
+        default: "assets sport/AS_Calisthenics_001_Squats.FBX-15535a030ec924b9640a07499c98abc9.scn"
+      exercise_id:
+        description: "Catalog exercise id (for artifact naming)"
+        required: true
+        default: "bodyweight_squat"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: extract-pack-${{ github.ref }}-${{ inputs.exercise_id }}
+  cancel-in-progress: false
+
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    container:
+      image: barichello/godot-ci:4.3
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prepare output dir
+        run: mkdir -p out
+
+      - name: Extract animation to GLB
+        run: |
+          set -euo pipefail
+          godot --version
+          OUT="out/${{ inputs.exercise_id }}.glb"
+          godot --headless --path . \
+            --script animation-pipeline/tools/extract_anim.gd \
+            -- --input "${{ inputs.scn_path }}" --output "$OUT" \
+            || true
+          ls -la out/ || true
+          if [ ! -f "$OUT" ]; then
+            echo "WARN: GLB not produced — .scn may need Godot 4.7 import or F1 phone export"
+            echo "See docs/AGENT_PLAN.md F1 fallback"
+            exit 1
+          fi
+
+      - name: Upload extract artifacts (report + GLB for inspection only)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: extract-${{ inputs.exercise_id }}
+          path: |
+            out/${{ inputs.exercise_id }}.glb
+            out/${{ inputs.exercise_id }}.extract.json
+          if-no-files-found: warn
+          retention-days: 7
+
+      # T1.3: после зелёного T1.2 — загрузка в R2 (секреты R2_*)
+      # - name: Upload GLB to R2 pack-anim/
+      #   if: success()
+      #   env:
+      #     AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      #     AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      #     AWS_DEFAULT_REGION: auto
+      #   run: |
+      #     pip install -q awscli
+      #     aws s3 cp "out/${{ inputs.exercise_id }}.glb" \
+      #       "s3://fitpulse-studio-raw/pack-anim/${{ inputs.exercise_id }}/${{ github.sha }}.glb" \
+      #       --endpoint-url "https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com"
