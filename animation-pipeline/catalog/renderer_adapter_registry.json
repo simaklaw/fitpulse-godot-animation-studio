@@ -213,6 +213,42 @@
       "known_limits": [
         "A hold needs an exit pose/timing policy rather than a forced looping repetition."
       ]
+    },
+    {
+      "id": "mocap_twist",
+      "name_ru": "Скручивание стоя (mocap)",
+      "status": "planned",
+      "input_bridge": null,
+      "contact_model": "both feet grounded; rotation above pelvis; hands free of equipment",
+      "constraints": [
+        "foot_floor_contact",
+        "stable_trunk",
+        "side_symmetry",
+        "joint_continuity",
+        "loop_seam"
+      ],
+      "known_limits": [
+        "Source motion is SportDemoAnimPack AS_Calisthenics_044; do not invent keyframes."
+      ]
+    },
+    {
+      "id": "mocap_bar_leg_raise",
+      "name_ru": "Подъём ног в висе (mocap)",
+      "status": "planned",
+      "input_bridge": null,
+      "contact_model": "closed grip on fixed bar; feet clear of floor",
+      "constraints": [
+        "fixed_equipment",
+        "hand_contact",
+        "grip_flexion",
+        "foot_clearance",
+        "stable_trunk",
+        "joint_continuity",
+        "loop_seam"
+      ],
+      "known_limits": [
+        "Source motion is SportDemoAnimPack AS_PullUpBar_016_Half_Leg_Raises; half-raise range must be preserved, not exaggerated."
+      ]
     }
   ]
 }
