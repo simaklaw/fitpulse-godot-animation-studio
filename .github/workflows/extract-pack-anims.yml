@@ -47,17 +47,18 @@ jobs:
             echo "See docs/AGENT_PLAN.md F1 fallback"
             exit 1
           fi
+          sha256sum "$OUT" | tee "out/${{ inputs.exercise_id }}.sha256"
+          # Pack GLB must not become a public Actions artifact (AGENTS.md rule 5).
+          rm -f "$OUT"
 
-      - name: Upload extract artifacts (report + GLB for inspection only)
+      - name: Upload extract report only (no pack GLB)
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: extract-${{ inputs.exercise_id }}
-          path: |
-            out/${{ inputs.exercise_id }}.glb
-            out/${{ inputs.exercise_id }}.extract.json
+          name: extract-report-${{ inputs.exercise_id }}
+          path: out/${{ inputs.exercise_id }}.extract.json
           if-no-files-found: warn
-          retention-days: 7
+          retention-days: 14
 
       # T1.3: после зелёного T1.2 — загрузка в R2 (секреты R2_*)
       # - name: Upload GLB to R2 pack-anim/
