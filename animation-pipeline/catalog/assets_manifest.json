@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "updated": "2026-11-17",
-  "notes_ru": "Манифест входных ассетов партии 1. Поля animation_name/duration_sec/fps заполняются после T1.2 (извлечение из .scn). Fab license tier — уточнить у владельца. Промежуточные GLB только в R2, не в git.",
+  "updated": "2026-11-19",
+  "notes_ru": "Манифест входных ассетов партии 1. Поля animation_name/duration_sec/fps заполняются после T1.2 (извлечение из .scn). Fab license tier — уточнить у владельца. Промежуточные GLB только в R2, не в git. T1.2: 4/4 .scn извлечены Godot 4.7.2, клип Unreal Take. GLB только в CI artifacts (7 дней), не в git. R2 ещё не подтверждён.",
   "assets": [
     {
       "id": "scn_calisthenics_001_squats",
@@ -14,11 +14,11 @@
       "sha256": "5173526b129c477a4ba338dc09e163390a28c462b15c1a647663bc4f9141a667",
       "bytes": 2520034,
       "skeleton": "UE + correction (clavicle_scap_*, *_twist_*, calf_kneeBack_*)",
-      "animation_name": null,
-      "duration_sec": null,
-      "fps": null,
+      "animation_name": "Unreal Take",
+      "duration_sec": 1.56666666666667,
+      "fps": 30,
       "maps_to_exercise": "bodyweight_squat",
-      "notes_ru": "Импорт-кэш .scn; оригинальный FBX в репо отсутствует. Вход конвейера до T1.4."
+      "notes_ru": "Импорт-кэш .scn; оригинальный FBX в репо отсутствует. Вход конвейера до T1.4. T1.2 Godot 4.7.2 run 44107426996. GLB CI-only sha256=78974d5839c2808dd6a74f13db8466438c31afb2f0ede6e220af19372510ac57 bytes=4845268 tracks=228 bones=161. Not in git."
     },
     {
       "id": "scn_calisthenics_004_push_ups",
@@ -31,11 +31,11 @@
       "sha256": "158000b98183fde83eb0cbb4b647ad7c96cdc58074f078aca13684717e26849e",
       "bytes": 2500821,
       "skeleton": "UE + correction (clavicle_scap_*, *_twist_*, calf_kneeBack_*)",
-      "animation_name": null,
-      "duration_sec": null,
-      "fps": null,
+      "animation_name": "Unreal Take",
+      "duration_sec": 2.2,
+      "fps": 30,
       "maps_to_exercise": "push_up",
-      "notes_ru": "Импорт-кэш .scn; оригинальный FBX в репо отсутствует. Вход конвейера до T1.4."
+      "notes_ru": "Импорт-кэш .scn; оригинальный FBX в репо отсутствует. Вход конвейера до T1.4. T1.2 run 44107648858. GLB sha256=992dbc8c5a6d2a9568d4598c5a2f17d029be9cf12d7cea2d9af5cf479fe8017b bytes=4834304 tracks=212 bones=161."
     },
     {
       "id": "scn_calisthenics_044_standing_oblique_twists",
@@ -48,11 +48,11 @@
       "sha256": "4d0cbc3cb78c6c6686bcf6314456d4031ef68c2aa33a20d5647bd346cfd9eae8",
       "bytes": 2521573,
       "skeleton": "UE + correction (clavicle_scap_*, *_twist_*, calf_kneeBack_*)",
-      "animation_name": null,
-      "duration_sec": null,
-      "fps": null,
+      "animation_name": "Unreal Take",
+      "duration_sec": 3.43333333333333,
+      "fps": 30,
       "maps_to_exercise": "standing_oblique_twists",
-      "notes_ru": "Импорт-кэш .scn. Новый brief в каталоге — T5.1."
+      "notes_ru": "Импорт-кэш .scn. Новый brief в каталоге — T5.1. T1.2 run 44107655208. GLB sha256=59cc0b38115e6a8366e0288edddc2ec3836aa3759447168607edcb7920ade215 bytes=4837840 tracks=231 bones=161."
     },
     {
       "id": "scn_pullupbar_016_half_leg_raises",
@@ -65,11 +65,11 @@
       "sha256": "09a87d631b3495a135d0ba5d153f4a3143c15286be0a89d542824fbe55ae434f",
       "bytes": 2601024,
       "skeleton": "UE + correction (clavicle_scap_*, *_twist_*, calf_kneeBack_*)",
-      "animation_name": null,
-      "duration_sec": null,
-      "fps": null,
+      "animation_name": "Unreal Take",
+      "duration_sec": 3.03333333333333,
+      "fps": 30,
       "maps_to_exercise": "hanging_leg_raises",
-      "notes_ru": "Импорт-кэш .scn. Новый brief в каталоге — T5.1."
+      "notes_ru": "Импорт-кэш .scn. Новый brief в каталоге — T5.1. T1.2 run 44107661467. GLB sha256=10d8191579345d5c2f5035528dc97e277337d30271e0bbe9c4a0d82ab3b65d0c bytes=5018456 tracks=231 bones=161."
     },
     {
       "id": "quaternius_universal_base_characters_standard",
