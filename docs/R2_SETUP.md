@@ -75,3 +75,8 @@ Settings → Secrets and variables → Actions → New repository secret:
 - [ ] В git / public artifacts нет GLB пака.
 
 После этого можно запускать T1.3 (загрузка извлечённых GLB).
+
+
+## Решение владельца 2026-11-21
+
+Бакет и секреты не заводим. Партия 1 пересобирает GLB из `.scn` в том же CI-job и удаляет его до upload.
