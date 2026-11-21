@@ -86,7 +86,24 @@
       "duration_sec": null,
       "fps": null,
       "maps_to_exercise": null,
-      "notes_ru": "CC0, itch standard zip 2026-11-21. Только Superhero. Female glTF sha256=adedf28000a0716f689b009a70314506fc62f827498f77ba852acb5610f3f3f4. Текстуры не включены. .gdignore. R2 не используем: GLB пака собирается из .scn в CI и удаляется."
+      "notes_ru": "CC0, itch standard zip 2026-11-21. Только Superhero. Female glTF sha256=adedf28000a0716f689b009a70314506fc62f827498f77ba852acb5610f3f3f4. Текстуры не включены. .gdignore. R2 не используем: GLB пака собирается из .scn в CI и удаляется. НЕ целевой персонаж партии 1: владелец отклонил Superhero-силуэт."
+    },
+    {
+      "id": "meshy_body_2026_11_21",
+      "kind": "character_gltf",
+      "path": "characters/meshy/meshy_textured.glb",
+      "r2_key": null,
+      "source": "Meshy export uploaded by owner 2026-11-21",
+      "license": "owner-supplied Meshy generation (terms: Meshy). Not CC0.",
+      "license_tier": "owner",
+      "sha256": "e05e46697a719ad1a8b276c84285ab1b69de57d65f5d9261a158cc489b0c00bd",
+      "bytes": 14098832,
+      "skeleton": null,
+      "animation_name": null,
+      "duration_sec": null,
+      "fps": null,
+      "maps_to_exercise": null,
+      "notes_ru": "Текстурированный GLB (UV + 3 WebP, EXT_texture_webp). Скина нет, клипов нет, 464158 треугольников. Дубль без текстуры удалён из корня. Ретаргет невозможен до авторига и упрощения. .gdignore."
     }
   ]
 }
