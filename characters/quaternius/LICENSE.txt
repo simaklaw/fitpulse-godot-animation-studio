@@ -1,0 +1,8 @@
+Universal Base Characters [Standard] by Quaternius
+Source: https://quaternius.itch.io/universal-base-characters
+License: CC0 1.0 Universal
+Downloaded: 2026-11-21 (free standard zip, not the paid Source kit).
+
+This folder keeps only the Godot-UE full-body glTF for Superhero male and female.
+The free zip does not include Regular or Teen proportions.
+Textures are omitted here; the meshes still carry the skeleton.
